@@ -6,6 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { ConversationList } from '@/components/inbox/conversation-list'
 import { ChatThread } from '@/components/inbox/chat-thread'
 import { MessageSquare } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export interface Conversation {
   id: string
@@ -139,9 +140,14 @@ export default function InboxPage() {
   const selectedConvo = conversations.find((c) => c.id === selectedConvoId)
 
   return (
-    <div className="-m-4 flex h-[calc(100vh-4rem)] sm:-m-6">
+    <div className="-m-4 flex h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-4rem)] sm:-m-6">
       {/* Conversation list */}
-      <div className="w-80 shrink-0 border-r border-border bg-background">
+      <div
+        className={cn(
+          'w-full md:w-80 shrink-0 border-r border-border bg-background',
+          selectedConvoId ? 'hidden md:block' : 'block'
+        )}
+      >
         <ConversationList
           conversations={conversations}
           selectedId={selectedConvoId}
@@ -152,19 +158,30 @@ export default function InboxPage() {
       </div>
 
       {/* Chat area */}
-      <div className="flex flex-1 flex-col">
+      <div
+        className={cn(
+          'flex-1 flex-col',
+          selectedConvoId ? 'flex' : 'hidden md:flex'
+        )}
+      >
         {selectedConvo ? (
           <ChatThread
             conversation={selectedConvo}
             messages={messages}
             onMessageSent={handleMessageSent}
+            onBack={() => setSelectedConvoId(null)}
           />
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
-            <MessageSquare className="h-12 w-12 text-muted-foreground/30" />
-            <p className="text-sm">
-              Sélectionnez une conversation ou attendez un message entrant
-            </p>
+          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground p-6 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#fe5105]/10 text-[#fe5105]">
+              <MessageSquare className="h-8 w-8" />
+            </div>
+            <div>
+              <p className="text-base font-semibold text-foreground">Votre boîte de réception WhatsApp</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                Sélectionnez une discussion à gauche pour répondre à vos clients ou attendez l&apos;arrivée d&apos;un nouveau message.
+              </p>
+            </div>
           </div>
         )}
       </div>

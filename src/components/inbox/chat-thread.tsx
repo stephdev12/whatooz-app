@@ -8,6 +8,7 @@ import {
   Check,
   CheckCheck,
   Phone,
+  ArrowLeft,
 } from 'lucide-react'
 import type { Conversation, Message } from '@/app/dashboard/inbox/page'
 
@@ -15,12 +16,14 @@ interface ChatThreadProps {
   conversation: Conversation
   messages: Message[]
   onMessageSent: () => void
+  onBack?: () => void
 }
 
 export function ChatThread({
   conversation,
   messages,
   onMessageSent,
+  onBack,
 }: ChatThreadProps) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
@@ -76,7 +79,17 @@ export function ChatThread({
     <div className="flex h-full flex-col">
       {/* Chat header */}
       <div className="flex items-center gap-3 border-b border-border bg-background px-4 py-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fe5105]/10 text-sm font-semibold text-[#fe5105]">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="md:hidden rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground -ml-1 mr-1"
+            title="Retour aux discussions"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+        )}
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fe5105]/10 text-sm font-semibold text-[#fe5105]">
           {(conversation.contact_name || conversation.contact_phone || '?')
             .charAt(0)
             .toUpperCase()}

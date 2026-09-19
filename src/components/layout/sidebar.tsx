@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import {
+  LayoutDashboard,
   MessageSquare,
   FileText,
   Layers,
@@ -14,17 +15,18 @@ import {
 
 const navItems = [
   {
-    label: 'Inbox',
+    label: 'Tableau de bord',
+    href: '/dashboard',
+    exact: true,
+    icon: LayoutDashboard,
+  },
+  {
+    label: 'Messagerie (Inbox)',
     href: '/dashboard/inbox',
     icon: MessageSquare,
   },
   {
-    label: 'Templates',
-    href: '/dashboard/templates',
-    icon: FileText,
-  },
-  {
-    label: 'Flows',
+    label: 'WhatsApp Flows',
     href: '/dashboard/flows',
     icon: Layers,
   },
@@ -32,6 +34,11 @@ const navItems = [
     label: 'Automatisations',
     href: '/dashboard/automations',
     icon: Zap,
+  },
+  {
+    label: 'Modèles Meta',
+    href: '/dashboard/templates',
+    icon: FileText,
   },
   {
     label: 'Paramètres',
@@ -86,7 +93,9 @@ export function Sidebar({ open, onClose }: SidebarProps) {
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-3 py-4">
           {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href)
+            const isActive = item.exact
+              ? pathname === item.href
+              : pathname.startsWith(item.href)
             return (
               <Link
                 key={item.href}
@@ -95,11 +104,11 @@ export function Sidebar({ open, onClose }: SidebarProps) {
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                   isActive
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                    ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
                     : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
                 )}
               >
-                <item.icon className="h-4 w-4" />
+                <item.icon className={cn('h-4 w-4', isActive && 'text-[#fe5105]')} />
                 {item.label}
               </Link>
             )

@@ -197,6 +197,7 @@ export default function FlowsPage() {
   const [saving, setSaving] = useState(false)
   const [builderError, setBuilderError] = useState('')
   const [builderMode, setBuilderMode] = useState<'visual' | 'json'>('visual')
+  const [mobileBuilderTab, setMobileBuilderTab] = useState<'editor' | 'preview'>('editor')
   const [rawJsonInput, setRawJsonInput] = useState('')
   const [syncing, setSyncing] = useState(false)
 
@@ -1289,9 +1290,42 @@ export default function FlowsPage() {
                   </div>
                 </div>
 
+                {/* Mobile Tab Switcher: Editor vs Smartphone Preview */}
+                <div className="flex lg:hidden items-center justify-center p-1 rounded-xl bg-secondary border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setMobileBuilderTab('editor')}
+                    className={cn(
+                      'flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5',
+                      mobileBuilderTab === 'editor'
+                        ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    <Edit3 className="h-3.5 w-3.5 text-[#fe5105]" />
+                    <span>Éditeur de pages</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileBuilderTab('preview')}
+                    className={cn(
+                      'flex-1 py-2 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5',
+                      mobileBuilderTab === 'preview'
+                        ? 'bg-card text-foreground shadow-xs border border-border/80 font-bold'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    <Smartphone className="h-3.5 w-3.5 text-[#fe5105]" />
+                    <span>Aperçu Smartphone ({previewScreenIndex + 1}/{screens.length})</span>
+                  </button>
+                </div>
+
                 <div className="grid gap-6 lg:grid-cols-12">
                   {/* Left Column: Active Screen Config & Fields */}
-                  <div className="space-y-4 lg:col-span-7">
+                  <div className={cn(
+                    'space-y-4 lg:col-span-7',
+                    mobileBuilderTab === 'editor' ? 'block' : 'hidden lg:block'
+                  )}>
                     {/* Active Screen Settings */}
                     <div className="rounded-xl border border-border bg-card p-4 space-y-3 shadow-xs">
                       <div className="flex flex-wrap items-center justify-between border-b border-border pb-2 gap-2">
@@ -1608,7 +1642,10 @@ export default function FlowsPage() {
                   </div>
 
                   {/* Right Column: Live Interactive WhatsApp Mobile Preview */}
-                  <div className="flex flex-col items-center lg:col-span-5">
+                  <div className={cn(
+                    'flex flex-col items-center lg:col-span-5',
+                    mobileBuilderTab === 'preview' ? 'flex' : 'hidden lg:flex'
+                  )}>
                     <div className="mb-2 flex items-center justify-between w-full max-w-[320px]">
                       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                         <Smartphone className="h-4 w-4 text-[#fe5105]" />
