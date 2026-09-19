@@ -112,34 +112,33 @@ export async function POST(request: NextRequest) {
       const phoneNumberId = value.metadata?.phone_number_id
       if (!phoneNumberId) continue
 
-      // Find the user config associated with this WhatsApp Phone Number ID
-      let { data: config } = await supabaseAdmin
+      // Find user configs associated with this WhatsApp Phone Number ID
+      let { data: configs } = await supabaseAdmin
         .from('whatsapp_config')
         .select('user_id')
         .eq('phone_number_id', phoneNumberId)
-        .maybeSingle()
 
       // Resilient fallback: If using a Meta test number or phone_number_id not yet matched,
-      // fallback to the active connected WhatsApp config in Whatooz.
-      if (!config?.user_id) {
+      // fallback to all active connected WhatsApp configs in Whatooz.
+      if (!configs || configs.length === 0) {
         console.warn(`[Webhook POST] No user config found for phone_number_id: ${phoneNumberId}. Trying active config fallback...`)
-        const { data: fallbackConfig } = await supabaseAdmin
+        const { data: fallbackConfigs } = await supabaseAdmin
           .from('whatsapp_config')
           .select('user_id')
           .order('updated_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
+          .limit(10)
 
-        if (fallbackConfig?.user_id) {
-          console.log(`[Webhook POST] Using fallback user_id: ${fallbackConfig.user_id}`)
-          config = fallbackConfig
-        } else {
-          console.warn('[Webhook POST] No WhatsApp config at all found in database. Skipping.')
-          continue
-        }
+        configs = fallbackConfigs || []
       }
 
-      const userId = config.user_id
+      const targetUserIds = Array.from(new Set((configs || []).map((c) => c.user_id).filter(Boolean)))
+
+      if (targetUserIds.length === 0) {
+        console.warn('[Webhook POST] No WhatsApp config found in database. Skipping.')
+        continue
+      }
+
+      console.log(`[Webhook POST] Dispatching inbound event to users: ${targetUserIds.join(', ')}`)
 
       // 1. Process Inbound Messages
       const messages = value.messages ?? []
@@ -179,13 +178,15 @@ export async function POST(request: NextRequest) {
               } catch {
                 responseData = { raw: nfm.response_json }
               }
-              // Save response in flow_responses table
-              await supabaseAdmin.from('flow_responses').insert({
-                user_id: userId,
-                contact_phone: senderPhone,
-                contact_name: senderProfileName,
-                response_data: responseData,
-              })
+              // Save response in flow_responses table for all target users
+              for (const uid of targetUserIds) {
+                await supabaseAdmin.from('flow_responses').insert({
+                  user_id: uid,
+                  contact_phone: senderPhone,
+                  contact_name: senderProfileName,
+                  response_data: responseData,
+                })
+              }
               const previewFields = Object.entries(responseData)
                 .map(([k, v]) => `${k}: ${v}`)
                 .join(', ')
@@ -213,86 +214,100 @@ export async function POST(request: NextRequest) {
             contentText = `[${msg.type}]`
         }
 
-        // Find or create Contact (using maybeSingle to avoid PGRST116 errors)
-        let contactId: string | null = null
-        const { data: existingContact } = await supabaseAdmin
-          .from('contacts')
-          .select('id')
-          .eq('user_id', userId)
-          .eq('phone', senderPhone)
-          .maybeSingle()
+        // Broadcast inbound message to each target user's conversation thread
+        let primaryConversationId: string | null = null
+        let primaryUserId: string = targetUserIds[0]
 
-        if (existingContact) {
-          contactId = existingContact.id
-        } else {
-          const { data: newContact } = await supabaseAdmin
+        for (const userId of targetUserIds) {
+          // Find or create Contact
+          let contactId: string | null = null
+          const { data: existingContact } = await supabaseAdmin
             .from('contacts')
-            .insert({
-              user_id: userId,
-              phone: senderPhone,
-              name: senderProfileName,
-            })
             .select('id')
+            .eq('user_id', userId)
+            .eq('phone', senderPhone)
             .maybeSingle()
 
-          contactId = newContact?.id ?? null
-        }
+          if (existingContact) {
+            contactId = existingContact.id
+          } else {
+            const { data: newContact } = await supabaseAdmin
+              .from('contacts')
+              .insert({
+                user_id: userId,
+                phone: senderPhone,
+                name: senderProfileName,
+              })
+              .select('id')
+              .maybeSingle()
 
-        // Find or create Conversation
-        let conversationId: string | null = null
-        const { data: existingConvo } = await supabaseAdmin
-          .from('conversations')
-          .select('id, unread_count')
-          .eq('user_id', userId)
-          .eq('contact_phone', senderPhone)
-          .maybeSingle()
+            contactId = newContact?.id ?? null
+          }
 
-        if (existingConvo) {
-          conversationId = existingConvo.id
-          // Update existing conversation
-          await supabaseAdmin
+          // Find or create Conversation
+          let conversationId: string | null = null
+          const { data: existingConvo } = await supabaseAdmin
             .from('conversations')
-            .update({
-              last_message_text: contentText,
-              last_message_at: timestamp,
-              unread_count: (existingConvo.unread_count || 0) + 1,
-              status: 'open',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('id', conversationId)
-        } else {
-          const { data: newConvo } = await supabaseAdmin
-            .from('conversations')
-            .insert({
-              user_id: userId,
-              contact_id: contactId,
-              contact_phone: senderPhone,
-              contact_name: senderProfileName,
-              status: 'open',
-              last_message_text: contentText,
-              last_message_at: timestamp,
-              unread_count: 1,
-            })
-            .select('id')
+            .select('id, unread_count')
+            .eq('user_id', userId)
+            .eq('contact_phone', senderPhone)
             .maybeSingle()
 
-          conversationId = newConvo?.id ?? null
+          if (existingConvo) {
+            conversationId = existingConvo.id
+            await supabaseAdmin
+              .from('conversations')
+              .update({
+                last_message_text: contentText,
+                last_message_at: timestamp,
+                unread_count: (existingConvo.unread_count || 0) + 1,
+                status: 'open',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', conversationId)
+          } else {
+            const { data: newConvo } = await supabaseAdmin
+              .from('conversations')
+              .insert({
+                user_id: userId,
+                contact_id: contactId,
+                contact_phone: senderPhone,
+                contact_name: senderProfileName,
+                status: 'open',
+                last_message_text: contentText,
+                last_message_at: timestamp,
+                unread_count: 1,
+              })
+              .select('id')
+              .maybeSingle()
+
+            conversationId = newConvo?.id ?? null
+          }
+
+          if (conversationId) {
+            if (!primaryConversationId) {
+              primaryConversationId = conversationId
+              primaryUserId = userId
+            }
+
+            // Insert Inbound Message
+            await supabaseAdmin.from('messages').insert({
+              conversation_id: conversationId,
+              user_id: userId,
+              direction: 'inbound',
+              message_type: messageType,
+              content_text: contentText,
+              media_url: mediaUrl,
+              wamid: messageId,
+              status: 'delivered',
+              created_at: timestamp,
+            })
+          }
         }
 
+        const conversationId = primaryConversationId
+        const userId = primaryUserId
         if (!conversationId) continue
-
-        // Insert Inbound Message
-        await supabaseAdmin.from('messages').insert({
-          conversation_id: conversationId,
-          user_id: userId,
-          direction: 'inbound',
-          message_type: messageType,
-          content_text: contentText,
-          media_url: mediaUrl,
-          wamid: messageId,
-          status: 'delivered',
-          created_at: timestamp,
-        })
 
         // -------------------------------------------------------------
         // 2.bis Auto-Reply with Payment Link for E-Commerce / Orders Flows
@@ -396,7 +411,12 @@ export async function POST(request: NextRequest) {
         // 3. Process Automations (Chatbot / Scenarios)
         // -------------------------------------------------------------
         try {
-          const isFirstMessage = !existingConvo
+          const { count: msgCount } = await supabaseAdmin
+            .from('messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('conversation_id', conversationId)
+          const isFirstMessage = (msgCount || 0) <= 1
+
           const { data: automations } = await supabaseAdmin
             .from('automations')
             .select('*')
