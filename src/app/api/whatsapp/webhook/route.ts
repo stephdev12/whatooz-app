@@ -14,37 +14,69 @@ export const dynamic = 'force-dynamic'
  * GET /api/whatsapp/webhook — Meta webhook verification (challenge).
  */
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const mode = searchParams.get('hub.mode')
-  const token = searchParams.get('hub.verify_token')
-  const challenge = searchParams.get('hub.challenge')
+  let searchParams = request.nextUrl.searchParams
+  if (!searchParams.has('hub.mode') && request.url) {
+    try {
+      searchParams = new URL(request.url).searchParams
+    } catch {
+      // ignore
+    }
+  }
 
-  console.log('[Webhook GET] Verification request received:', { mode, token })
+  const mode =
+    searchParams.get('hub.mode') ||
+    searchParams.get('mode') ||
+    searchParams.get('hub_mode')
+  const token =
+    searchParams.get('hub.verify_token') ||
+    searchParams.get('verify_token') ||
+    searchParams.get('hub_verify_token') ||
+    searchParams.get('token')
+  const challenge =
+    searchParams.get('hub.challenge') ||
+    searchParams.get('challenge') ||
+    searchParams.get('hub_challenge')
+
+  // If accessed directly without Meta parameters (e.g. from browser or health-check)
+  if (!mode && !token && !challenge) {
+    console.log('[Webhook GET] Health check / direct access: Webhook is operational.')
+    return NextResponse.json({
+      status: 'active',
+      service: 'Whatooz WhatsApp Webhook',
+      message: 'Webhook endpoint is active and listening for Meta events.',
+      timestamp: new Date().toISOString(),
+    })
+  }
+
+  console.log('[Webhook GET] Meta verification request received:', { mode, token, challengeReceived: Boolean(challenge) })
 
   if (mode !== 'subscribe' || !challenge || !token) {
+    console.warn('[Webhook GET] Invalid verification parameters:', { mode, token })
     return NextResponse.json(
-      { error: 'Missing verification parameters' },
+      { error: 'Missing or invalid verification parameters. Expected hub.mode=subscribe' },
       { status: 400 }
     )
   }
 
-  // Check against env vars
+  // Accepted verification tokens (configured in Meta Dashboard & .env)
   const validTokens = [
     process.env.META_WEBHOOK_VERIFY_TOKEN,
+    process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN,
+    process.env.WEBHOOK_VERIFY_TOKEN,
     process.env.META_APP_SECRET,
     'whatooz_webhook_token',
   ].filter(Boolean)
 
   if (validTokens.includes(token)) {
-    console.log('[Webhook GET] Verified successfully against env tokens.')
+    console.log('[Webhook GET] Meta webhook verified successfully! Challenge returned.')
     return new NextResponse(challenge, {
       status: 200,
       headers: { 'Content-Type': 'text/plain' },
     })
   }
 
-  console.warn('[Webhook GET] Verification failed. Token provided:', token)
-  return NextResponse.json({ error: 'Verification failed' }, { status: 403 })
+  console.warn('[Webhook GET] Verification failed. Token received did not match:', token)
+  return NextResponse.json({ error: 'Verification token mismatch' }, { status: 403 })
 }
 
 /**
