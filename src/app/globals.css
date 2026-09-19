@@ -1,0 +1,150 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Whatooz Design System
+ * Accent: #fe5105 (warm orange) — inherited from original Whatooz branding
+ * Font: Cabinet Grotesk (headings) + Inter (body)
+ * Theme: Dark-first premium SaaS
+ */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-display);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
+/* ── Light Mode ── */
+:root {
+  --font-display: 'Cabinet Grotesk', 'Inter', sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --background: #fafafa;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --popover: #ffffff;
+  --popover-foreground: #111111;
+  --primary: #fe5105;
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #fff2eb;
+  --accent-foreground: #fe5105;
+  --destructive: #dc2626;
+  --border: #ececee;
+  --input: #f7f7f8;
+  --ring: #fe5105;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #4b5563;
+  --sidebar-border: #ececee;
+  --sidebar-accent: #fff2eb;
+  --sidebar-accent-foreground: #fe5105;
+}
+
+/* ── Dark Mode (default for Whatooz premium feel) ── */
+.dark {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --card: #18181b;
+  --card-foreground: #f4f4f5;
+  --popover: #18181b;
+  --popover-foreground: #f4f4f5;
+  --primary: #fe5105;
+  --primary-foreground: #ffffff;
+  --secondary: #27272a;
+  --secondary-foreground: #f4f4f5;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #271206;
+  --accent-foreground: #fe5105;
+  --destructive: #ef4444;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #fe5105;
+
+  --sidebar: #0f0f11;
+  --sidebar-foreground: #a1a1aa;
+  --sidebar-border: #27272a;
+  --sidebar-accent: #271206;
+  --sidebar-accent-foreground: #fe5105;
+}
+
+/* ── Base ── */
+* {
+  box-sizing: border-box;
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #e0e0e0; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #ccc; }
+
+.dark ::-webkit-scrollbar-thumb { background: #3f3f46; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #52525b; }
+
+::selection {
+  background: rgba(254, 81, 5, 0.15);
+}
+
+/* ── WhatsApp chat bubble styles ── */
+.wa-bubble-sent {
+  background: #dcf8c6;
+  border-radius: 0.75rem 0.75rem 0 0.75rem;
+}
+
+.dark .wa-bubble-sent {
+  background: #005c4b;
+}
+
+.wa-bubble-received {
+  background: var(--card);
+  border-radius: 0.75rem 0.75rem 0.75rem 0;
+}
