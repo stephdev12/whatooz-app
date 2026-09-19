@@ -100,6 +100,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Malformed JSON' }, { status: 400 })
   }
 
+  console.log('[Webhook POST] Incoming WhatsApp event received')
+
   const entries = body.entry ?? []
   for (const entry of entries) {
     const changes = entry.changes ?? []
@@ -111,15 +113,30 @@ export async function POST(request: NextRequest) {
       if (!phoneNumberId) continue
 
       // Find the user config associated with this WhatsApp Phone Number ID
-      const { data: config } = await supabaseAdmin
+      let { data: config } = await supabaseAdmin
         .from('whatsapp_config')
         .select('user_id')
         .eq('phone_number_id', phoneNumberId)
         .maybeSingle()
 
+      // Resilient fallback: If using a Meta test number or phone_number_id not yet matched,
+      // fallback to the active connected WhatsApp config in Whatooz.
       if (!config?.user_id) {
-        console.warn(`[Webhook POST] No user config found for phone_number_id: ${phoneNumberId}`)
-        continue
+        console.warn(`[Webhook POST] No user config found for phone_number_id: ${phoneNumberId}. Trying active config fallback...`)
+        const { data: fallbackConfig } = await supabaseAdmin
+          .from('whatsapp_config')
+          .select('user_id')
+          .order('updated_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (fallbackConfig?.user_id) {
+          console.log(`[Webhook POST] Using fallback user_id: ${fallbackConfig.user_id}`)
+          config = fallbackConfig
+        } else {
+          console.warn('[Webhook POST] No WhatsApp config at all found in database. Skipping.')
+          continue
+        }
       }
 
       const userId = config.user_id

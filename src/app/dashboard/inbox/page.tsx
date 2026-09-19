@@ -110,6 +110,20 @@ export default function InboxPage() {
     }
   }, [user, selectedConvoId, supabase, loadConversations])
 
+  // Polling fallback every 3 seconds to guarantee instant delivery even if Realtime drops
+  useEffect(() => {
+    if (!user) return
+
+    const interval = setInterval(() => {
+      loadConversations()
+      if (selectedConvoId) {
+        loadMessages(selectedConvoId)
+      }
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [user, selectedConvoId, loadConversations, loadMessages])
+
   function handleSelectConversation(convoId: string) {
     setSelectedConvoId(convoId)
     loadMessages(convoId)
