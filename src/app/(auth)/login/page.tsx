@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Loader2, ArrowLeft } from 'lucide-react'
 import { MetaEmbeddedSignupButton } from '@/components/whatsapp/meta-embedded-signup-button'
 
 import { WhatoozLogo } from '@/components/ui/whatooz-logo'
@@ -37,12 +37,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-noisy-canvas px-4 py-12">
-      <div className="w-full max-w-md space-y-6">
+    <div className="flex min-h-screen items-center justify-center bg-noisy-canvas px-4 py-12 relative">
+      <Link 
+        href="/"
+        className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors bg-card/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border hover:bg-secondary"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Accueil
+      </Link>
+
+      <div className="w-full max-w-md space-y-6 mt-8 sm:mt-0">
         {/* Brand */}
         <div className="flex flex-col items-center text-center">
           <Link href="/">
-            <WhatoozLogo size="lg" showText={true} />
+            <WhatoozLogo size="lg" showText={false} />
           </Link>
           <p className="mt-2 text-xs text-muted-foreground">
             Plateforme WhatsApp Business Cloud v7.3 & Vente Automatisée

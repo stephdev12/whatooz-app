@@ -103,7 +103,7 @@ export default function LandingPage({
               window.scrollTo({ top: 0, behavior: 'smooth' })
             }}
           >
-            <WhatoozLogo size="sm" showText={true} />
+            <WhatoozLogo size="sm" showText={false} />
           </a>
 
           <div className="landing-nav-menu">
