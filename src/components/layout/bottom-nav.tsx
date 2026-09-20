@@ -3,7 +3,13 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, MessageSquare, Layers, Zap, Settings } from 'lucide-react'
+import {
+  LayoutDashboard,
+  MessageSquare,
+  Layers,
+  Zap,
+  Settings,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const bottomNavItems = [
@@ -39,28 +45,30 @@ export function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-16 items-center justify-around border-t border-border bg-background/95 backdrop-blur-md px-2 lg:hidden">
-      {bottomNavItems.map((item) => {
-        const isActive = item.exact
-          ? pathname === item.href
-          : pathname.startsWith(item.href)
+    <div className="fixed bottom-3 inset-x-0 z-40 flex justify-center px-4 pointer-events-none lg:hidden">
+      <nav className="pointer-events-auto flex items-center justify-around gap-1 w-full max-w-sm rounded-full border border-black/10 dark:border-white/10 bg-card/90 backdrop-blur-xl shadow-2xl p-1.5">
+        {bottomNavItems.map((item) => {
+          const isActive = item.exact
+            ? pathname === item.href
+            : pathname.startsWith(item.href)
 
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              'flex flex-col items-center justify-center gap-1 py-1 px-3 text-[11px] font-medium transition-colors',
-              isActive
-                ? 'text-[#fe5105]'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            <item.icon className={cn('h-5 w-5', isActive && 'text-[#fe5105]')} />
-            <span>{item.label}</span>
-          </Link>
-        )
-      })}
-    </nav>
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex flex-1 flex-col items-center justify-center py-1.5 px-2 rounded-full text-[10px] font-semibold transition-all duration-150',
+                isActive
+                  ? 'bg-[#fe5105] text-white shadow-xs scale-105'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+            >
+              <item.icon className={cn('h-4 w-4', isActive ? 'text-white' : 'text-muted-foreground')} />
+              <span className="mt-0.5 leading-tight">{item.label}</span>
+            </Link>
+          )
+        })}
+      </nav>
+    </div>
   )
 }

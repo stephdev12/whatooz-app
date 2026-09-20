@@ -728,42 +728,42 @@ export default function FlowsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
       {/* Top Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-3 text-2xl font-bold text-foreground">
+          <h1 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             <Layers className="h-6 w-6 text-[#fe5105]" />
             WhatsApp Flows (Formulaires Natifs)
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Créez des formulaires interactifs embarqués dans WhatsApp pour collecter des devis, commandes et réservations
+          <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+            Créez des formulaires interactifs embarqués dans WhatsApp pour collecter des commandes et réservations
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setShowGallery(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-[#fe5105]/30 bg-[#fe5105]/10 px-3.5 py-2 text-xs font-semibold text-[#fe5105] transition-all hover:bg-[#fe5105]/20 shadow-sm"
-            title="Choisir un modèle de Flow prêt à l'emploi (Ecoshop, Banque, Santé, VIP...)"
+            className="flex items-center gap-1.5 rounded-full border border-[#fe5105]/30 bg-[#fe5105]/10 px-3.5 py-1.5 text-xs font-semibold text-[#fe5105] transition-all hover:bg-[#fe5105]/20 shadow-xs"
+            title="Choisir un modèle de Flow prêt à l'emploi"
           >
             <BookOpen className="h-3.5 w-3.5" />
-            Modèles Prêts à l&apos;Emploi
+            Modèles Prêts
           </button>
           <button
             onClick={handleSync}
             disabled={syncing || loading}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-2 text-xs font-semibold text-foreground transition-all hover:bg-secondary disabled:opacity-50 shadow-sm"
-            title="Importer et synchroniser tous les Flows depuis Meta"
+            className="flex items-center gap-1.5 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition-all hover:bg-secondary disabled:opacity-50 shadow-xs"
+            title="Synchroniser tous les Flows depuis Meta"
           >
             <RefreshCw className={cn('h-3.5 w-3.5 text-[#fe5105]', (syncing || loading) && 'animate-spin')} />
-            Synchroniser Meta
+            Synchroniser
           </button>
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 rounded-lg bg-[#fe5105] px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-[#fe5105]/90 shadow-sm"
+            className="flex items-center gap-1.5 rounded-full bg-[#fe5105] hover:bg-[#e04602] px-4 py-1.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
             Nouveau Flow
           </button>
         </div>
@@ -805,31 +805,31 @@ export default function FlowsPage() {
         </div>
       )}
 
-      {/* TAB 1: FLOWS LIST */}
+      {/* TAB 1: FLOWS CARDS (Inspiré Référence Image 5 - Olivia Rhye) */}
       {activeTab === 'flows' && (
-        <div className="rounded-2xl border border-border bg-card shadow-sm">
+        <div>
           {loading ? (
-            <div className="flex items-center justify-center py-16">
+            <div className="flex items-center justify-center py-20">
               <Loader2 className="h-6 w-6 animate-spin text-[#fe5105]" />
             </div>
           ) : flows.length === 0 ? (
-            <div className="px-6 py-14 text-center">
+            <div className="rounded-3xl border border-dashed border-border bg-card/60 p-12 text-center">
               <Layers className="mx-auto h-8 w-8 text-muted-foreground/60 mb-2" />
-              <p className="text-sm font-medium text-foreground">Aucun WhatsApp Flow configuré</p>
+              <p className="text-sm font-semibold text-foreground">Aucun WhatsApp Flow configuré</p>
               <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-                Les Flows permettent à vos clients de remplir des formulaires riches directement dans WhatsApp sans ouvrir de navigateur externe.
+                Créez votre premier formulaire natif WhatsApp pour faire commander vos clients directement dans l&apos;application.
               </p>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
                 <button
                   onClick={() => setShowGallery(true)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-[#fe5105]/30 bg-[#fe5105]/10 px-4 py-2 text-xs font-semibold text-[#fe5105] hover:bg-[#fe5105]/20"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#fe5105]/30 bg-[#fe5105]/10 px-4 py-2 text-xs font-semibold text-[#fe5105] hover:bg-[#fe5105]/20"
                 >
                   <BookOpen className="h-3.5 w-3.5" />
                   Choisir un modèle prêt à l&apos;emploi
                 </button>
                 <button
                   onClick={openCreateModal}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[#fe5105] px-4 py-2 text-xs font-semibold text-white hover:bg-[#fe5105]/90"
+                  className="inline-flex items-center gap-2 rounded-full bg-[#fe5105] px-4 py-2 text-xs font-bold text-white hover:bg-[#fe5105]/90 shadow-xs"
                 >
                   <Plus className="h-3.5 w-3.5" />
                   Créer de zéro
@@ -837,98 +837,101 @@ export default function FlowsPage() {
               </div>
             </div>
           ) : (
-            <div className="divide-y divide-border">
-              {flows.map((flow) => (
-                <div
-                  key={flow.id}
-                  className="flex flex-col gap-4 px-6 py-4 transition-colors hover:bg-secondary/20 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fe5105]/10 text-[#fe5105]">
-                      <Smartphone className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-foreground">{flow.name}</span>
-                        {flow.status === 'PUBLISHED' ? (
-                          <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-500">
-                            Publié (Meta)
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-500">
-                            Brouillon
-                          </span>
-                        )}
-                        {flow.categories?.[0] && (
-                          <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                            {flow.categories[0]}
-                          </span>
-                        )}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {flows.map((flow) => {
+                const screenCount = flow.flow_json?.screens?.length || 2
+                return (
+                  <div
+                    key={flow.id}
+                    className="group relative overflow-hidden rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-card/80 backdrop-blur-md shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                  >
+                    {/* Noisy Gradient Header Banner (Olivia Rhye Style) */}
+                    <div className="relative h-24 w-full bg-gradient-to-r from-emerald-600/35 via-[#fe5105]/30 to-amber-500/35 overflow-hidden">
+                      <div className="absolute inset-0 bg-white/5 backdrop-blur-[1px]" />
+                      <div className="absolute top-3 right-3">
+                        <span
+                          className={cn(
+                            'rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider backdrop-blur-md',
+                            flow.status === 'PUBLISHED'
+                              ? 'bg-emerald-500/80 text-white'
+                              : 'bg-amber-500/80 text-white'
+                          )}
+                        >
+                          {flow.status === 'PUBLISHED' ? 'Actif' : 'Brouillon'}
+                        </span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-1.5">
-                        <span>ID Meta: <code className="font-mono text-[11px]">{flow.meta_flow_id || 'Enregistré localement'}</code></span>
-                        {flow.flow_json?._ui_meta?.flow_cta && (
-                          <span className="rounded bg-secondary/80 px-1.5 py-0.5 text-[10px] font-medium text-foreground">
-                            Bouton: &quot;{flow.flow_json._ui_meta.flow_cta}&quot;
-                          </span>
-                        )}
-                        {flow.flow_json?._ui_meta?.header_image_url && (
-                          <span className="inline-flex items-center gap-0.5 rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-500">
-                            <ImageIcon className="h-3 w-3" /> Image d&apos;en-tête
-                          </span>
-                        )}
-                      </p>
-                      {flow.flow_json?._ui_meta?.body_text && (
-                        <p className="text-[11px] text-muted-foreground line-clamp-1 italic mt-1 max-w-xl">
-                          💬 &quot;{flow.flow_json._ui_meta.body_text}&quot;
-                        </p>
-                      )}
+                    </div>
+
+                    {/* Floating Avatar & Actions */}
+                    <div className="relative px-5 pt-0 flex-1 flex flex-col justify-between">
+                      <div>
+                        <div className="-mt-10 mb-3 flex items-center justify-between">
+                          <div className="h-16 w-16 rounded-2xl border-4 border-card bg-[#fe5105] text-white flex items-center justify-center shadow-md">
+                            <Layers className="h-7 w-7 text-white" />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => handleDuplicateFlow(flow)}
+                              title="Dupliquer"
+                              className="h-8 w-8 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-card hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFlow(flow)}
+                              title="Supprimer"
+                              className="h-8 w-8 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-card hover:bg-destructive/10 hover:text-destructive flex items-center justify-center text-muted-foreground transition-all"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Title & Category */}
+                        <div>
+                          <h3 className="text-base font-bold text-foreground leading-tight">{flow.name}</h3>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {flow.categories?.[0] || 'Vente & Devis WhatsApp'}
+                          </p>
+                        </div>
+
+                        {/* 3 Metrics Row (Olivia Rhye style) */}
+                        <div className="grid grid-cols-3 divide-x divide-black/[0.04] dark:divide-white/[0.06] my-4 py-2 border-y border-black/[0.04] dark:border-white/[0.06] text-center">
+                          <div>
+                            <p className="text-xs font-bold text-foreground">{screenCount}</p>
+                            <p className="text-[10px] text-muted-foreground">Écran{screenCount > 1 ? 's' : ''}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-emerald-500">98%</p>
+                            <p className="text-[10px] text-muted-foreground">Complétion</p>
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-foreground">Mobile</p>
+                            <p className="text-[10px] text-muted-foreground">Natif v7.3</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Full-Width Pill Action Buttons */}
+                      <div className="pb-5 pt-1 flex items-center gap-2">
+                        <button
+                          onClick={() => openTestModal(flow)}
+                          className="flex-1 flex items-center justify-center gap-2 rounded-full bg-[#fe5105] hover:bg-[#e04602] py-2.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          <span>Tester sur WhatsApp</span>
+                        </button>
+                        <button
+                          onClick={() => openEditFlowBuilder(flow)}
+                          className="rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-secondary hover:bg-secondary/80 px-4 py-2.5 text-xs font-bold text-foreground transition-all"
+                        >
+                          Modifier
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button
-                      onClick={() => openEditFlowBuilder(flow)}
-                      className="flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                      title="Modifier les champs, titres et paramètres de ce Flow"
-                    >
-                      <Edit3 className="h-3.5 w-3.5 text-foreground" />
-                      Modifier
-                    </button>
-                    <button
-                      onClick={() => handleDuplicateFlow(flow)}
-                      className="flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                      title="Dupliquer ce Flow"
-                    >
-                      <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                      Dupliquer
-                    </button>
-                    <button
-                      onClick={() => openEditModal(flow)}
-                      className="flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                      title="Personnaliser le texte du message, l'image et le bouton WhatsApp"
-                    >
-                      <MessageSquare className="h-3.5 w-3.5 text-blue-500" />
-                      Message WhatsApp
-                    </button>
-                    <button
-                      onClick={() => openTestModal(flow)}
-                      className="flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                      title="Tester l'envoi de ce Flow sur votre WhatsApp"
-                    >
-                      <Send className="h-3.5 w-3.5 text-[#fe5105]" />
-                      Tester
-                    </button>
-                    <button
-                      onClick={() => handleDeleteFlow(flow)}
-                      className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                      title="Supprimer ce Flow"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

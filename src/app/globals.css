@@ -150,3 +150,73 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--card);
   border-radius: 0.75rem 0.75rem 0.75rem 0;
 }
+
+/* ── Noisy Background & Dot Grid Canvas (Whatooz Design System) ── */
+.bg-noisy-canvas {
+  background-color: var(--background);
+  background-image: 
+    radial-gradient(at 15% 15%, rgba(254, 81, 5, 0.04) 0px, transparent 60%),
+    radial-gradient(at 85% 85%, rgba(0, 168, 132, 0.03) 0px, transparent 60%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
+}
+
+.dark .bg-noisy-canvas {
+  background-color: #09090b;
+  background-image: 
+    radial-gradient(at 10% 10%, rgba(254, 81, 5, 0.06) 0px, transparent 50%),
+    radial-gradient(at 90% 90%, rgba(0, 168, 132, 0.04) 0px, transparent 50%),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.045'/%3E%3C/svg%3E");
+}
+
+.dot-grid-canvas {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+:root:not(.dark) .dot-grid-canvas {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ── Zebra Striped Vertical Bars (Quixotic & Seva Kogaev Charts) ── */
+.bg-striped-bar-idle,
+.bg-quixotic-bar-idle {
+  background-color: #ccebe2;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    #98d5c4,
+    #98d5c4 2.5px,
+    transparent 2.5px,
+    transparent 7px
+  );
+}
+
+.dark .bg-striped-bar-idle,
+.dark .bg-quixotic-bar-idle {
+  background-color: #12382e;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    #1d594a,
+    #1d594a 2.5px,
+    transparent 2.5px,
+    transparent 7px
+  );
+}
+
+.bg-striped-bar-peak,
+.bg-quixotic-bar-peak {
+  background-color: #007a5f;
+  box-shadow: 0 8px 20px -4px rgba(0, 122, 95, 0.4);
+}
+
+.dark .bg-striped-bar-peak,
+.dark .bg-quixotic-bar-peak {
+  background-color: #00a884;
+  box-shadow: 0 8px 20px -4px rgba(0, 168, 132, 0.5);
+}
+
+.bg-striped-bar-orange {
+  background-color: #fe5105;
+  box-shadow: 0 4px 14px 0 rgba(254, 81, 5, 0.35);
+}
+

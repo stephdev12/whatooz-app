@@ -358,27 +358,27 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-3 text-2xl font-bold text-foreground">
+          <h1 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             <FileText className="h-6 w-6 text-[#fe5105]" />
-            Templates WhatsApp
+            Modèles de Messages WhatsApp
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Gérez, synchronisez et créez vos modèles de messages Meta WhatsApp Cloud API
+          <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+            Gérez vos modèles officiels Meta WhatsApp Cloud API pour les relances et confirmations
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => loadTemplates(true)}
             disabled={syncing || loading}
-            className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-foreground transition-colors hover:bg-secondary disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition-all hover:bg-secondary disabled:opacity-50 shadow-xs"
             title="Synchroniser les statuts avec Meta"
           >
-            <RefreshCw className={cn('h-3.5 w-3.5', syncing && 'animate-spin')} />
+            <RefreshCw className={cn('h-3.5 w-3.5 text-[#fe5105]', syncing && 'animate-spin')} />
             Synchroniser
           </button>
           <button
@@ -389,10 +389,10 @@ export default function TemplatesPage() {
                 openCreateModal()
               }
             }}
-            className="flex items-center gap-2 rounded-lg bg-[#fe5105] px-4 py-2 text-xs font-semibold text-white transition-all hover:bg-[#fe5105]/90"
+            className="flex items-center gap-1.5 rounded-full bg-[#fe5105] hover:bg-[#e04602] px-4 py-1.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
           >
-            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {showForm ? 'Fermer' : 'Nouveau Template'}
+            {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+            {showForm ? 'Fermer' : 'Nouveau Modèle'}
           </button>
         </div>
       </div>
@@ -733,70 +733,107 @@ export default function TemplatesPage() {
         </div>
       )}
 
-      {/* Templates List */}
-      <div className="rounded-2xl border border-border bg-card shadow-sm">
-        <div className="border-b border-border px-6 py-4">
-          <h2 className="text-sm font-semibold text-foreground">
-            {templates.length} modèle{templates.length !== 1 ? 's' : ''} enregistré{templates.length !== 1 ? 's' : ''}
-          </h2>
-        </div>
-
+      {/* Templates Cards Grid (Inspiré Référence Image 5 - Olivia Rhye) */}
+      <div>
         {loading ? (
-          <div className="flex items-center justify-center py-16">
+          <div className="flex items-center justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-[#fe5105]" />
           </div>
         ) : templates.length === 0 ? (
-          <div className="px-6 py-12 text-center text-sm text-muted-foreground">
-            Aucun template trouvé sur votre compte WhatsApp Business. Cliquez sur &quot;Nouveau Template&quot; pour en créer un.
+          <div className="rounded-3xl border border-dashed border-border bg-card/60 p-12 text-center">
+            <FileText className="mx-auto h-8 w-8 text-muted-foreground/60 mb-2" />
+            <p className="text-sm font-semibold text-foreground">Aucun modèle trouvé sur votre compte</p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
+              Créez un nouveau modèle de message pour envoyer des confirmations de commandes et alertes à vos clients.
+            </p>
+            <button
+              onClick={openCreateModal}
+              className="mt-4 rounded-full bg-[#fe5105] text-white px-4 py-2 text-xs font-bold shadow-xs hover:bg-[#e04602]"
+            >
+              + Nouveau Modèle
+            </button>
           </div>
         ) : (
-          <div className="divide-y divide-border">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {templates.map((tpl) => {
-              const isExpanded = expandedId === tpl.id
               const isApproved = tpl.status?.toUpperCase() === 'APPROVED'
               const bodyComp = tpl.components?.find((c) => c.type === 'BODY')
               const headerComp = tpl.components?.find((c) => c.type === 'HEADER')
-              const footerComp = tpl.components?.find((c) => c.type === 'FOOTER')
-              const buttonsComp = tpl.components?.find((c) => c.type === 'BUTTONS')
 
               return (
-                <div key={tpl.id} className="transition-colors hover:bg-secondary/20">
-                  <div className="flex items-center justify-between px-6 py-4">
-                    <div
-                      className="flex flex-1 cursor-pointer items-center gap-3"
-                      onClick={() => setExpandedId(isExpanded ? null : tpl.id)}
-                    >
-                      <button className="text-muted-foreground">
-                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                      </button>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-foreground">{tpl.name}</p>
-                          {statusBadge(tpl.status)}
+                <div
+                  key={tpl.id}
+                  className="group relative overflow-hidden rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-card/80 backdrop-blur-md shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
+                >
+                  {/* Noisy Gradient Header Banner (Olivia Rhye Style) */}
+                  <div className="relative h-24 w-full bg-gradient-to-r from-blue-600/35 via-[#fe5105]/25 to-violet-600/35 overflow-hidden">
+                    <div className="absolute inset-0 bg-white/5 backdrop-blur-[1px]" />
+                    <div className="absolute top-3 right-3">
+                      {statusBadge(tpl.status)}
+                    </div>
+                  </div>
+
+                  {/* Floating Avatar & Actions */}
+                  <div className="relative px-5 pt-0 flex-1 flex flex-col justify-between">
+                    <div>
+                      <div className="-mt-10 mb-3 flex items-center justify-between">
+                        <div className="h-16 w-16 rounded-2xl border-4 border-card bg-foreground text-background flex items-center justify-center shadow-md">
+                          <FileText className="h-7 w-7 text-[#fe5105]" />
                         </div>
-                        <p className="text-xs text-muted-foreground">
-                          {tpl.language} • {tpl.category}
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleDuplicateTemplate(tpl)}
+                            title="Dupliquer"
+                            className="h-8 w-8 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-card hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
+                          >
+                            <Copy className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(tpl.name)}
+                            title="Supprimer"
+                            className="h-8 w-8 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-card hover:bg-destructive/10 hover:text-destructive flex items-center justify-center text-muted-foreground transition-all"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Title & Category */}
+                      <div>
+                        <h3 className="text-base font-bold text-foreground leading-tight truncate">{tpl.name}</h3>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {tpl.category} • {tpl.language}
                         </p>
                       </div>
+
+                      {/* 3 Metrics Row (Olivia Rhye style) */}
+                      <div className="grid grid-cols-3 divide-x divide-black/[0.04] dark:divide-white/[0.06] my-4 py-2 border-y border-black/[0.04] dark:border-white/[0.06] text-center">
+                        <div>
+                          <p className="text-xs font-bold text-foreground">{tpl.language.toUpperCase()}</p>
+                          <p className="text-[10px] text-muted-foreground">Langue</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-emerald-500">
+                            {isApproved ? 'Meta OK' : 'En cours'}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">Validation</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-foreground">
+                            {headerComp?.format === 'IMAGE' ? 'Image' : 'Texte'}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">Format</p>
+                        </div>
+                      </div>
+
+                      {/* Message Preview Snippet */}
+                      <p className="text-xs text-muted-foreground line-clamp-2 italic bg-secondary/30 p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] mb-4">
+                        &quot;{bodyComp?.text || 'Message WhatsApp...'}&quot;
+                      </p>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => openEditTemplate(tpl)}
-                        className="flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                        title="Modifier le texte ou les boutons de ce template"
-                      >
-                        <Edit3 className="h-3.5 w-3.5 text-foreground" />
-                        Modifier
-                      </button>
-                      <button
-                        onClick={() => handleDuplicateTemplate(tpl)}
-                        className="flex items-center gap-1 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-secondary"
-                        title="Dupliquer ce template pour en créer une variante"
-                      >
-                        <Copy className="h-3.5 w-3.5 text-muted-foreground" />
-                        Dupliquer
-                      </button>
+                    {/* Bottom Full-Width Pill Action Buttons */}
+                    <div className="pb-5 pt-1 flex items-center gap-2">
                       {isApproved && (
                         <button
                           onClick={() => {
@@ -815,57 +852,23 @@ export default function TemplatesPage() {
                             const varMatches = body?.text?.match(/\{\{(\d+)\}\}/g) || []
                             setTestVariables(new Array(varMatches.length).fill(''))
                           }}
-                          className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400"
+                          className="flex-1 flex items-center justify-center gap-2 rounded-full bg-[#fe5105] hover:bg-[#e04602] py-2.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
                         >
                           <Send className="h-3.5 w-3.5" />
-                          Tester
+                          <span>Tester</span>
                         </button>
                       )}
                       <button
-                        onClick={() => handleDelete(tpl.name)}
-                        className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                        title="Supprimer ce template chez Meta"
+                        onClick={() => openEditTemplate(tpl)}
+                        className={cn(
+                          'rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-secondary hover:bg-secondary/80 px-4 py-2.5 text-xs font-bold text-foreground transition-all',
+                          !isApproved && 'w-full'
+                        )}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        Modifier
                       </button>
                     </div>
                   </div>
-
-                  {/* Expanded detail & preview */}
-                  {isExpanded && (
-                    <div className="border-t border-border/50 bg-secondary/10 px-6 py-4">
-                      <div className="max-w-md rounded-xl border border-border bg-card p-4 shadow-sm">
-                        {headerComp?.format === 'IMAGE' && (
-                          <div className="mb-2 flex items-center gap-2 rounded-lg border border-border/80 bg-secondary/30 p-2 text-xs text-muted-foreground">
-                            <ImageIcon className="h-4 w-4 text-[#fe5105]" />
-                            <span>En-tête avec Image multimédia</span>
-                          </div>
-                        )}
-                        {headerComp?.text && (
-                          <p className="mb-1 text-xs font-bold text-foreground">{headerComp.text}</p>
-                        )}
-                        <p className="whitespace-pre-wrap text-xs text-foreground">
-                          {bodyComp?.text || '(Corps du message non disponible)'}
-                        </p>
-                        {footerComp?.text && (
-                          <p className="mt-2 text-[10px] text-muted-foreground">{footerComp.text}</p>
-                        )}
-                        {buttonsComp?.buttons && buttonsComp.buttons.length > 0 && (
-                          <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border/60 pt-2">
-                            {buttonsComp.buttons.map((btn, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-[11px] font-medium text-foreground"
-                              >
-                                {btn.type === 'URL' && <ExternalLink className="h-3 w-3 text-[#fe5105]" />}
-                                {btn.text}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )
             })}

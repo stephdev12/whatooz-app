@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react'
 import { MetaEmbeddedSignupButton } from '@/components/whatsapp/meta-embedded-signup-button'
+import { WhatoozLogo } from '@/components/ui/whatooz-logo'
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState('')
@@ -44,25 +45,25 @@ export default function RegisterPage() {
       })
     }
 
-    router.push('/dashboard/inbox')
+    router.push('/dashboard')
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md space-y-8">
+    <div className="flex min-h-screen items-center justify-center bg-noisy-canvas px-4 py-12">
+      <div className="w-full max-w-md space-y-6">
         {/* Brand */}
-        <div className="text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">
-            <span className="text-[#fe5105]">What</span>ooz
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Créez votre compte Whatooz
+        <div className="flex flex-col items-center text-center">
+          <Link href="/">
+            <WhatoozLogo size="lg" showText={true} />
+          </Link>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Création de compte Marchand WhatsApp Business
           </p>
         </div>
 
         {/* Form Card */}
-        <div className="rounded-xl border border-border bg-card p-8 shadow-sm">
-          <h2 className="mb-6 text-xl font-semibold text-card-foreground">
+        <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-card/80 p-8 shadow-xl backdrop-blur-md">
+          <h2 className="mb-6 text-xl font-bold text-foreground">
             Inscription
           </h2>
 

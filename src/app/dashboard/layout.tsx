@@ -1,18 +1,15 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AuthProvider, useAuth } from '@/hooks/use-auth'
 import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
-
 import { BottomNav } from '@/components/layout/bottom-nav'
 
 function DashboardShellInner({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const router = useRouter()
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const closeSidebar = useCallback(() => setSidebarOpen(false), [])
 
   useEffect(() => {
     if (!loading && !user) {
@@ -22,10 +19,10 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-background">
+      <div className="flex h-screen items-center justify-center bg-noisy-canvas">
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#fe5105] border-t-transparent" />
-          <p className="text-sm text-muted-foreground">Chargement...</p>
+          <p className="text-sm font-medium text-muted-foreground">Chargement de votre espace Whatooz...</p>
         </div>
       </div>
     )
@@ -34,13 +31,21 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
   if (!user) return null
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar open={sidebarOpen} onClose={closeSidebar} />
+    <div className="flex h-screen overflow-hidden bg-noisy-canvas">
+      {/* Desktop Sidebar */}
+      <Sidebar />
+
+      {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header onOpenSidebar={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 pb-20 lg:pb-6">
+        {/* Unified Header */}
+        <Header />
+
+        {/* Scrollable Dashboard View */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
           {children}
         </main>
+
+        {/* Mobile Floating Bottom Nav (Single clean mobile navigation) */}
         <BottomNav />
       </div>
     </div>

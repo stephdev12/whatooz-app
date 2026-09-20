@@ -23,6 +23,7 @@ import {
 import { GradientBackground } from './ui/noisy-gradient-backgrounds'
 import TestimonialsSection from './ui/testimonial-v2'
 import CardFlip from './ui/card-flip'
+import { WhatoozLogo } from '@/components/ui/whatooz-logo'
 import '@/styles/landing.css'
 
 export default function LandingPage({
@@ -96,17 +97,13 @@ export default function LandingPage({
         <nav className="landing-floating-navbar clean-pill-nav">
           <a
             href="#"
-            className="landing-nav-logo"
+            className="landing-nav-logo flex items-center"
             onClick={(e) => {
               e.preventDefault()
               window.scrollTo({ top: 0, behavior: 'smooth' })
             }}
           >
-            <img
-              src={isDark ? '/logo_noir.png' : '/logo_white.png'}
-              alt="Whatooz"
-              className="landing-logo-img"
-            />
+            <WhatoozLogo size="sm" showText={true} />
           </a>
 
           <div className="landing-nav-menu">
@@ -703,12 +700,8 @@ export default function LandingPage({
         <div className="landing-container">
           <div className="landing-footer-grid">
             <div className="footer-brand-col">
-              <img
-                src={isDark ? '/logo_noir.png' : '/logo_white.png'}
-                alt="Whatooz"
-                className="footer-logo-img"
-              />
-              <p className="footer-brand-desc">
+              <WhatoozLogo size="md" showText={true} />
+              <p className="footer-brand-desc mt-3">
                 L&apos;infrastructure d&apos;automatisation et de vente WhatsApp par excellence pour les commerçants et marques modernes.
               </p>
             </div>

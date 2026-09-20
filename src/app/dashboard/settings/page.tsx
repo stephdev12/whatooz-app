@@ -94,45 +94,45 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
+    <div className="mx-auto max-w-4xl space-y-6 sm:space-y-8">
       {/* Page header */}
       <div>
-        <h1 className="flex items-center gap-3 text-2xl font-bold text-foreground">
+        <h1 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
           <SettingsIcon className="h-6 w-6 text-[#fe5105]" />
-          Paramètres
+          Paramètres WhatsApp
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Configurez votre connexion WhatsApp Business API
+        <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
+          Configurez votre connexion officielle Meta WhatsApp Cloud API v7.3
         </p>
       </div>
 
       {/* Current status */}
       {config?.connected && (
-        <div className="flex items-start gap-3 rounded-xl border border-green-500/20 bg-green-500/5 p-4">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
+        <div className="flex items-start gap-3 rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-5 backdrop-blur-md">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
           <div>
-            <p className="text-sm font-medium text-foreground">
-              WhatsApp connecté
+            <p className="text-sm font-bold text-foreground">
+              WhatsApp Business Officiel Connecté
             </p>
-            <p className="text-sm text-muted-foreground">
-              {config.display_phone_number}
-              {config.verified_name && ` • ${config.verified_name}`}
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Numéro actif : <span className="font-mono text-foreground font-semibold">{config.display_phone_number}</span>
+              {config.verified_name && ` • Nom vérifié : ${config.verified_name}`}
             </p>
           </div>
         </div>
       )}
 
       {/* 1-Click Embedded Signup (Recommended) */}
-      <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card p-6 shadow-sm">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#fe5105]">
+      <div className="relative overflow-hidden rounded-3xl border border-[#fe5105]/20 bg-gradient-to-br from-[#fe5105]/10 via-card/80 to-card p-6 shadow-xs backdrop-blur-md">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#fe5105]">
           <Sparkles className="h-4 w-4" />
-          Méthode Recommandée
+          Connexion Meta Officielle
         </div>
-        <h2 className="mt-2 text-lg font-semibold text-card-foreground">
-          Connexion officielle Meta en 1 clic
+        <h2 className="mt-2 text-base sm:text-lg font-bold text-foreground">
+          Liaison WhatsApp Business en 1 clic
         </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Connectez votre compte WhatsApp Business directement via Meta. Aucun token ni identifiant à copier manuellement.
+        <p className="mt-1 text-xs text-muted-foreground max-w-xl">
+          Connectez votre compte WhatsApp Business directement via la fenêtre sécurisée Meta. Les numéros et tokens sont synchronisés automatiquement.
         </p>
 
         <div className="mt-5 max-w-sm">
@@ -147,12 +147,12 @@ export default function SettingsPage() {
       </div>
 
       {/* Configuration form (Manual Fallback) */}
-      <div className="rounded-xl border border-border bg-card p-6">
-        <h2 className="mb-2 text-lg font-semibold text-card-foreground">
-          Configuration manuelle (Avancée)
+      <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-card/80 p-6 backdrop-blur-md shadow-xs">
+        <h2 className="mb-1 text-base sm:text-lg font-bold text-foreground">
+          Configuration manuelle (Optionnelle)
         </h2>
-        <p className="mb-6 text-sm text-muted-foreground">
-          Ou entrez manuellement vos identifiants si vous utilisez un jeton système personnalisé de{' '}
+        <p className="mb-6 text-xs text-muted-foreground">
+          Entrez vos clés d&apos;API manuellement si vous disposez d&apos;un jeton système créé sur{' '}
           <a
             href="https://developers.facebook.com"
             target="_blank"
@@ -166,8 +166,8 @@ export default function SettingsPage() {
 
         <form onSubmit={handleSave} className="space-y-4">
           {/* Phone Number ID */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-card-foreground">
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <Phone className="h-4 w-4 text-muted-foreground" />
               Phone Number ID
             </label>
@@ -177,13 +177,13 @@ export default function SettingsPage() {
               onChange={(e) => setPhoneNumberId(e.target.value)}
               placeholder="123456789012345"
               required
-              className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
+              className="w-full rounded-xl border border-border bg-input px-3.5 py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105]"
             />
           </div>
 
           {/* WABA ID */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-card-foreground">
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <Hash className="h-4 w-4 text-muted-foreground" />
               WhatsApp Business Account ID (WABA ID)
             </label>
@@ -193,15 +193,15 @@ export default function SettingsPage() {
               onChange={(e) => setWabaId(e.target.value)}
               placeholder="123456789012345"
               required
-              className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
+              className="w-full rounded-xl border border-border bg-input px-3.5 py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105]"
             />
           </div>
 
           {/* Access Token */}
-          <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-medium text-card-foreground">
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <Key className="h-4 w-4 text-muted-foreground" />
-              Access Token
+              Access Token Système
             </label>
             <input
               type="password"
@@ -209,22 +209,22 @@ export default function SettingsPage() {
               onChange={(e) => setAccessToken(e.target.value)}
               placeholder={config?.has_token ? '••••••••• (déjà configuré)' : 'EAAxxxxxxx...'}
               required={!config?.has_token}
-              className="w-full rounded-lg border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
+              className="w-full rounded-xl border border-border bg-input px-3.5 py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105]"
             />
-            <p className="text-xs text-muted-foreground">
-              Le token est chiffré AES-256-GCM avant stockage.
+            <p className="text-[10px] text-muted-foreground">
+              Le token est chiffré de bout en bout en AES-256-GCM.
             </p>
           </div>
 
           {/* Error / Success */}
           {error && (
-            <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+            <div className="flex items-center gap-2 rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
           {success && (
-            <div className="flex items-center gap-2 rounded-lg bg-green-500/10 p-3 text-sm text-green-500">
+            <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 p-3 text-xs text-emerald-500">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               {success}
             </div>
@@ -234,7 +234,7 @@ export default function SettingsPage() {
           <button
             type="submit"
             disabled={saving}
-            className="flex items-center gap-2 rounded-lg bg-[#fe5105] px-6 py-2.5 text-sm font-medium text-white transition-all hover:bg-[#e04602] disabled:opacity-50"
+            className="flex items-center gap-2 rounded-full bg-[#fe5105] hover:bg-[#e04602] px-6 py-2.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95 disabled:opacity-50"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
