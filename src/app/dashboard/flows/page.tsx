@@ -734,7 +734,7 @@ export default function FlowsPage() {
         <div>
           <h1 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
             <Layers className="h-6 w-6 text-[#fe5105]" />
-            WhatsApp Flows (Formulaires Natifs)
+            Mes Flows
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
             Créez des formulaires interactifs embarqués dans WhatsApp pour collecter des commandes et réservations
@@ -781,7 +781,7 @@ export default function FlowsPage() {
           )}
         >
           <Layers className="h-4 w-4" />
-          Mes WhatsApp Flows ({flows.length})
+          Mes Flows ({flows.length})
         </button>
         <button
           onClick={() => setActiveTab('responses')}
