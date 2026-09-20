@@ -35,12 +35,12 @@ export function WhatoozLogo({
         )}
       >
         <img
-          src="/logo_noir.png"
+          src="/logo_white.png"
           alt="Whatooz"
           className="h-full w-full object-contain pointer-events-none transform scale-200 block dark:hidden"
         />
         <img
-          src="/logo_white.png"
+          src="/logo_noir.png"
           alt="Whatooz"
           className="h-full w-full object-contain pointer-events-none transform scale-200 hidden dark:block"
         />
