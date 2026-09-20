@@ -58,13 +58,16 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex flex-1 flex-col items-center justify-center py-1.5 px-2 rounded-full text-[10px] font-semibold transition-all duration-150',
+                'group flex flex-1 flex-col items-center justify-center py-1.5 px-2 rounded-full text-[10px] font-semibold transition-all duration-300 active:scale-90',
                 isActive
-                  ? 'bg-[#fe5105] text-white shadow-xs scale-105'
+                  ? 'bg-[#fe5105] text-white shadow-xs'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <item.icon className={cn('h-4 w-4', isActive ? 'text-white' : 'text-muted-foreground')} />
+              <item.icon className={cn(
+                'h-4 w-4 transition-all duration-300 ease-out group-active:-translate-y-1.5 group-active:scale-110', 
+                isActive ? 'text-white' : 'text-muted-foreground'
+              )} />
               <span className="mt-0.5 leading-tight">{item.label}</span>
             </Link>
           )
