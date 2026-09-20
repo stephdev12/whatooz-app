@@ -3,7 +3,7 @@
 import React from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { WhatoozLogo } from '@/components/ui/whatooz-logo'
-import { LogOut, Moon, Sun } from 'lucide-react'
+import { LogOut, Moon, Sun, Settings } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 
@@ -25,6 +25,15 @@ export function Header() {
 
       {/* Right side */}
       <div className="flex items-center gap-2">
+        {/* Settings button */}
+        <Link
+          href="/dashboard/settings"
+          className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
+          title="Paramètres"
+        >
+          <Settings className="h-4 w-4" />
+        </Link>
+
         {/* Theme switcher */}
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}

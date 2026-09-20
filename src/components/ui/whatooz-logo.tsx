@@ -27,20 +27,18 @@ export function WhatoozLogo({
 
   return (
     <div className={cn('flex items-center gap-2.5 select-none', className)}>
-      {/* Real Logo with Zoom Translate x2.5 */}
+      {/* Real Logo */}
       <div
         className={cn(
-          'relative flex items-center justify-center overflow-hidden rounded-xl bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/10 shrink-0',
+          'relative flex items-center justify-center shrink-0',
           currentSize.container
         )}
       >
-        <div className="relative h-full w-full flex items-center justify-center transform scale-[2.5]">
-          <img
-            src="/logo.png"
-            alt="Whatooz"
-            className="h-full w-full object-contain pointer-events-none drop-shadow-xs"
-          />
-        </div>
+        <img
+          src="/logo.png"
+          alt="Whatooz"
+          className="h-full w-full object-contain pointer-events-none"
+        />
       </div>
 
       {showText && (

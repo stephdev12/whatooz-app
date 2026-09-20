@@ -25,6 +25,7 @@ interface DashboardStats {
     type: string
     detail: string
   }>
+  chartData: Array<{ month: string; value: number; peak: boolean }>
 }
 
 export default function DashboardPage() {
@@ -34,6 +35,7 @@ export default function DashboardPage() {
     totalOrders: 0,
     totalRevenueFcfa: 0,
     recentInteractions: [],
+    chartData: [],
   })
 
   const [timeframe, setTimeframe] = useState<'monthly' | 'annually'>('monthly')
@@ -90,11 +92,47 @@ export default function DashboardPage() {
           })
         }
 
+        // Build 6 months dynamic chart data based on real interaction counts
+        const monthCounts: Record<string, number> = {}
+        interactions.forEach(r => {
+          const date = new Date(r.created_at)
+          const month = date.toLocaleString('fr-FR', { month: 'short' }).toUpperCase().replace('.', '')
+          monthCounts[month] = (monthCounts[month] || 0) + 1
+        })
+        
+        const dynamicChartData = []
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date()
+          d.setMonth(d.getMonth() - i)
+          const m = d.toLocaleString('fr-FR', { month: 'short' }).toUpperCase().replace('.', '')
+          const val = monthCounts[m] || 0
+          dynamicChartData.push({
+            month: m,
+            // visually scale it up so the chart isn't completely flat if there's only 1 order
+            value: val > 0 ? Math.min(val * 20, 100) : 5, 
+            peak: false
+          })
+        }
+
+        // Add a peak visual if there's actual data
+        let maxVal = -1
+        let peakIdx = -1
+        dynamicChartData.forEach((d, i) => {
+          if (d.value > maxVal && d.value > 5) {
+            maxVal = d.value
+            peakIdx = i
+          }
+        })
+        if (peakIdx !== -1) {
+          dynamicChartData[peakIdx].peak = true
+        }
+
         setStats({
           totalConversations: convoCount || 0,
           totalOrders: ordersCount,
           totalRevenueFcfa: totalFcfa,
           recentInteractions: interactions,
+          chartData: dynamicChartData,
         })
       } catch (err) {
         console.error('Error loading dashboard stats:', err)
@@ -108,15 +146,6 @@ export default function DashboardPage() {
 
   const userName = user?.email?.split('@')[0] || 'Marchand'
   const capitalizedUserName = userName.charAt(0).toUpperCase() + userName.slice(1)
-
-  const chartData = [
-    { month: 'JAN', value: 35, peak: false },
-    { month: 'FÉV', value: 58, peak: false },
-    { month: 'MAR', value: 48, peak: false },
-    { month: 'AVR', value: 94, peak: true },
-    { month: 'MAI', value: 65, peak: false },
-    { month: 'JUIN', value: 72, peak: false },
-  ]
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -200,11 +229,11 @@ export default function DashboardPage() {
 
           {/* Bar Chart */}
           <div className="flex h-40 items-end gap-3 border-b border-border pb-1">
-            {chartData.map((bar) => (
+            {stats.chartData.map((bar) => (
               <div key={bar.month} className="relative flex flex-col items-center flex-1">
                 {bar.peak && (
                   <span className="absolute -top-5 rounded-full bg-emerald-500 text-white px-1.5 py-0.5 text-[9px] font-bold">
-                    +17.8%
+                    Max
                   </span>
                 )}
                 <div
@@ -218,7 +247,7 @@ export default function DashboardPage() {
             ))}
           </div>
           <div className="flex justify-between pt-2 text-[10px] font-medium text-muted-foreground">
-            {chartData.map((bar) => (
+            {stats.chartData.map((bar) => (
               <span key={bar.month} className="flex-1 text-center">{bar.month}</span>
             ))}
           </div>

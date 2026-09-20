@@ -9,6 +9,7 @@ import {
   Layers,
   Zap,
   Settings,
+  FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -35,9 +36,9 @@ const bottomNavItems = [
     icon: Zap,
   },
   {
-    label: 'Réglages',
-    href: '/dashboard/settings',
-    icon: Settings,
+    label: 'Modèles',
+    href: '/dashboard/templates',
+    icon: FileText,
   },
 ]
 
