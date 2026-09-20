@@ -13,8 +13,6 @@ import {
   X,
   RefreshCw,
   Send,
-  ChevronDown,
-  ChevronUp,
   ExternalLink,
   Image as ImageIcon,
   Edit3,
@@ -50,9 +48,7 @@ export default function TemplatesPage() {
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  // Edit / Duplicate state
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null)
 
   // Form state
@@ -92,12 +88,12 @@ export default function TemplatesPage() {
       const res = await fetch('/api/whatsapp/templates')
       const data = await res.json()
       if (!res.ok) {
-        setError(data.error || 'Erreur lors du chargement des templates Meta')
+        setError(data.error || 'Erreur de chargement')
         return
       }
       setTemplates(data.templates ?? [])
     } catch {
-      setError('Erreur réseau lors de la communication avec le serveur')
+      setError('Erreur réseau')
     } finally {
       setLoading(false)
       setSyncing(false)
@@ -203,7 +199,6 @@ export default function TemplatesPage() {
 
     try {
       if (editingTemplateId) {
-        // UPDATE template via PATCH
         const res = await fetch('/api/whatsapp/templates', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
@@ -221,13 +216,11 @@ export default function TemplatesPage() {
 
         const data = await res.json()
         if (!res.ok) {
-          setFormError(data.error || 'Erreur de mise à jour du template auprès de Meta')
+          setFormError(data.error || 'Erreur de mise à jour')
           return
         }
-
-        setFormSuccess('✅ Template mis à jour auprès de Meta avec succès ! Examen en cours.')
+        setFormSuccess('Template mis à jour avec succès.')
       } else {
-        // CREATE new template via POST
         const res = await fetch('/api/whatsapp/templates', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -246,11 +239,10 @@ export default function TemplatesPage() {
 
         const data = await res.json()
         if (!res.ok) {
-          setFormError(data.error || 'Erreur de création du template auprès de Meta')
+          setFormError(data.error || 'Erreur de création')
           return
         }
-
-        setFormSuccess('✅ Template soumis à Meta avec succès ! Examen en cours (statut PENDING).')
+        setFormSuccess('Template soumis avec succès.')
       }
 
       setEditingTemplateId(null)
@@ -272,7 +264,7 @@ export default function TemplatesPage() {
   }
 
   async function handleDelete(templateName: string) {
-    if (!confirm(`Confirmez-vous la suppression du template "${templateName}" auprès de Meta ?`)) return
+    if (!confirm(`Supprimer le template "${templateName}" ?`)) return
 
     try {
       const res = await fetch('/api/whatsapp/templates', {
@@ -315,12 +307,12 @@ export default function TemplatesPage() {
 
       const data = await res.json()
       if (!res.ok) {
-        throw new Error(data.error || 'Échec de l’envoi')
+        throw new Error(data.error || "Échec de l'envoi")
       }
 
       setTestResult({ success: true })
     } catch (err) {
-      setTestResult({ error: err instanceof Error ? err.message : 'Erreur lors de l’envoi' })
+      setTestResult({ error: err instanceof Error ? err.message : "Erreur lors de l'envoi" })
     } finally {
       setSendingTest(false)
     }
@@ -330,27 +322,27 @@ export default function TemplatesPage() {
     switch (status?.toUpperCase()) {
       case 'APPROVED':
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-500">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Approuvé
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+            <CheckCircle2 className="h-3 w-3" /> Approuvé
           </span>
         )
       case 'PENDING':
       case 'IN_APPEAL':
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-500">
-            <Clock className="h-3.5 w-3.5" /> En attente Meta
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">
+            <Clock className="h-3 w-3" /> En attente
           </span>
         )
       case 'REJECTED':
       case 'DISABLED':
         return (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-rose-500/10 px-2.5 py-0.5 text-xs font-medium text-rose-500">
-            <XCircle className="h-3.5 w-3.5" /> Rejeté
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-rose-500 bg-rose-500/10 px-2 py-0.5 rounded-full">
+            <XCircle className="h-3 w-3" /> Rejeté
           </span>
         )
       default:
         return (
-          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
             {status}
           </span>
         )
@@ -358,48 +350,42 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+    <div className="mx-auto max-w-5xl space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-            <FileText className="h-6 w-6 text-[#fe5105]" />
-            Modèles de Messages WhatsApp
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-heading">
+            Modèles
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-            Gérez vos modèles officiels Meta WhatsApp Cloud API pour les relances et confirmations
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Gérez vos modèles de messages WhatsApp
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
           <button
             onClick={() => loadTemplates(true)}
             disabled={syncing || loading}
-            className="flex items-center gap-1.5 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-card px-3.5 py-1.5 text-xs font-semibold text-foreground transition-all hover:bg-secondary disabled:opacity-50 shadow-xs"
-            title="Synchroniser les statuts avec Meta"
+            className="flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50"
           >
-            <RefreshCw className={cn('h-3.5 w-3.5 text-[#fe5105]', syncing && 'animate-spin')} />
-            Synchroniser
+            <RefreshCw className={cn('h-3 w-3', syncing && 'animate-spin')} />
+            Sync
           </button>
           <button
             onClick={() => {
-              if (showForm) {
-                setShowForm(false)
-              } else {
-                openCreateModal()
-              }
+              if (showForm) setShowForm(false)
+              else openCreateModal()
             }}
             className="flex items-center gap-1.5 rounded-full bg-[#fe5105] hover:bg-[#e04602] px-4 py-1.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
           >
             {showForm ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-            {showForm ? 'Fermer' : 'Nouveau Modèle'}
+            {showForm ? 'Fermer' : 'Nouveau modèle'}
           </button>
         </div>
       </div>
 
-      {/* Error notification */}
       {error && (
-        <div className="flex items-center gap-2 rounded-xl bg-destructive/10 p-4 text-sm text-destructive">
+        <div className="flex items-center gap-2 rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
@@ -407,534 +393,340 @@ export default function TemplatesPage() {
 
       {/* Create / Edit Form */}
       {showForm && (
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <div className="border-b border-border pb-3">
-            <h2 className="text-base font-semibold text-card-foreground">
-              {editingTemplateId ? 'Modifier le Template WhatsApp' : 'Créer un nouveau Template WhatsApp'}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              {editingTemplateId
-                ? 'Les modifications apportées au template seront renvoyées à Meta pour réexamen.'
-                : 'Le template sera soumis directement aux serveurs Meta pour approbation automatique ou manuelle.'}
-            </p>
-          </div>
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold text-foreground border-b border-border pb-3">
+            {editingTemplateId ? 'Modifier le modèle' : 'Nouveau modèle'}
+          </h2>
 
           <form onSubmit={handleCreate} className="mt-4 space-y-4">
-            <div className="grid gap-4 sm:grid-cols-3">
-              {/* Name */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-card-foreground">
-                  Identifiant du template *
-                </label>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label className="text-xs font-medium text-foreground">Identifiant *</label>
                 <input
                   type="text"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
-                  placeholder="ex: confirmation_commande"
+                  placeholder="confirmation_commande"
                   required
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
+                  className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
                 />
-                <p className="text-[10px] text-muted-foreground">Minuscules et underscores uniquement.</p>
               </div>
-
-              {/* Language */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-card-foreground">
-                  Langue *
-                </label>
+              <div>
+                <label className="text-xs font-medium text-foreground">Langue *</label>
                 <select
                   value={formLanguage}
                   onChange={(e) => setFormLanguage(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
+                  className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none"
                 >
-                  <option value="fr">Français (fr)</option>
-                  <option value="en">English (en)</option>
-                  <option value="en_US">English US (en_US)</option>
-                  <option value="ar">Arabe (ar)</option>
-                  <option value="pt_BR">Portugais (pt_BR)</option>
-                  <option value="es">Espagnol (es)</option>
+                  <option value="fr">Français</option>
+                  <option value="en">English</option>
+                  <option value="en_US">English US</option>
+                  <option value="ar">Arabe</option>
+                  <option value="pt_BR">Portugais</option>
+                  <option value="es">Espagnol</option>
                 </select>
               </div>
-
-              {/* Category */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-card-foreground">
-                  Catégorie *
-                </label>
+              <div>
+                <label className="text-xs font-medium text-foreground">Catégorie *</label>
                 <select
                   value={formCategory}
                   onChange={(e) => setFormCategory(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
+                  className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none"
                 >
-                  <option value="MARKETING">Marketing (Promotions, offres)</option>
-                  <option value="UTILITY">Utilitaire (Confirmations, alertes)</option>
-                  <option value="AUTHENTICATION">Authentification (Codes OTP)</option>
+                  <option value="MARKETING">Marketing</option>
+                  <option value="UTILITY">Utilitaire</option>
+                  <option value="AUTHENTICATION">Authentification</option>
                 </select>
               </div>
             </div>
 
-            {/* Header Type Selector */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-card-foreground">
-                En-tête du message (Optionnel)
-              </label>
-              <div className="flex gap-2">
+            {/* Header */}
+            <div>
+              <label className="text-xs font-medium text-foreground">En-tête (Optionnel)</label>
+              <div className="flex gap-2 mt-1">
                 {(['none', 'TEXT', 'IMAGE'] as const).map((type) => (
                   <button
                     key={type}
                     type="button"
                     onClick={() => setHeaderType(type)}
                     className={cn(
-                      'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+                      'rounded-lg border px-3 py-1.5 text-xs transition-colors',
                       headerType === type
                         ? 'border-[#fe5105] bg-[#fe5105]/10 text-[#fe5105]'
-                        : 'border-border bg-input text-muted-foreground hover:text-foreground'
+                        : 'border-border text-muted-foreground hover:bg-secondary'
                     )}
                   >
                     {type === 'none' && 'Aucun'}
                     {type === 'TEXT' && 'Texte'}
-                    {type === 'IMAGE' && (
-                      <>
-                        <ImageIcon className="h-3.5 w-3.5" />
-                        Image
-                      </>
-                    )}
+                    {type === 'IMAGE' && 'Image'}
                   </button>
                 ))}
               </div>
-
               {headerType === 'TEXT' && (
-                <div className="mt-2">
-                  <input
-                    type="text"
-                    value={formHeaderText}
-                    onChange={(e) => setFormHeaderText(e.target.value)}
-                    placeholder="Ex: Votre commande est prête !"
-                    maxLength={60}
-                    className="w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={formHeaderText}
+                  onChange={(e) => setFormHeaderText(e.target.value)}
+                  placeholder="Titre de l'en-tête"
+                  maxLength={60}
+                  className="mt-2 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none"
+                />
               )}
-
               {headerType === 'IMAGE' && (
-                <div className="mt-2 space-y-1">
-                  <input
-                    type="url"
-                    value={formHeaderImageUrl}
-                    onChange={(e) => setFormHeaderImageUrl(e.target.value)}
-                    placeholder="https://images.unsplash.com/... (URL d’exemple HTTPS requise par Meta)"
-                    className="w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
-                  />
-                  <p className="text-[10px] text-muted-foreground">
-                    Meta exige une URL d’image publique d’exemple pour valider le format de l’en-tête.
-                  </p>
-                </div>
+                <input
+                  type="url"
+                  value={formHeaderImageUrl}
+                  onChange={(e) => setFormHeaderImageUrl(e.target.value)}
+                  placeholder="URL de l'image HTTPS"
+                  className="mt-2 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none"
+                />
               )}
             </div>
 
             {/* Body */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-card-foreground">
-                Corps du message (Body) *
-              </label>
+            <div>
+              <label className="text-xs font-medium text-foreground">Corps du message *</label>
               <textarea
                 value={formBodyText}
                 onChange={(e) => setFormBodyText(e.target.value)}
-                placeholder={"Bonjour {{1}},\n\nNous confirmons votre commande {{2}} d'un montant de {{3}} FCFA.\n\nMerci de votre fidélité !"}
+                placeholder={"Bonjour {{1}},\n\nVotre commande {{2}} est confirmée."}
                 required
-                rows={4}
+                rows={3}
                 maxLength={1024}
-                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
+                className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none"
               />
-              <p className="text-[11px] text-muted-foreground">
-                Insérez des variables dynamiques en écrivant <code className="text-[#fe5105]">{'{{1}}'}</code>, <code className="text-[#fe5105]">{'{{2}}'}</code>, etc.
-              </p>
             </div>
 
             {/* Footer */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-card-foreground">
-                Pied de page (Optionnel)
-              </label>
+            <div>
+              <label className="text-xs font-medium text-foreground">Pied de page (Optionnel)</label>
               <input
                 type="text"
                 value={formFooterText}
                 onChange={(e) => setFormFooterText(e.target.value)}
-                placeholder="Ex: Répondez STOP pour vous désabonner"
+                placeholder="Répondez STOP pour vous désabonner"
                 maxLength={60}
-                className="w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
+                className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none"
               />
             </div>
 
-            {/* Buttons */}
-            <div className="space-y-2 rounded-xl border border-border bg-secondary/20 p-3">
-              <label className="text-xs font-medium text-card-foreground">
-                Bouton d&apos;action (Optionnel)
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setButtonType('none')}
-                  className={cn(
-                    'rounded-lg border px-3 py-1.5 text-xs transition-colors',
-                    buttonType === 'none'
-                      ? 'border-[#fe5105] bg-[#fe5105]/10 font-medium text-[#fe5105]'
-                      : 'border-border text-muted-foreground hover:bg-secondary'
-                  )}
-                >
-                  Aucun bouton
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setButtonType('QUICK_REPLY')}
-                  className={cn(
-                    'rounded-lg border px-3 py-1.5 text-xs transition-colors',
-                    buttonType === 'QUICK_REPLY'
-                      ? 'border-[#fe5105] bg-[#fe5105]/10 font-medium text-[#fe5105]'
-                      : 'border-border text-muted-foreground hover:bg-secondary'
-                  )}
-                >
-                  Réponse rapide (Quick Reply)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setButtonType('URL')}
-                  className={cn(
-                    'rounded-lg border px-3 py-1.5 text-xs transition-colors',
-                    buttonType === 'URL'
-                      ? 'border-[#fe5105] bg-[#fe5105]/10 font-medium text-[#fe5105]'
-                      : 'border-border text-muted-foreground hover:bg-secondary'
-                  )}
-                >
-                  Lien Web (URL)
-                </button>
+            {/* Button */}
+            <div>
+              <label className="text-xs font-medium text-foreground">Bouton (Optionnel)</label>
+              <div className="flex gap-2 mt-1">
+                {(['none', 'QUICK_REPLY', 'URL'] as const).map((type) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => setButtonType(type)}
+                    className={cn(
+                      'rounded-lg border px-3 py-1.5 text-xs transition-colors',
+                      buttonType === type
+                        ? 'border-[#fe5105] bg-[#fe5105]/10 text-[#fe5105]'
+                        : 'border-border text-muted-foreground hover:bg-secondary'
+                    )}
+                  >
+                    {type === 'none' && 'Aucun'}
+                    {type === 'QUICK_REPLY' && 'Réponse rapide'}
+                    {type === 'URL' && 'Lien URL'}
+                  </button>
+                ))}
               </div>
-
               {buttonType !== 'none' && (
-                <div className="grid gap-3 pt-2 sm:grid-cols-2">
-                  <div>
-                    <label className="text-[11px] font-medium text-card-foreground">
-                      Texte du bouton
-                    </label>
-                    <input
-                      type="text"
-                      placeholder={buttonType === 'URL' ? 'Visiter le site' : 'Confirmer'}
-                      value={buttonText}
-                      onChange={(e) => setButtonText(e.target.value)}
-                      maxLength={25}
-                      className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-1.5 text-xs text-foreground outline-none focus:border-[#fe5105]"
-                    />
-                  </div>
+                <div className="grid gap-2 mt-2 sm:grid-cols-2">
+                  <input
+                    type="text"
+                    placeholder="Texte du bouton"
+                    value={buttonText}
+                    onChange={(e) => setButtonText(e.target.value)}
+                    maxLength={25}
+                    className="w-full rounded-lg border border-border bg-input px-3 py-1.5 text-xs text-foreground outline-none"
+                  />
                   {buttonType === 'URL' && (
-                    <div>
-                      <label className="text-[11px] font-medium text-card-foreground">
-                        Adresse URL (HTTPS)
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://whatooz.space"
-                        value={buttonUrl}
-                        onChange={(e) => setButtonUrl(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-1.5 text-xs text-foreground outline-none focus:border-[#fe5105]"
-                      />
-                    </div>
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={buttonUrl}
+                      onChange={(e) => setButtonUrl(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-input px-3 py-1.5 text-xs text-foreground outline-none"
+                    />
                   )}
                 </div>
               )}
             </div>
 
-            {/* Live WhatsApp Preview */}
-            <div className="rounded-xl border border-border bg-[#0b141a]/5 p-4 dark:bg-black/20">
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Aperçu du rendu WhatsApp
-              </p>
-              <div className="mx-auto max-w-sm rounded-xl border border-border/80 bg-card p-3 shadow-md">
-                {headerType === 'IMAGE' && (
-                  <div className="mb-2 overflow-hidden rounded-lg border border-border bg-secondary/30">
-                    {formHeaderImageUrl ? (
-                      <img
-                        src={formHeaderImageUrl}
-                        alt="Aperçu Header"
-                        className="h-32 w-full object-cover"
-                        onError={(e) => {
-                          ;(e.target as HTMLElement).style.display = 'none'
-                        }}
-                      />
-                    ) : (
-                      <div className="flex h-24 flex-col items-center justify-center gap-1 text-muted-foreground">
-                        <ImageIcon className="h-6 w-6 text-[#fe5105]" />
-                        <span className="text-[10px]">Image d’en-tête (Aperçu)</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {headerType === 'TEXT' && formHeaderText && (
-                  <p className="mb-1 text-xs font-bold text-foreground">{formHeaderText}</p>
-                )}
-                <p className="whitespace-pre-wrap text-xs text-foreground">
-                  {formBodyText || 'Texte du template...'}
-                </p>
-                {formFooterText && (
-                  <p className="mt-2 text-[10px] text-muted-foreground">{formFooterText}</p>
-                )}
-                {buttonType !== 'none' && buttonText && (
-                  <div className="mt-3 border-t border-border/60 pt-2 text-center">
-                    <span className="inline-flex items-center gap-1 text-xs font-medium text-[#fe5105]">
-                      {buttonType === 'URL' && <ExternalLink className="h-3 w-3" />}
-                      {buttonText}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {formError && (
-              <div className="flex items-center gap-2 rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
-                <AlertCircle className="h-4 w-4 shrink-0" />
-                {formError}
-              </div>
+              <div className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">{formError}</div>
             )}
             {formSuccess && (
-              <div className="flex items-center gap-2 rounded-lg bg-emerald-500/10 p-3 text-xs text-emerald-500">
-                <CheckCircle2 className="h-4 w-4 shrink-0" />
-                {formSuccess}
-              </div>
+              <div className="rounded-lg bg-emerald-500/10 p-3 text-xs text-emerald-500">{formSuccess}</div>
             )}
 
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-1">
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                disabled={creating}
-                className="rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary"
+                className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary"
               >
                 Annuler
               </button>
               <button
                 type="submit"
                 disabled={creating}
-                className="flex items-center gap-2 rounded-lg bg-[#fe5105] px-5 py-2 text-xs font-semibold text-white transition-all hover:bg-[#fe5105]/90 disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-full bg-[#fe5105] px-5 py-2 text-xs font-bold text-white hover:bg-[#e04602] disabled:opacity-50"
               >
-                {creating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : editingTemplateId ? (
-                  <CheckCircle2 className="h-4 w-4" />
-                ) : (
-                  <Plus className="h-4 w-4" />
-                )}
-                {creating
-                  ? 'Envoi à Meta...'
-                  : editingTemplateId
-                  ? 'Enregistrer les modifications'
-                  : 'Soumettre le Template à Meta'}
+                {creating && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {editingTemplateId ? 'Enregistrer' : 'Soumettre'}
               </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Templates Cards Grid (Inspiré Référence Image 5 - Olivia Rhye) */}
-      <div>
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-[#fe5105]" />
-          </div>
-        ) : templates.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-border bg-card/60 p-12 text-center">
-            <FileText className="mx-auto h-8 w-8 text-muted-foreground/60 mb-2" />
-            <p className="text-sm font-semibold text-foreground">Aucun modèle trouvé sur votre compte</p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-              Créez un nouveau modèle de message pour envoyer des confirmations de commandes et alertes à vos clients.
-            </p>
-            <button
-              onClick={openCreateModal}
-              className="mt-4 rounded-full bg-[#fe5105] text-white px-4 py-2 text-xs font-bold shadow-xs hover:bg-[#e04602]"
-            >
-              + Nouveau Modèle
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {templates.map((tpl) => {
-              const isApproved = tpl.status?.toUpperCase() === 'APPROVED'
-              const bodyComp = tpl.components?.find((c) => c.type === 'BODY')
-              const headerComp = tpl.components?.find((c) => c.type === 'HEADER')
+      {/* ─── Templates List (Simple cards) ─── */}
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-5 w-5 animate-spin text-[#fe5105]" />
+        </div>
+      ) : templates.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border p-12 text-center">
+          <FileText className="mx-auto h-7 w-7 text-muted-foreground/50 mb-2" />
+          <p className="text-sm font-medium text-foreground">Aucun modèle</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Créez votre premier modèle de message
+          </p>
+          <button
+            onClick={openCreateModal}
+            className="mt-4 rounded-full bg-[#fe5105] text-white px-4 py-1.5 text-xs font-bold shadow-xs hover:bg-[#e04602]"
+          >
+            + Nouveau modèle
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {templates.map((tpl) => {
+            const isApproved = tpl.status?.toUpperCase() === 'APPROVED'
+            const bodyComp = tpl.components?.find((c) => c.type === 'BODY')
 
-              return (
-                <div
-                  key={tpl.id}
-                  className="group relative overflow-hidden rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-card/80 backdrop-blur-md shadow-xs hover:shadow-xl transition-all duration-300 flex flex-col justify-between"
-                >
-                  {/* Noisy Gradient Header Banner (Olivia Rhye Style) */}
-                  <div className="relative h-24 w-full bg-gradient-to-r from-blue-600/35 via-[#fe5105]/25 to-violet-600/35 overflow-hidden">
-                    <div className="absolute inset-0 bg-white/5 backdrop-blur-[1px]" />
-                    <div className="absolute top-3 right-3">
-                      {statusBadge(tpl.status)}
-                    </div>
+            return (
+              <div
+                key={tpl.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-secondary/30 transition-colors"
+              >
+                {/* Left: name + info */}
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fe5105]/10 text-[#fe5105] shrink-0">
+                    <FileText className="h-4 w-4" />
                   </div>
-
-                  {/* Floating Avatar & Actions */}
-                  <div className="relative px-5 pt-0 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="-mt-10 mb-3 flex items-center justify-between">
-                        <div className="h-16 w-16 rounded-2xl border-4 border-card bg-foreground text-background flex items-center justify-center shadow-md">
-                          <FileText className="h-7 w-7 text-[#fe5105]" />
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => handleDuplicateTemplate(tpl)}
-                            title="Dupliquer"
-                            className="h-8 w-8 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-card hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-all"
-                          >
-                            <Copy className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(tpl.name)}
-                            title="Supprimer"
-                            className="h-8 w-8 rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-card hover:bg-destructive/10 hover:text-destructive flex items-center justify-center text-muted-foreground transition-all"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Title & Category */}
-                      <div>
-                        <h3 className="text-base font-bold text-foreground leading-tight truncate">{tpl.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {tpl.category} • {tpl.language}
-                        </p>
-                      </div>
-
-                      {/* 3 Metrics Row (Olivia Rhye style) */}
-                      <div className="grid grid-cols-3 divide-x divide-black/[0.04] dark:divide-white/[0.06] my-4 py-2 border-y border-black/[0.04] dark:border-white/[0.06] text-center">
-                        <div>
-                          <p className="text-xs font-bold text-foreground">{tpl.language.toUpperCase()}</p>
-                          <p className="text-[10px] text-muted-foreground">Langue</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-emerald-500">
-                            {isApproved ? 'Meta OK' : 'En cours'}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">Validation</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-foreground">
-                            {headerComp?.format === 'IMAGE' ? 'Image' : 'Texte'}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">Format</p>
-                        </div>
-                      </div>
-
-                      {/* Message Preview Snippet */}
-                      <p className="text-xs text-muted-foreground line-clamp-2 italic bg-secondary/30 p-2.5 rounded-xl border border-black/[0.04] dark:border-white/[0.06] mb-4">
-                        &quot;{bodyComp?.text || 'Message WhatsApp...'}&quot;
-                      </p>
-                    </div>
-
-                    {/* Bottom Full-Width Pill Action Buttons */}
-                    <div className="pb-5 pt-1 flex items-center gap-2">
-                      {isApproved && (
-                        <button
-                          onClick={() => {
-                            setTestTemplate(tpl)
-                            setTestPhone('')
-                            setTestResult(null)
-                            const hasImg = tpl.components?.some(
-                              (c) => c.type === 'HEADER' && c.format === 'IMAGE'
-                            )
-                            setTestHeaderImageUrl(
-                              hasImg
-                                ? 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80'
-                                : ''
-                            )
-                            const body = tpl.components?.find((c) => c.type === 'BODY')
-                            const varMatches = body?.text?.match(/\{\{(\d+)\}\}/g) || []
-                            setTestVariables(new Array(varMatches.length).fill(''))
-                          }}
-                          className="flex-1 flex items-center justify-center gap-2 rounded-full bg-[#fe5105] hover:bg-[#e04602] py-2.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95"
-                        >
-                          <Send className="h-3.5 w-3.5" />
-                          <span>Tester</span>
-                        </button>
-                      )}
-                      <button
-                        onClick={() => openEditTemplate(tpl)}
-                        className={cn(
-                          'rounded-full border border-black/[0.08] dark:border-white/[0.1] bg-secondary hover:bg-secondary/80 px-4 py-2.5 text-xs font-bold text-foreground transition-all',
-                          !isApproved && 'w-full'
-                        )}
-                      >
-                        Modifier
-                      </button>
-                    </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-foreground truncate">{tpl.name}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {tpl.category} · {tpl.language}
+                    </p>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+
+                {/* Center: status */}
+                <div className="hidden sm:block">
+                  {statusBadge(tpl.status)}
+                </div>
+
+                {/* Right: actions */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {isApproved && (
+                    <button
+                      onClick={() => {
+                        setTestTemplate(tpl)
+                        setTestPhone('')
+                        setTestResult(null)
+                        const hasImg = tpl.components?.some((c) => c.type === 'HEADER' && c.format === 'IMAGE')
+                        setTestHeaderImageUrl(
+                          hasImg ? 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80' : ''
+                        )
+                        const body = tpl.components?.find((c) => c.type === 'BODY')
+                        const varMatches = body?.text?.match(/\{\{(\d+)\}\}/g) || []
+                        setTestVariables(new Array(varMatches.length).fill(''))
+                      }}
+                      className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-[#fe5105] hover:bg-[#fe5105]/10 transition-colors"
+                      title="Tester"
+                    >
+                      <Send className="h-3 w-3" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => openEditTemplate(tpl)}
+                    className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    title="Modifier"
+                  >
+                    <Edit3 className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={() => handleDuplicateTemplate(tpl)}
+                    className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                    title="Dupliquer"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(tpl.name)}
+                    className="h-7 w-7 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* Quick Test Modal */}
       {testTemplate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl">
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div>
-                <h3 className="text-base font-semibold text-foreground">
-                  Tester le template WhatsApp
-                </h3>
-                <p className="text-xs text-[#fe5105] font-medium">
-                  {testTemplate.name} ({testTemplate.language})
-                </p>
+                <h3 className="text-sm font-semibold text-foreground">Tester le modèle</h3>
+                <p className="text-xs text-muted-foreground">{testTemplate.name}</p>
               </div>
               <button
                 onClick={() => setTestTemplate(null)}
-                className="rounded-lg p-1 text-muted-foreground hover:bg-secondary"
+                className="rounded-full p-1 text-muted-foreground hover:bg-secondary"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSendTest} className="mt-4 space-y-4">
+            <form onSubmit={handleSendTest} className="mt-4 space-y-3">
               <div>
-                <label className="block text-xs font-medium text-foreground">
-                  Numéro de téléphone destinataire (avec indicatif)
-                </label>
+                <label className="text-xs font-medium text-foreground">Numéro destinataire</label>
                 <input
                   type="text"
                   required
-                  placeholder="Ex: 2376XXXXXXXX"
+                  placeholder="2376XXXXXXXX"
                   value={testPhone}
                   onChange={(e) => setTestPhone(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground outline-none focus:border-[#fe5105]"
+                  className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
                 />
               </div>
 
-              {/* If template has image header */}
-              {testTemplate.components?.some(
-                (c) => c.type === 'HEADER' && c.format === 'IMAGE'
-              ) && (
+              {testTemplate.components?.some((c) => c.type === 'HEADER' && c.format === 'IMAGE') && (
                 <div>
-                  <label className="block text-xs font-medium text-foreground">
-                    URL de l’image d’en-tête (HTTPS requise)
-                  </label>
+                  <label className="text-xs font-medium text-foreground">URL image d&apos;en-tête</label>
                   <input
                     type="url"
                     required
                     value={testHeaderImageUrl}
                     onChange={(e) => setTestHeaderImageUrl(e.target.value)}
-                    placeholder="https://..."
-                    className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
+                    className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none"
                   />
                 </div>
               )}
 
-              {/* Dynamic Variables input */}
               {testVariables.map((val, idx) => (
                 <div key={idx}>
-                  <label className="block text-xs font-medium text-foreground">
+                  <label className="text-xs font-medium text-foreground">
                     Variable <code className="text-[#fe5105]">{`{{${idx + 1}}}`}</code>
                   </label>
                   <input
@@ -946,39 +738,35 @@ export default function TemplatesPage() {
                       next[idx] = e.target.value
                       setTestVariables(next)
                     }}
-                    placeholder={`Valeur pour {{${idx + 1}}}`}
-                    className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
+                    className="mt-1 w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none"
                   />
                 </div>
               ))}
 
               {testResult?.error && (
-                <div className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">
-                  {testResult.error}
-                </div>
+                <div className="rounded-lg bg-destructive/10 p-3 text-xs text-destructive">{testResult.error}</div>
               )}
               {testResult?.success && (
                 <div className="rounded-lg bg-emerald-500/10 p-3 text-xs text-emerald-500">
-                  ✅ Template envoyé avec succès sur WhatsApp !
+                  ✅ Envoyé avec succès !
                 </div>
               )}
 
-              <div className="flex justify-end gap-2 pt-2">
+              <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setTestTemplate(null)}
-                  disabled={sendingTest}
-                  className="rounded-lg border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary"
+                  className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-secondary"
                 >
                   Fermer
                 </button>
                 <button
                   type="submit"
                   disabled={sendingTest}
-                  className="flex items-center gap-2 rounded-lg bg-[#fe5105] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#fe5105]/90 disabled:opacity-50"
+                  className="flex items-center gap-1.5 rounded-full bg-[#fe5105] px-4 py-2 text-xs font-bold text-white hover:bg-[#e04602] disabled:opacity-50"
                 >
-                  {sendingTest ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Envoyer le test
+                  {sendingTest ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  Envoyer
                 </button>
               </div>
             </form>

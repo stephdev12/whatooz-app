@@ -13,7 +13,7 @@ interface WhatoozLogoProps {
 export function WhatoozLogo({
   className,
   size = 'md',
-  showText = true,
+  showText = false,
 }: WhatoozLogoProps) {
   // Dimensions for the icon container
   const sizeMap = {
