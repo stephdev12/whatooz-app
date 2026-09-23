@@ -34,9 +34,9 @@ export type TemplateVariable = {
 export type TemplateHeader =
   | { type: 'NONE' }
   | { type: 'TEXT'; text: string; variables?: TemplateVariable[] }
-  | { type: 'IMAGE'; mediaId?: string; mediaHandle?: string }
-  | { type: 'VIDEO'; mediaId?: string; mediaHandle?: string }
-  | { type: 'DOCUMENT'; mediaId?: string; mediaHandle?: string }
+  | { type: 'IMAGE'; mediaId?: string; mediaHandle?: string; mediaFilename?: string }
+  | { type: 'VIDEO'; mediaId?: string; mediaHandle?: string; mediaFilename?: string }
+  | { type: 'DOCUMENT'; mediaId?: string; mediaHandle?: string; mediaFilename?: string }
   | { type: 'LOCATION' }
 
 export interface TemplateBody {
@@ -59,8 +59,8 @@ export type TemplateButton =
 export type MediaCarouselCard = {
   index: number
   media:
-    | { type: 'IMAGE'; mediaHandle?: string }
-    | { type: 'VIDEO'; mediaHandle?: string }
+    | { type: 'IMAGE'; mediaHandle?: string; mediaFilename?: string }
+    | { type: 'VIDEO'; mediaHandle?: string; mediaFilename?: string }
   body?: string
   buttons: TemplateButton[]
 }
