@@ -5,8 +5,7 @@
  * that plagued positional signatures.
  */
 
-const META_API_VERSION = 'v21.0'
-const META_API_BASE = `https://graph.facebook.com/${META_API_VERSION}`
+import { META_API_BASE } from './config'
 
 // ============================================================
 // Error handling
@@ -25,7 +24,7 @@ interface MetaErrorResponse {
   }
 }
 
-async function throwMetaError(
+export async function throwMetaError(
   response: Response,
   fallback: string
 ): Promise<never> {
@@ -534,7 +533,7 @@ export interface GranularScope {
 export interface DebugTokenResult {
   app_id: string
   is_valid: boolean
-  user_id?: string
+  organization_id?: string
   granular_scopes?: GranularScope[]
 }
 
@@ -605,6 +604,7 @@ export interface MetaFlow {
   status: 'DRAFT' | 'PUBLISHED' | 'DEPRECATED'
   categories?: string[]
   validation_errors?: Array<{ error: string }>
+  flow_json?: any
 }
 
 /**
@@ -627,14 +627,14 @@ export async function listWabaFlows(args: {
 }
 
 /**
- * Get detailed information and flow_json for a specific Meta Flow.
+ * Get detailed information for a specific Meta Flow.
  */
 export async function getWabaFlowDetails(args: {
   flowId: string
   accessToken: string
-}): Promise<MetaFlow & { flow_json?: string | Record<string, any> }> {
+}): Promise<MetaFlow> {
   const { flowId, accessToken } = args
-  const url = `${META_API_BASE}/${flowId}?fields=id,name,status,categories,validation_errors,flow_json`
+  const url = `${META_API_BASE}/${flowId}?fields=id,name,status,categories,validation_errors`
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
   })
@@ -669,7 +669,7 @@ export function sanitizeMetaFlowJson(jsonObj: any): any {
 
   const result: Record<string, any> = {}
   for (const [key, value] of Object.entries(jsonObj)) {
-    if (key === '_ui_meta') continue
+    if (key === '_ui_meta' || key === '_whatooz_visual_state') continue
 
     if (key === 'placeholder') {
       // In Meta Flows, TextInput and TextArea do not accept 'placeholder'.
@@ -752,20 +752,7 @@ export async function createWabaFlow(args: {
     name,
     categories: sanitizedCategories.length > 0 ? sanitizedCategories : ['OTHER'],
   }
-  if (flowJson) {
-    let cleanJson: any
-    try {
-      cleanJson = typeof flowJson === 'string' ? JSON.parse(flowJson) : JSON.parse(JSON.stringify(flowJson))
-      if (cleanJson && typeof cleanJson === 'object' && '_ui_meta' in cleanJson) {
-        delete cleanJson._ui_meta
-      }
-    } catch {
-      cleanJson = flowJson
-    }
-    cleanJson = sanitizeMetaFlowJson(cleanJson)
-    payload.flow_json = typeof cleanJson === 'string' ? cleanJson : JSON.stringify(cleanJson)
-    payload.publish = publish
-  }
+
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -774,10 +761,27 @@ export async function createWabaFlow(args: {
     },
     body: JSON.stringify(payload),
   })
+  
   if (!response.ok) {
     await throwMetaError(response, 'Échec de la création du Flow sur Meta')
   }
+  
   const data = await response.json()
+  
+  // Now upload the JSON asset if provided
+  if (flowJson && data.id) {
+    const parsedFlowJson: Record<string, unknown> = typeof flowJson === 'string' ? JSON.parse(flowJson) : flowJson
+    const uploadResult = await updateWabaFlowJson({
+      flowId: data.id,
+      accessToken,
+      flowJson: parsedFlowJson,
+    })
+    
+    if (uploadResult.validation_errors && uploadResult.validation_errors.length > 0) {
+       data.validation_errors = uploadResult.validation_errors
+    }
+  }
+
   if (data.validation_errors && Array.isArray(data.validation_errors) && data.validation_errors.length > 0) {
     console.error('[Meta validation_errors]', JSON.stringify(data.validation_errors, null, 2))
     const errorDetails = data.validation_errors
@@ -893,14 +897,37 @@ export async function deleteWabaFlow(args: {
 }): Promise<{ success: boolean }> {
   const { flowId, accessToken } = args
   const url = `${META_API_BASE}/${flowId}`
-  const response = await fetch(url, {
+  let response = await fetch(url, {
     method: 'DELETE',
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
   })
+  
   if (!response.ok) {
-    await throwMetaError(response, 'Échec de la suppression du Flow sur Meta')
+    const errorData = await response.clone().json().catch(() => null)
+    
+    // If the flow is PUBLISHED, it cannot be deleted directly. It must be deprecated first.
+    // Error code 100 or specific message indicates this.
+    if (errorData?.error?.code === 100 || errorData?.error?.message?.toLowerCase().includes('deprecate')) {
+      const deprecateUrl = `${META_API_BASE}/${flowId}/deprecate`
+      const deprecateRes = await fetch(deprecateUrl, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      
+      if (deprecateRes.ok) {
+        // Try deleting again
+        response = await fetch(url, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+      }
+    }
+    
+    if (!response.ok) {
+      await throwMetaError(response, 'Échec de la suppression du Flow sur Meta')
+    }
   }
   return response.json()
 }
@@ -1021,5 +1048,146 @@ export async function sendFlowMessage(args: SendFlowMessageArgs): Promise<MetaSe
 }
 
 
+// ============================================================
+// Commerce Messages (Products & Catalogs)
+// ============================================================
 
+export async function sendProductMessage(args: {
+  phoneNumberId: string
+  accessToken: string
+  to: string
+  catalogId: string
+  productRetailerId: string
+  bodyText?: string
+  footerText?: string
+}): Promise<MetaSendResult> {
+  const { phoneNumberId, accessToken, to, catalogId, productRetailerId, bodyText, footerText } = args
+  const url = `${META_API_BASE}/${phoneNumberId}/messages`
+
+  const interactive: any = {
+    type: 'product',
+    action: {
+      catalog_id: catalogId,
+      product_retailer_id: productRetailerId,
+    },
+  }
+  if (bodyText) interactive.body = { text: bodyText }
+  if (footerText) interactive.footer = { text: footerText }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to,
+      type: 'interactive',
+      interactive,
+    }),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, 'Failed to send product message')
+  }
+  const data = await response.json()
+  return { messageId: data.messages?.[0]?.id ?? '' }
+}
+
+export interface MetaProductSection {
+  title: string
+  product_items: Array<{ product_retailer_id: string }>
+}
+
+export async function sendProductListMessage(args: {
+  phoneNumberId: string
+  accessToken: string
+  to: string
+  catalogId: string
+  sections: MetaProductSection[]
+  headerText: string
+  bodyText: string
+  footerText?: string
+}): Promise<MetaSendResult> {
+  const { phoneNumberId, accessToken, to, catalogId, sections, headerText, bodyText, footerText } = args
+  const url = `${META_API_BASE}/${phoneNumberId}/messages`
+
+  const interactive: any = {
+    type: 'product_list',
+    header: { type: 'text', text: headerText },
+    body: { text: bodyText },
+    action: {
+      catalog_id: catalogId,
+      sections,
+    },
+  }
+  if (footerText) interactive.footer = { text: footerText }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to,
+      type: 'interactive',
+      interactive,
+    }),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, 'Failed to send product list message')
+  }
+  const data = await response.json()
+  return { messageId: data.messages?.[0]?.id ?? '' }
+}
+
+export async function sendCatalogMessage(args: {
+  phoneNumberId: string
+  accessToken: string
+  to: string
+  bodyText: string
+  thumbnailProductRetailerId?: string
+  footerText?: string
+}): Promise<MetaSendResult> {
+  const { phoneNumberId, accessToken, to, bodyText, thumbnailProductRetailerId, footerText } = args
+  const url = `${META_API_BASE}/${phoneNumberId}/messages`
+
+  const interactive: any = {
+    type: 'catalog_message',
+    body: { text: bodyText },
+    action: {
+      name: 'catalog_link',
+    },
+  }
+  if (thumbnailProductRetailerId) {
+    interactive.action.parameters = {
+      thumbnail_product_retailer_id: thumbnailProductRetailerId,
+    }
+  }
+  if (footerText) interactive.footer = { text: footerText }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to,
+      type: 'interactive',
+      interactive,
+    }),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, 'Failed to send catalog message')
+  }
+  const data = await response.json()
+  return { messageId: data.messages?.[0]?.id ?? '' }
+}
 

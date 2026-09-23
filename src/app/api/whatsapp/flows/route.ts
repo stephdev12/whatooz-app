@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/whatsapp/flows — List WhatsApp Flows (local cache + Meta status).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -25,11 +25,16 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   // 1. Fetch local flows
   const { data: localFlows, error: dbError } = await supabaseAdmin
     .from('whatsapp_flows')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
 
   if (dbError) {
@@ -40,7 +45,7 @@ export async function GET() {
   const { data: config } = await supabaseAdmin
     .from('whatsapp_config')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .maybeSingle()
 
   if (!config?.access_token_encrypted || !config.waba_id) {
@@ -81,7 +86,7 @@ export async function GET() {
         const { data: imported } = await supabaseAdmin
           .from('whatsapp_flows')
           .insert({
-            user_id: user.id,
+            organization_id: organizationId,
             meta_flow_id: mf.id,
             name: mf.name,
             categories: mf.categories || ['OTHER'],
@@ -97,22 +102,10 @@ export async function GET() {
         console.warn('[Flows GET] Could not auto-sync Meta flow:', mf.name, importErr)
       }
     } else if (!existing.flow_json?.screens?.length && accessToken) {
-      // Flow exists locally but has empty screens (e.g. was previously imported without JSON)
-      try {
-        const details = await getWabaFlowDetails({ flowId: mf.id, accessToken })
-        if (details?.flow_json) {
-          const parsed = typeof details.flow_json === 'string' ? JSON.parse(details.flow_json) : details.flow_json
-          if (parsed?.screens?.length) {
-            existing.flow_json = parsed
-            await supabaseAdmin
-              .from('whatsapp_flows')
-              .update({ flow_json: parsed })
-              .eq('id', existing.id)
-          }
-        }
-      } catch (detailErr) {
-        console.warn('[Flows GET] Could not update flow_json for existing flow:', mf.id, detailErr)
-      }
+      // Flow exists locally but has empty screens (e.g. was previously imported).
+      // We cannot easily fetch flow_json from Meta without downloading the asset.
+      // And even if we could, our visual builder requires `_visualState`.
+      // So we leave it as is. When edited, it will start blank.
     }
   }
 
@@ -130,7 +123,7 @@ export async function GET() {
   const { data: responses } = await supabaseAdmin
     .from('flow_responses')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
     .limit(100)
 
@@ -159,10 +152,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const { data: config } = await supabaseAdmin
     .from('whatsapp_config')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .maybeSingle()
 
   if (!config?.access_token_encrypted || !config.waba_id) {
@@ -212,13 +210,16 @@ export async function POST(request: NextRequest) {
   const accessToken = decrypt(config.access_token_encrypted)
 
   try {
-    // 1. Create the flow container and upload flow_json atomically in Meta
+    // 1. Strip _ui_meta (Whatooz-only metadata) before sending to Meta
+    const { _ui_meta: _stripped, ...metaCleanFlowJson } = (flowJson || {}) as Record<string, any>
+
+    // 2. Create the flow container and upload flow_json atomically in Meta
     const metaFlow = await createWabaFlow({
       wabaId: config.waba_id,
       accessToken,
       name,
       categories: cleanCategories,
-      flowJson,
+      flowJson: metaCleanFlowJson,
       publish: false,
     })
 
@@ -255,7 +256,7 @@ export async function POST(request: NextRequest) {
     const { data: savedFlow, error: insertError } = await supabaseAdmin
       .from('whatsapp_flows')
       .insert({
-        user_id: user.id,
+        organization_id: organizationId,
         meta_flow_id: metaFlow.id,
         name,
         categories: cleanCategories,
@@ -298,8 +299,13 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const body = await request.json()
-  const { flowId, flowCta, bodyText, headerText, headerImageUrl, footerText, name, flowJson, categories } = body
+  const { flowId, flowCta, bodyText, headerText, headerImageUrl, footerText, name, flowJson, categories, publish } = body
 
   if (!flowId) {
     return NextResponse.json({ error: 'flowId is required' }, { status: 400 })
@@ -308,7 +314,7 @@ export async function PATCH(request: NextRequest) {
   const { data: flowRow } = await supabaseAdmin
     .from('whatsapp_flows')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .or(`id.eq.${flowId},meta_flow_id.eq.${flowId}`)
     .maybeSingle()
 
@@ -331,24 +337,57 @@ export async function PATCH(request: NextRequest) {
     },
   }
 
-  // If new flowJson is provided and flow has a meta_flow_id, sync to Meta
-  if (flowJson && flowRow.meta_flow_id) {
+  // Sync to Meta API
+  let metaFlowId = flowRow.meta_flow_id
+  if (flowJson) {
     const { data: config } = await supabaseAdmin
       .from('whatsapp_config')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('organization_id', organizationId)
       .maybeSingle()
 
-    if (config?.access_token_encrypted) {
-      try {
-        const accessToken = decrypt(config.access_token_encrypted)
-        await updateWabaFlowJson({
-          flowId: flowRow.meta_flow_id,
-          accessToken,
-          flowJson: updatedJson,
-        })
-      } catch (metaErr) {
-        console.warn('[Flows PATCH] Meta flow.json sync error:', metaErr)
+    if (config?.access_token_encrypted && config.waba_id) {
+      const accessToken = decrypt(config.access_token_encrypted)
+      // Strip _ui_meta before sending to Meta — Meta rejects unknown properties
+      const { _ui_meta, ...metaCleanJson } = updatedJson
+
+      if (metaFlowId) {
+        // Flow already exists on Meta → update its JSON
+        try {
+          await updateWabaFlowJson({
+            flowId: metaFlowId,
+            accessToken,
+            flowJson: metaCleanJson,
+          })
+        } catch (metaErr) {
+          console.warn('[Flows PATCH] Meta flow.json update error:', metaErr)
+        }
+      } else {
+        // Flow does NOT exist on Meta yet → create it now
+        try {
+          const metaFlow = await createWabaFlow({
+            wabaId: config.waba_id,
+            accessToken,
+            name: name || flowRow.name || 'Whatooz Flow',
+            categories: flowRow.categories || ['OTHER'],
+            flowJson: metaCleanJson,
+            publish: false,
+          })
+          metaFlowId = metaFlow.id
+          console.log('[Flows PATCH] Created flow on Meta with ID:', metaFlowId)
+        } catch (createErr) {
+          console.error('[Flows PATCH] Failed to create flow on Meta:', createErr)
+        }
+      }
+      
+      // Auto-publish if requested
+      if (publish && metaFlowId) {
+        try {
+          await publishWabaFlow({ flowId: metaFlowId, accessToken })
+          console.log('[Flows PATCH] Successfully published flow on Meta:', metaFlowId)
+        } catch (pubErr) {
+          console.warn('[Flows PATCH] Meta publication attempt failed:', pubErr)
+        }
       }
     }
   }
@@ -356,6 +395,15 @@ export async function PATCH(request: NextRequest) {
   const updatePayload: Record<string, any> = {
     flow_json: updatedJson,
     updated_at: new Date().toISOString(),
+  }
+  // Store the Meta flow ID if it was just created
+  if (metaFlowId && metaFlowId !== flowRow.meta_flow_id) {
+    updatePayload.meta_flow_id = metaFlowId
+  }
+  if (publish) {
+    updatePayload.status = 'PUBLISHED'
+  } else if (metaFlowId && metaFlowId !== flowRow.meta_flow_id) {
+    updatePayload.status = 'DRAFT'
   }
   if (name) updatePayload.name = name
   if (categories && Array.isArray(categories)) {
@@ -404,10 +452,15 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const { data: config } = await supabaseAdmin
     .from('whatsapp_config')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .maybeSingle()
 
   const body = await request.json()
@@ -427,7 +480,7 @@ export async function DELETE(request: NextRequest) {
   }
 
   // Delete from local DB
-  const query = supabaseAdmin.from('whatsapp_flows').delete().eq('user_id', user.id)
+  const query = supabaseAdmin.from('whatsapp_flows').delete().eq('organization_id', organizationId)
   if (flowId) query.eq('id', flowId)
   else if (metaFlowId) query.eq('meta_flow_id', metaFlowId)
 

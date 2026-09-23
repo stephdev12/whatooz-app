@@ -87,62 +87,19 @@ export async function POST(request: NextRequest) {
       accessToken,
     })
 
-    // 4. Resolve Supabase user
+    // 4. Resolve Supabase user and Organization ID
     const supabase = await createClient()
     const {
       data: { user: currentUser },
     } = await supabase.auth.getUser()
 
-    let targetUserId = currentUser?.id
+    if (!currentUser) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    // If user is not logged in, fetch Meta profile and sign in / create user
-    if (!targetUserId) {
-      let metaEmail: string | undefined
-      let metaName: string | undefined
-      try {
-        const profile = await getMetaUserProfile({ accessToken })
-        metaEmail = profile.email
-        metaName = profile.name
-      } catch (e) {
-        console.warn('Could not fetch Meta profile:', e)
-      }
-
-      const email =
-        metaEmail || `whatsapp_${phoneNumberId}@whatooz.space`
-      const fullName = metaName || `WhatsApp User ${phoneInfo.display_phone_number}`
-
-      // Check if user already exists
-      const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-      const existingUser = existingUsers?.users?.find((u) => u.email === email)
-
-      if (existingUser) {
-        targetUserId = existingUser.id
-      } else {
-        // Create user in Supabase
-        const { data: newUser, error: createErr } =
-          await supabaseAdmin.auth.admin.createUser({
-            email,
-            email_confirm: true,
-            user_metadata: { full_name: fullName },
-          })
-
-        if (createErr || !newUser.user) {
-          return NextResponse.json(
-            { error: `Échec création compte utilisateur: ${createErr?.message}` },
-            { status: 500 }
-          )
-        }
-        targetUserId = newUser.user.id
-
-        // Create profile row
-        await supabaseAdmin.from('profiles').upsert({
-          user_id: targetUserId,
-          full_name: fullName,
-          email,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-      }
+    const targetOrganizationId = request.headers.get('x-organization-id')
+    if (!targetOrganizationId) {
+      return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
     }
 
     // 5. Encrypt token and store in whatsapp_config
@@ -152,7 +109,7 @@ export async function POST(request: NextRequest) {
       .from('whatsapp_config')
       .upsert(
         {
-          user_id: targetUserId,
+          organization_id: targetOrganizationId,
           phone_number_id: phoneNumberId,
           waba_id: wabaId,
           access_token_encrypted: encryptedToken,
@@ -162,7 +119,7 @@ export async function POST(request: NextRequest) {
           connected: true,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'user_id' }
+        { onConflict: 'organization_id' }
       )
 
     if (upsertError) {

@@ -37,31 +37,47 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-noisy-canvas px-4 py-12 relative">
-      <Link 
-        href="/"
-        className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors bg-card/50 backdrop-blur-sm px-3 py-1.5 rounded-full border border-border hover:bg-secondary"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Accueil
-      </Link>
-
-      <div className="w-full max-w-md space-y-6 mt-8 sm:mt-0">
-        {/* Brand */}
-        <div className="flex flex-col items-center text-center">
-          <Link href="/">
-            <WhatoozLogo size="lg" showText={false} />
-          </Link>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Plateforme WhatsApp Business Cloud v7.3 & Vente Automatisée
-          </p>
+    <div className="flex min-h-screen bg-background p-4 sm:p-6 lg:p-8">
+      
+      {/* Left side: Branding / Marketing (Hidden on mobile) */}
+      <div className="hidden lg:flex flex-1 flex-col justify-between rounded-[32px] bg-gradient-to-br from-[#fe5105]/10 via-[#fe5105]/5 to-transparent p-12 relative overflow-hidden">
+        <Link href="/" className="relative z-10 flex items-center gap-2">
+          <WhatoozLogo size="sm" showText={true} />
+        </Link>
+        
+        <div className="relative z-10 max-w-lg mb-12">
+          <p className="text-sm font-medium text-[#fe5105] mb-4">Gérez votre activité facilement</p>
+          <h1 className="text-4xl font-display font-bold text-foreground leading-[1.1]">
+            Accédez à votre hub personnel pour plus de clarté et de productivité.
+          </h1>
         </div>
 
-        {/* Form Card */}
-        <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-card/80 p-8 shadow-xl backdrop-blur-md">
-          <h2 className="mb-6 text-xl font-bold text-foreground">
-            Connexion Marchand
-          </h2>
+        {/* Decorative subtle background blur/shapes can go here if needed */}
+      </div>
+
+      {/* Right side: Auth Form */}
+      <div className="flex flex-1 items-center justify-center p-4 lg:p-12 relative">
+        <Link 
+          href="/"
+          className="absolute top-4 left-4 lg:hidden flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors bg-card px-3 py-1.5 rounded-full border border-border"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Accueil
+        </Link>
+
+        <div className="w-full max-w-sm space-y-8">
+          <div className="lg:hidden flex justify-center mb-8">
+            <WhatoozLogo size="sm" showText={true} />
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-display font-bold text-foreground">
+              Connectez-vous
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Accédez à vos flux, commandes et clients en un seul endroit.
+            </p>
+          </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             {/* Email */}

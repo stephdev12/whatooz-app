@@ -49,7 +49,7 @@
   --font-display: 'Cabinet Grotesk', 'Inter', sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
-  --background: #fafafa;
+  --background: #f4f4f5; /* Very light gray for island layout background */
   --foreground: #111111;
   --card: #ffffff;
   --card-foreground: #111111;
@@ -57,29 +57,29 @@
   --popover-foreground: #111111;
   --primary: #fe5105;
   --primary-foreground: #ffffff;
-  --secondary: #f4f4f5;
+  --secondary: #e4e4e7;
   --secondary-foreground: #18181b;
   --muted: #f4f4f5;
   --muted-foreground: #71717a;
   --accent: #fff2eb;
   --accent-foreground: #fe5105;
   --destructive: #dc2626;
-  --border: #ececee;
-  --input: #f7f7f8;
+  --border: #e4e4e7; /* Subtle border */
+  --input: #ffffff; /* Forms are white */
   --ring: #fe5105;
 
-  --sidebar: #ffffff;
-  --sidebar-foreground: #4b5563;
-  --sidebar-border: #ececee;
-  --sidebar-accent: #fff2eb;
-  --sidebar-accent-foreground: #fe5105;
+  --sidebar: transparent; /* Sidebar is transparent on the gray background */
+  --sidebar-foreground: #52525b; /* Darker gray for text */
+  --sidebar-border: transparent;
+  --sidebar-accent: #ffffff; /* Active pill background */
+  --sidebar-accent-foreground: #09090b; /* Active text color */
 }
 
 /* ── Dark Mode (default for Whatooz premium feel) ── */
 .dark {
   --background: #09090b;
   --foreground: #f4f4f5;
-  --card: #18181b;
+  --card: #18181b; /* Island card in dark mode */
   --card-foreground: #f4f4f5;
   --popover: #18181b;
   --popover-foreground: #f4f4f5;
@@ -93,14 +93,14 @@
   --accent-foreground: #fe5105;
   --destructive: #ef4444;
   --border: #27272a;
-  --input: #27272a;
+  --input: #18181b;
   --ring: #fe5105;
 
-  --sidebar: #0f0f11;
+  --sidebar: transparent;
   --sidebar-foreground: #a1a1aa;
-  --sidebar-border: #27272a;
-  --sidebar-accent: #271206;
-  --sidebar-accent-foreground: #fe5105;
+  --sidebar-border: transparent;
+  --sidebar-accent: #27272a; /* Active pill background in dark mode */
+  --sidebar-accent-foreground: #f4f4f5;
 }
 
 /* ── Base ── */
@@ -151,21 +151,13 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 0.75rem 0.75rem 0.75rem 0;
 }
 
-/* ── Noisy Background & Dot Grid Canvas (Whatooz Design System) ── */
+/* ── Clean Background (Whatooz Design System - Minimalist) ── */
 .bg-noisy-canvas {
   background-color: var(--background);
-  background-image: 
-    radial-gradient(at 15% 15%, rgba(254, 81, 5, 0.04) 0px, transparent 60%),
-    radial-gradient(at 85% 85%, rgba(0, 168, 132, 0.03) 0px, transparent 60%),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.035'/%3E%3C/svg%3E");
 }
 
 .dark .bg-noisy-canvas {
-  background-color: #09090b;
-  background-image: 
-    radial-gradient(at 10% 10%, rgba(254, 81, 5, 0.06) 0px, transparent 50%),
-    radial-gradient(at 90% 90%, rgba(0, 168, 132, 0.04) 0px, transparent 50%),
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.045'/%3E%3C/svg%3E");
+  background-color: var(--background);
 }
 
 .dot-grid-canvas {

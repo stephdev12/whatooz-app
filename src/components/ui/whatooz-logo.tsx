@@ -46,16 +46,6 @@ export function WhatoozLogo({
         />
       </div>
 
-      {showText && (
-        <span
-          className={cn(
-            'font-heading font-black tracking-tight text-foreground',
-            currentSize.text
-          )}
-        >
-          <span className="text-[#fe5105]">What</span>ooz
-        </span>
-      )}
     </div>
   )
 }

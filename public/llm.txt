@@ -1,0 +1,42 @@
+# Whatooz - Documentation for LLMs
+
+## Présentation
+Whatooz est une plateforme SaaS B2B d'automatisation WhatsApp, conçue spécifiquement pour le marché africain. Elle utilise la WhatsApp Business Platform officielle (Meta Cloud API).
+La plateforme permet de centraliser les conversations (Team Inbox), de créer des flux d'automatisation visuels (Automation Builder), de construire des écrans interactifs (Flow Builder), de synchroniser des catalogues E-commerce et de gérer les paiements via SasPay.
+
+## Stack Technique
+- **Frontend** : Next.js 14+ (App Router), React, TypeScript, Tailwind CSS, shadcn/ui.
+- **State Management** : Zustand (pour les builders), React Query.
+- **Backend** : Next.js API Routes, Supabase (PostgreSQL, Auth, Storage, Realtime, RLS).
+- **Intégrations** : Meta Graph API (WhatsApp Cloud API, Flows), SasPay API.
+- **UI Builders** : React Flow (pour Automation Builder et Flow Builder).
+
+## Architecture et Modèle de Données (Supabase)
+L'architecture est multi-tenant. Chaque ressource est liée à un `organization_id` pour garantir l'isolation des données via Row Level Security (RLS).
+Principales tables :
+- `organizations` : Entités locataires (tenants).
+- `profiles` : Utilisateurs (avec `organization_id`, `role`, `whatsapp_number`).
+- `whatsapp_accounts` : Connexions à l'API Meta.
+- `contacts`, `conversations`, `messages` : CRM et Team Inbox.
+- `whatsapp_templates` : Modèles approuvés par Meta.
+- `automations`, `automation_nodes`, `automation_edges` : Scénarios React Flow.
+- `whatsapp_flows`, `whatsapp_flow_screens` : Écrans Meta Flows.
+- `products`, `orders`, `payments` : E-commerce et transactions SasPay.
+- `subscriptions` : Gestion des plans SaaS et quotas.
+
+## Principes de Design
+- **Minimalisme** : Le dashboard doit être épuré, utilisant l'espace blanc, avec un layout "Island" sur desktop.
+- **Mobile First / Responsive** : La plateforme doit être utilisable sur mobile avec un `BottomNav` pour les actions principales et des tableaux scrollables horizontalement. Les Builders (automations, flows, templates) doivent aussi rester accessibles sur mobile.
+- **Complexité masquée** : Les moteurs d'automatisation et de flows sont puissants en arrière-plan mais l'interface visuelle (drag and drop) doit rester simple pour les utilisateurs non techniques.
+
+## Authentification & Sécurité
+- Utilisation de Supabase Auth.
+- Flux d'inscription personnalisé avec vérification 2FA via WhatsApp (envoi d'un code OTP généré dans `verification_codes`).
+- Protection stricte via RLS sur toutes les tables : un utilisateur ne peut accéder qu'aux données de son organisation.
+
+## Fonctionnalités Clés
+1. **Inbox & Équipe** : Boîte de réception partagée avec assignation manuelle ou automatique.
+2. **Automations** : Workflow visuel avec des triggers (message reçu, commande) et des actions (envoyer message, appeler API).
+3. **Flows** : Création visuelle d'écrans JSON compatibles avec WhatsApp Flows.
+4. **Commerce & SasPay** : Création de liens de paiement SasPay directement depuis une commande WhatsApp. Suivi via webhooks.
+5. **Monétisation** : Abonnements SaaS gérant les limites de requêtes ou de contacts (Team, Growth, Pro).

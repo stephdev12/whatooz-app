@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/whatsapp/config — Load current WhatsApp config (token masked).
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -18,10 +18,15 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const { data: config } = await supabaseAdmin
     .from('whatsapp_config')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .single()
 
   if (!config) {
@@ -50,6 +55,11 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser()
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
   }
 
   const body = await request.json()
@@ -93,7 +103,7 @@ export async function POST(request: NextRequest) {
     .from('whatsapp_config')
     .upsert(
       {
-        user_id: user.id,
+        organization_id: organizationId,
         phone_number_id: phoneNumberId,
         waba_id: wabaId,
         access_token_encrypted: encryptedToken,
@@ -103,7 +113,7 @@ export async function POST(request: NextRequest) {
         connected: true,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'user_id' }
+      { onConflict: 'organization_id' }
     )
 
   if (upsertError) {

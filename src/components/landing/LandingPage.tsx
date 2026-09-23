@@ -700,7 +700,7 @@ export default function LandingPage({
         <div className="landing-container">
           <div className="landing-footer-grid">
             <div className="footer-brand-col">
-              <WhatoozLogo size="md" showText={true} />
+              <WhatoozLogo size="md" showText={false} />
               <p className="footer-brand-desc mt-3">
                 L&apos;infrastructure d&apos;automatisation et de vente WhatsApp par excellence pour les commerçants et marques modernes.
               </p>

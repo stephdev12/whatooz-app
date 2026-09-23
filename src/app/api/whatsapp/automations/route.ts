@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { checkQuota } from '@/lib/quota'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/whatsapp/automations — List all automation scenarios for current user.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -16,10 +17,15 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const { data: automations, error } = await supabaseAdmin
     .from('automations')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -58,6 +64,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
+  const quota = await checkQuota(organizationId, 'automations')
+  if (!quota.allowed) {
+    return NextResponse.json({ error: quota.error }, { status: 403 })
+  }
+
   const body = await request.json()
   const {
     name,
@@ -66,20 +82,22 @@ export async function POST(request: NextRequest) {
     action_type,
     action_payload = {},
     is_active = true,
+    nodes = [],
+    edges = [],
   } = body
 
   if (!name?.trim()) {
     return NextResponse.json({ error: 'Le nom de l’automatisation est requis.' }, { status: 400 })
   }
 
-  if (trigger_type === 'keyword' && !trigger_value?.trim()) {
+  if ((trigger_type === 'keyword' || trigger_type === 'custom') && trigger_type !== 'custom' && !trigger_value?.trim()) {
     return NextResponse.json(
       { error: 'Veuillez renseigner le mot-clé déclencheur (ex: DEVIS, INFO).' },
       { status: 400 }
     )
   }
 
-  if (!['send_template', 'send_flow', 'send_text'].includes(action_type)) {
+  if (!['send_template', 'send_flow', 'send_text', 'custom'].includes(action_type)) {
     return NextResponse.json({ error: 'Type d’action invalide.' }, { status: 400 })
   }
 
@@ -97,13 +115,15 @@ export async function POST(request: NextRequest) {
   const { data: created, error } = await supabaseAdmin
     .from('automations')
     .insert({
-      user_id: user.id,
+      organization_id: organizationId,
       name: name.trim(),
       trigger_type,
       trigger_value: trigger_type === 'keyword' ? trigger_value.trim().toUpperCase() : null,
       action_type,
       action_payload,
       is_active,
+      nodes,
+      edges,
     })
     .select()
     .single()
@@ -127,11 +147,31 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const body = await request.json()
-  const { id, is_active, name, trigger_type, trigger_value, action_type, action_payload } = body
+  const { id, is_active, name, trigger_type, trigger_value, action_type, action_payload, nodes, edges } = body
 
   if (!id) {
     return NextResponse.json({ error: 'ID manquant' }, { status: 400 })
+  }
+
+  if (is_active === true) {
+    const { data: current } = await supabaseAdmin
+      .from('automations')
+      .select('is_active')
+      .eq('id', id)
+      .single()
+
+    if (!current?.is_active) {
+      const quota = await checkQuota(organizationId, 'automations')
+      if (!quota.allowed) {
+        return NextResponse.json({ error: quota.error }, { status: 403 })
+      }
+    }
   }
 
   const updates: Record<string, unknown> = {
@@ -146,12 +186,14 @@ export async function PATCH(request: NextRequest) {
   }
   if (action_type) updates.action_type = action_type
   if (action_payload) updates.action_payload = action_payload
+  if (nodes) updates.nodes = nodes
+  if (edges) updates.edges = edges
 
   const { data: updated, error } = await supabaseAdmin
     .from('automations')
     .update(updates)
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .select()
     .single()
 
@@ -174,6 +216,11 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const body = await request.json().catch(() => ({}))
   const searchParams = request.nextUrl.searchParams
   const id = body.id || searchParams.get('id')
@@ -186,7 +233,7 @@ export async function DELETE(request: NextRequest) {
     .from('automations')
     .delete()
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })

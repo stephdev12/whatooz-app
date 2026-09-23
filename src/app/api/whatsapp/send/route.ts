@@ -43,7 +43,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const body = await request.json()
+  console.log('--- WHATSAPP SEND INCOMING BODY ---', JSON.stringify(body, null, 2))
   const {
     conversationId,
     to,
@@ -75,7 +81,7 @@ export async function POST(request: NextRequest) {
   const { data: config } = await supabaseAdmin
     .from('whatsapp_config')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .single()
 
   if (!config?.access_token_encrypted || !config.phone_number_id) {
@@ -115,6 +121,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Build Meta template components (header image, body parameters)
+        console.log('--- TEST SEND COMPONENTS ---', JSON.stringify(components, null, 2));
         let resolvedComponents: Array<Record<string, unknown>> = components || []
         if (resolvedComponents.length === 0) {
           const comps: Array<Record<string, unknown>> = []
@@ -229,6 +236,7 @@ export async function POST(request: NextRequest) {
             accessToken,
             to,
             flowId,
+            flowToken: `${flowId}_${Date.now()}`,
             flowCta: resolvedFlowCta,
             bodyText: resolvedBodyText,
             headerText: resolvedHeaderText,
@@ -246,6 +254,7 @@ export async function POST(request: NextRequest) {
               accessToken,
               to,
               flowId,
+              flowToken: `${flowId}_${Date.now()}`,
               flowCta: resolvedFlowCta,
               bodyText: resolvedBodyText,
               headerText: resolvedHeaderText,
@@ -307,19 +316,29 @@ export async function POST(request: NextRequest) {
     const { data: existingConvo } = await supabaseAdmin
       .from('conversations')
       .select('id')
-      .eq('user_id', user.id)
+      .eq('organization_id', organizationId)
       .eq('contact_phone', to)
       .maybeSingle()
 
     if (existingConvo) {
       activeConvoId = existingConvo.id
     } else {
+      // Try to fetch name from contacts table first
+      const { data: contact } = await supabaseAdmin
+        .from('contacts')
+        .select('name')
+        .eq('organization_id', organizationId)
+        .eq('phone', to)
+        .maybeSingle()
+        
+      const contactName = contact?.name || to
+
       const { data: newConvo } = await supabaseAdmin
         .from('conversations')
         .insert({
-          user_id: user.id,
+          organization_id: organizationId,
           contact_phone: to,
-          contact_name: to,
+          contact_name: contactName,
           status: 'open',
           last_message_text: contentText,
           last_message_at: new Date().toISOString(),
@@ -336,7 +355,7 @@ export async function POST(request: NextRequest) {
     .from('messages')
     .insert({
       conversation_id: activeConvoId,
-      user_id: user.id,
+      organization_id: organizationId,
       direction: 'outbound',
       message_type: type,
       content_text: contentText,

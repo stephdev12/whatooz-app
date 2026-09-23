@@ -9,8 +9,12 @@ import {
   CheckCheck,
   Phone,
   ArrowLeft,
+  User as UserIcon,
+  Pencil,
+  X,
 } from 'lucide-react'
 import type { Conversation, Message } from '@/app/dashboard/inbox/page'
+import { useOrganization } from '@/hooks/use-organization'
 
 interface ChatThreadProps {
   conversation: Conversation
@@ -28,6 +32,57 @@ export function ChatThread({
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const { activeOrganization } = useOrganization()
+  const [members, setMembers] = useState<any[]>([])
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [editName, setEditName] = useState(conversation.contact_name || '')
+
+  useEffect(() => {
+    setIsEditingName(false)
+    setEditName(conversation.contact_name || '')
+  }, [conversation.id, conversation.contact_name])
+
+  useEffect(() => {
+    if (activeOrganization) {
+      fetch('/api/organization/members', {
+        headers: { 'x-organization-id': activeOrganization.id }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.members) setMembers(data.members)
+      })
+      .catch(console.error)
+    }
+  }, [activeOrganization])
+
+  async function handleRename(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editName.trim()) return
+    await handleUpdate({ contactName: editName.trim() })
+    setIsEditingName(false)
+  }
+
+  async function handleUpdate(payload: { status?: string, assignedUserId?: string | null, contactName?: string }) {
+    if (!activeOrganization) return
+    try {
+      const res = await fetch('/api/whatsapp/conversations/assign', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-organization-id': activeOrganization.id
+        },
+        body: JSON.stringify({
+          conversationId: conversation.id,
+          ...payload
+        })
+      })
+      if (res.ok) {
+        onMessageSent()
+      }
+    } catch (err) {
+      console.error('Update failed:', err)
+    }
+  }
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -42,7 +97,10 @@ export function ChatThread({
     try {
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-organization-id': activeOrganization?.id || ''
+        },
         body: JSON.stringify({
           conversationId: conversation.id,
           to: conversation.contact_phone,
@@ -95,13 +153,64 @@ export function ChatThread({
             .toUpperCase()}
         </div>
         <div>
-          <h3 className="text-sm font-semibold text-foreground">
-            {conversation.contact_name || conversation.contact_phone}
-          </h3>
-          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+          {isEditingName ? (
+            <form onSubmit={handleRename} className="flex items-center gap-2">
+              <input 
+                type="text"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                className="h-7 w-40 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                autoFocus
+              />
+              <button type="submit" className="text-muted-foreground hover:text-foreground">
+                <Check className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => { setIsEditingName(false); setEditName(conversation.contact_name || '') }} className="text-muted-foreground hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </form>
+          ) : (
+            <div className="flex items-center gap-2 group">
+              <h3 className="text-sm font-semibold text-foreground">
+                {conversation.contact_name || conversation.contact_phone}
+              </h3>
+              <button 
+                onClick={() => setIsEditingName(true)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                title="Renommer le contact"
+              >
+                <Pencil className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
             <Phone className="h-3 w-3" />
             {conversation.contact_phone}
-          </p>
+          </div>
+        </div>
+        
+        {/* Controls */}
+        <div className="ml-auto flex items-center gap-2">
+          <select
+            value={conversation.status || 'open'}
+            onChange={(e) => handleUpdate({ status: e.target.value })}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="open">Ouvert</option>
+            <option value="pending">En attente</option>
+            <option value="closed">Fermé</option>
+          </select>
+          
+          <select
+            value={conversation.assigned_user_id || 'unassigned'}
+            onChange={(e) => handleUpdate({ assignedUserId: e.target.value })}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-w-[120px] truncate"
+          >
+            <option value="unassigned">Non assigné</option>
+            {members.map(m => (
+              <option key={m.member_id} value={m.user_id}>{m.full_name}</option>
+            ))}
+          </select>
         </div>
       </div>
 

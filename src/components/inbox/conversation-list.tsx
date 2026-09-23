@@ -4,6 +4,7 @@ import { formatRelativeTime, cn } from '@/lib/utils'
 import { MessageSquare, Search, Loader2, Plus, X, Send } from 'lucide-react'
 import { useState } from 'react'
 import type { Conversation } from '@/app/dashboard/inbox/page'
+import { useOrganization } from '@/hooks/use-organization'
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -20,6 +21,7 @@ export function ConversationList({
   onSelect,
   onConversationCreated,
 }: ConversationListProps) {
+  const { activeOrganization } = useOrganization()
   const [search, setSearch] = useState('')
   const [showNewModal, setShowNewModal] = useState(false)
   const [phone, setPhone] = useState('')
@@ -42,6 +44,10 @@ export function ConversationList({
       setErrorMsg('Veuillez renseigner un numéro de téléphone valide.')
       return
     }
+    if (!activeOrganization) {
+      setErrorMsg("Organisation introuvable.")
+      return
+    }
 
     setSending(true)
     try {
@@ -61,7 +67,10 @@ export function ConversationList({
 
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-organization-id': activeOrganization.id
+        },
         body: JSON.stringify(payload),
       })
 

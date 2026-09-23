@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/hooks/use-auth'
+import { useOrganization } from '@/hooks/use-organization'
 import {
   TrendingUp,
   MessageSquare,
@@ -40,28 +41,32 @@ export default function DashboardPage() {
 
   const [timeframe, setTimeframe] = useState<'monthly' | 'annually'>('monthly')
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const { activeOrganization } = useOrganization()
+  const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     async function loadDashboardData() {
-      if (!user) return
+      if (!user || !activeOrganization) {
+        setLoading(false)
+        return
+      }
 
       try {
         const { data: config } = await supabase
           .from('whatsapp_config')
           .select('display_phone_number, verified_name, phone_number_id')
-          .eq('user_id', user.id)
+          .eq('organization_id', activeOrganization.id)
           .maybeSingle()
 
         const { count: convoCount } = await supabase
           .from('conversations')
           .select('id', { count: 'exact', head: true })
-          .eq('user_id', user.id)
+          .eq('organization_id', activeOrganization.id)
 
         const { data: responses } = await supabase
           .from('flow_responses')
           .select('*')
-          .eq('user_id', user.id)
+          .eq('organization_id', activeOrganization.id)
           .order('created_at', { ascending: false })
           .limit(10)
 
@@ -142,7 +147,7 @@ export default function DashboardPage() {
     }
 
     loadDashboardData()
-  }, [user, supabase])
+  }, [user?.id, activeOrganization?.id, supabase])
 
   const userName = user?.email?.split('@')[0] || 'Marchand'
   const capitalizedUserName = userName.charAt(0).toUpperCase() + userName.slice(1)

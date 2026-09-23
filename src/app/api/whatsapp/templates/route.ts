@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/whatsapp/templates — List all templates from Meta.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -24,10 +24,15 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const { data: config } = await supabaseAdmin
     .from('whatsapp_config')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .maybeSingle()
 
   if (!config?.access_token_encrypted || !config.waba_id) {
@@ -72,10 +77,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const { data: config } = await supabaseAdmin
     .from('whatsapp_config')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .maybeSingle()
 
   if (!config?.access_token_encrypted || !config.waba_id) {
@@ -190,7 +200,7 @@ export async function POST(request: NextRequest) {
 
     // Cache locally
     await supabaseAdmin.from('message_templates').insert({
-      user_id: user.id,
+      organization_id: organizationId,
       meta_template_id: result.id,
       name,
       language,
@@ -218,10 +228,15 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const { data: config } = await supabaseAdmin
     .from('whatsapp_config')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .maybeSingle()
 
   if (!config?.access_token_encrypted || !config.waba_id) {
@@ -253,8 +268,13 @@ export async function PATCH(request: NextRequest) {
     if (headerType === 'TEXT' && headerText) {
       components.push({ type: 'HEADER', format: 'TEXT', text: headerText })
     } else if (headerType === 'IMAGE' && headerImageUrl) {
+      const appId =
+        process.env.META_APP_ID ||
+        process.env.NEXT_PUBLIC_META_APP_ID ||
+        '1638932931226462'
+
       const handle = await getHeaderHandleForImage({
-        appId: config.waba_id,
+        appId,
         accessToken,
         imageUrl: headerImageUrl,
       })
@@ -282,11 +302,19 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (templateId) {
-      await updateTemplate({
-        templateId,
-        accessToken,
-        components,
-      })
+      try {
+        await updateTemplate({
+          templateId,
+          accessToken,
+          components,
+        })
+      } catch (metaErr) {
+        const metaMsg = metaErr instanceof Error ? metaErr.message : ''
+        if (metaMsg.includes('Unsupported post request')) {
+          throw new Error("Ce modèle ne peut pas être modifié. Il n'est pas dans un état modifiable ou il manque les autorisations.")
+        }
+        throw metaErr
+      }
     }
 
     // Update local cache
@@ -297,7 +325,7 @@ export async function PATCH(request: NextRequest) {
           components,
           updated_at: new Date().toISOString(),
         })
-        .eq('user_id', user.id)
+        .eq('organization_id', organizationId)
         .eq('name', templateName)
     }
 
@@ -320,10 +348,15 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const organizationId = request.headers.get('x-organization-id')
+  if (!organizationId) {
+    return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
+  }
+
   const { data: config } = await supabaseAdmin
     .from('whatsapp_config')
     .select('*')
-    .eq('user_id', user.id)
+    .eq('organization_id', organizationId)
     .maybeSingle()
 
   if (!config?.access_token_encrypted || !config.waba_id) {
@@ -356,7 +389,7 @@ export async function DELETE(request: NextRequest) {
     await supabaseAdmin
       .from('message_templates')
       .delete()
-      .eq('user_id', user.id)
+      .eq('organization_id', organizationId)
       .eq('name', templateName)
 
     return NextResponse.json({ success: true })

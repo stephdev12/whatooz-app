@@ -11,9 +11,15 @@ import {
   Loader2,
   Save,
   Sparkles,
+  Palette,
+  Image as ImageIcon,
+  Type,
+  ExternalLink
 } from 'lucide-react'
 import { MetaEmbeddedSignupButton } from '@/components/whatsapp/meta-embedded-signup-button'
-
+import { useOrganization } from '@/hooks/use-organization'
+import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
 
 interface WhatsAppConfig {
   phone_number_id: string
@@ -25,22 +31,58 @@ interface WhatsAppConfig {
 }
 
 export default function SettingsPage() {
+  const { activeOrganization } = useOrganization()
   const [config, setConfig] = useState<WhatsAppConfig | null>(null)
+  
+  // WhatsApp State
   const [accessToken, setAccessToken] = useState('')
   const [phoneNumberId, setPhoneNumberId] = useState('')
   const [wabaId, setWabaId] = useState('')
+  
+  // Mini Site State
+  const [logoUrl, setLogoUrl] = useState('')
+  const [description, setDescription] = useState('')
+  const [themeColor, setThemeColor] = useState('#4f46e5')
+  
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  const [savingMiniSite, setSavingMiniSite] = useState(false)
+  const [miniSiteSuccess, setMiniSiteSuccess] = useState('')
+
   useEffect(() => {
-    loadConfig()
-  }, [])
+    if (activeOrganization) {
+      loadConfig()
+      loadOrgDetails()
+    }
+  }, [activeOrganization])
+
+  async function loadOrgDetails() {
+    if (!activeOrganization) return
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('organizations')
+      .select('logo_url, description, theme_color')
+      .eq('id', activeOrganization.id)
+      .single()
+    
+    if (data) {
+      setLogoUrl(data.logo_url || '')
+      setDescription(data.description || '')
+      setThemeColor(data.theme_color || '#4f46e5')
+    }
+  }
 
   async function loadConfig() {
+    if (!activeOrganization) return
     try {
-      const res = await fetch('/api/whatsapp/config')
+      const res = await fetch('/api/whatsapp/config', {
+        headers: {
+          'x-organization-id': activeOrganization.id
+        }
+      })
       const data = await res.json()
       if (data.config) {
         setConfig(data.config)
@@ -54,7 +96,7 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleSave(e: React.FormEvent) {
+  async function handleSaveWhatsApp(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setSuccess('')
@@ -63,7 +105,10 @@ export default function SettingsPage() {
     try {
       const res = await fetch('/api/whatsapp/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-organization-id': activeOrganization?.id || ''
+        },
         body: JSON.stringify({ accessToken, phoneNumberId, wabaId }),
       })
 
@@ -73,15 +118,40 @@ export default function SettingsPage() {
         return
       }
 
-      setSuccess(
-        `✅ Connecté : ${data.phoneInfo.display_phone_number} (${data.phoneInfo.verified_name || 'N/A'})`
-      )
+      setSuccess(`✅ Connecté : ${data.phoneInfo.display_phone_number} (${data.phoneInfo.verified_name || 'N/A'})`)
       setAccessToken('')
       await loadConfig()
     } catch {
       setError('Erreur réseau')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleSaveMiniSite(e: React.FormEvent) {
+    e.preventDefault()
+    if (!activeOrganization) return
+    
+    setSavingMiniSite(true)
+    setMiniSiteSuccess('')
+    try {
+      const supabase = createClient()
+      const { error } = await supabase
+        .from('organizations')
+        .update({
+          logo_url: logoUrl,
+          description: description,
+          theme_color: themeColor
+        })
+        .eq('id', activeOrganization.id)
+      
+      if (error) throw error
+      setMiniSiteSuccess('Design sauvegardé avec succès')
+      setTimeout(() => setMiniSiteSuccess(''), 3000)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setSavingMiniSite(false)
     }
   }
 
@@ -94,19 +164,102 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 sm:space-y-8">
+    <div className="mx-auto max-w-4xl space-y-6 sm:space-y-8 pb-12">
       {/* Page header */}
       <div>
         <h1 className="flex items-center gap-3 text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
           <SettingsIcon className="h-6 w-6 text-[#fe5105]" />
-          Paramètres WhatsApp
+          Paramètres
         </h1>
         <p className="mt-1 text-xs sm:text-sm text-muted-foreground">
-          Configurez votre connexion officielle Meta WhatsApp Cloud API v7.3
+          Configurez votre connexion WhatsApp et le design de votre mini-site.
         </p>
       </div>
 
-      {/* Current status */}
+      {/* MINI SITE CONFIGURATION */}
+      <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-card/80 p-6 backdrop-blur-md shadow-xs">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-foreground">Design du Mini-Site</h2>
+            <p className="text-xs text-muted-foreground mt-1">Personnalisez l'apparence de votre boutique publique.</p>
+          </div>
+          {activeOrganization && (
+            <Link 
+              href={`/shop/${activeOrganization.slug}`} 
+              target="_blank"
+              className="flex items-center gap-2 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 px-3 py-1.5 rounded-full transition-colors"
+            >
+              Voir la boutique <ExternalLink className="w-3 h-3" />
+            </Link>
+          )}
+        </div>
+
+        <form onSubmit={handleSaveMiniSite} className="space-y-5">
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
+              <ImageIcon className="h-4 w-4 text-muted-foreground" />
+              URL du Logo
+            </label>
+            <input
+              type="url"
+              value={logoUrl}
+              onChange={(e) => setLogoUrl(e.target.value)}
+              placeholder="https://exemple.com/mon-logo.png"
+              className="w-full rounded-xl border border-border bg-input px-3.5 py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-indigo-500"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
+              <Type className="h-4 w-4 text-muted-foreground" />
+              Description (Slogan)
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Découvrez nos meilleurs produits..."
+              rows={2}
+              className="w-full rounded-xl border border-border bg-input px-3.5 py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-indigo-500"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
+              <Palette className="h-4 w-4 text-muted-foreground" />
+              Couleur Principale (Thème)
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={themeColor}
+                onChange={(e) => setThemeColor(e.target.value)}
+                className="h-9 w-12 rounded cursor-pointer border-0 p-0"
+              />
+              <span className="text-xs font-mono text-muted-foreground uppercase">{themeColor}</span>
+            </div>
+          </div>
+
+          {miniSiteSuccess && (
+            <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 p-3 text-xs text-emerald-500">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              {miniSiteSuccess}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={savingMiniSite}
+            className="flex items-center gap-2 rounded-full bg-indigo-600 hover:bg-indigo-700 px-6 py-2.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95 disabled:opacity-50"
+          >
+            {savingMiniSite ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            {savingMiniSite ? 'Enregistrement...' : 'Sauvegarder le design'}
+          </button>
+        </form>
+      </div>
+
+      <hr className="border-border" />
+
+      {/* WHATSAPP CONFIGURATION */}
       {config?.connected && (
         <div className="flex items-start gap-3 rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-5 backdrop-blur-md">
           <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
@@ -122,7 +275,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* 1-Click Embedded Signup (Recommended) */}
       <div className="relative overflow-hidden rounded-3xl border border-[#fe5105]/20 bg-gradient-to-br from-[#fe5105]/10 via-card/80 to-card p-6 shadow-xs backdrop-blur-md">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#fe5105]">
           <Sparkles className="h-4 w-4" />
@@ -146,13 +298,12 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Configuration form (Manual Fallback) */}
       <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-card/80 p-6 backdrop-blur-md shadow-xs">
         <h2 className="mb-1 text-base sm:text-lg font-bold text-foreground">
           Configuration manuelle (Optionnelle)
         </h2>
         <p className="mb-6 text-xs text-muted-foreground">
-          Entrez vos clés d&apos;API manuellement si vous disposez d&apos;un jeton système créé sur{' '}
+          Entrez vos clés d'API manuellement si vous disposez d'un jeton système créé sur{' '}
           <a
             href="https://developers.facebook.com"
             target="_blank"
@@ -164,8 +315,7 @@ export default function SettingsPage() {
           .
         </p>
 
-        <form onSubmit={handleSave} className="space-y-4">
-          {/* Phone Number ID */}
+        <form onSubmit={handleSaveWhatsApp} className="space-y-4">
           <div className="space-y-1.5">
             <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <Phone className="h-4 w-4 text-muted-foreground" />
@@ -181,7 +331,6 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* WABA ID */}
           <div className="space-y-1.5">
             <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <Hash className="h-4 w-4 text-muted-foreground" />
@@ -197,7 +346,6 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* Access Token */}
           <div className="space-y-1.5">
             <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
               <Key className="h-4 w-4 text-muted-foreground" />
@@ -211,12 +359,8 @@ export default function SettingsPage() {
               required={!config?.has_token}
               className="w-full rounded-xl border border-border bg-input px-3.5 py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105]"
             />
-            <p className="text-[10px] text-muted-foreground">
-              Le token est chiffré de bout en bout en AES-256-GCM.
-            </p>
           </div>
 
-          {/* Error / Success */}
           {error && (
             <div className="flex items-center gap-2 rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
               <AlertCircle className="h-4 w-4 shrink-0" />
@@ -230,17 +374,12 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={saving}
             className="flex items-center gap-2 rounded-full bg-[#fe5105] hover:bg-[#e04602] px-6 py-2.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95 disabled:opacity-50"
           >
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {saving ? 'Vérification...' : 'Connecter & Sauvegarder'}
           </button>
         </form>

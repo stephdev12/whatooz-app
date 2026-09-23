@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { encrypt } from '@/lib/whatsapp/encryption'
 import {
@@ -62,45 +63,30 @@ export async function GET(request: NextRequest) {
     const phoneInfo = await verifyPhoneNumber({ phoneNumberId, accessToken })
 
     // Fetch user or profile
-    let metaEmail: string | undefined
-    let metaName: string | undefined
-    try {
-      const profile = await getMetaUserProfile({ accessToken })
-      metaEmail = profile.email
-      metaName = profile.name
-    } catch {
-      // ignore
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      return NextResponse.redirect(
+        new URL(`/dashboard/settings?error=${encodeURIComponent('Utilisateur non authentifié lors du retour')}`, baseUrl)
+      )
     }
 
-    const email = metaEmail || `whatsapp_${phoneNumberId}@whatooz.space`
-    const fullName = metaName || `WhatsApp User ${phoneInfo.display_phone_number}`
+    // Get the user's primary organization
+    const { data: member } = await supabaseAdmin
+      .from('organization_members')
+      .select('organization_id')
+      .eq('user_id', user.id)
+      .limit(1)
+      .single()
 
-    const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers()
-    let userId = existingUsers?.users?.find((u) => u.email === email)?.id
+    const organizationId = member?.organization_id
 
-    if (!userId) {
-      const { data: newUser } = await supabaseAdmin.auth.admin.createUser({
-        email,
-        email_confirm: true,
-        user_metadata: { full_name: fullName },
-      })
-      userId = newUser.user?.id
-      if (userId) {
-        await supabaseAdmin.from('profiles').upsert({
-          user_id: userId,
-          full_name: fullName,
-          email,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-      }
-    }
-
-    if (userId) {
+    if (organizationId) {
       const encryptedToken = encrypt(accessToken)
       await supabaseAdmin.from('whatsapp_config').upsert(
         {
-          user_id: userId,
+          organization_id: organizationId,
           phone_number_id: phoneNumberId,
           waba_id: wabaId,
           access_token_encrypted: encryptedToken,
@@ -110,7 +96,7 @@ export async function GET(request: NextRequest) {
           connected: true,
           updated_at: new Date().toISOString(),
         },
-        { onConflict: 'user_id' }
+        { onConflict: 'organization_id' }
       )
     }
 
