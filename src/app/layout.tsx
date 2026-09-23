@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     type: 'website',
     images: [
       {
-        url: '/logo.png',
+        url: '/logo_noir.png',
         width: 1200,
         height: 630,
         alt: 'Whatooz Logo',
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
-    apple: '/logo.png',
+    apple: '/logo_noir.png',
   }
 }
 
