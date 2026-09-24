@@ -93,7 +93,8 @@ export default function AutomationBuilderPage() {
           action_payload = { 
             template_name: actionNode.data.templateId, // Backend uses this name or ID
             language_code: actionNode.data.actionLanguage || 'fr',
-            body_variables
+            body_variables,
+            header_image_url: (actionNode.data.actionPayload as any)?.headerImageUrl || undefined
           }
         } else if (actionNode.data.actionType === 'send_flow') {
           action_type = 'send_flow'

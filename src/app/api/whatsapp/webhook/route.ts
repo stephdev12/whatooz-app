@@ -581,7 +581,7 @@ export async function POST(request: NextRequest) {
                         type: 'body',
                         parameters: bodyVariables.map((v: string) => ({
                           type: 'text',
-                          text: replaceVariables(String(v)),
+                          text: replaceVariables(String(v)) || ' ',
                         })),
                       })
                     }

@@ -348,6 +348,18 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
               </select>
             </div>
             
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground">URL Image d'En-tête (Optionnel)</label>
+              <input
+                type="url"
+                placeholder="https://exemple.com/image.png"
+                className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
+                value={((selectedNode.data.actionPayload as any)?.headerImageUrl as string) || ''}
+                onChange={(e) => handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), headerImageUrl: e.target.value })}
+              />
+              <p className="text-[10px] text-muted-foreground">Si le modèle requiert une image d'en-tête, renseignez l'URL ici.</p>
+            </div>
+            
             <div className="space-y-2">
               <label className="text-xs font-medium text-foreground">Mapping des Variables</label>
               <p className="text-[10px] text-muted-foreground">
