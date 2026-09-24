@@ -170,9 +170,16 @@ export function ConversationList({
                       : ''}
                   </span>
                 </div>
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {convo.last_message_text || 'Nouvelle conversation'}
-                </p>
+                <div className="flex items-center justify-between mt-0.5">
+                  <p className="truncate text-xs text-muted-foreground">
+                    {convo.last_message_text || 'Nouvelle conversation'}
+                  </p>
+                  {convo.unread_count > 0 && (
+                    <span className="ml-2 flex h-4 min-w-[16px] shrink-0 items-center justify-center rounded-full bg-[#fe5105] px-1 text-[10px] font-bold text-white">
+                      {convo.unread_count}
+                    </span>
+                  )}
+                </div>
               </div>
             </button>
           ))

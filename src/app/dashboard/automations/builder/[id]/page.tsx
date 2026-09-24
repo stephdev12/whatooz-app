@@ -65,8 +65,7 @@ export default function AutomationBuilderPage() {
       let action_payload: any = {}
 
       const triggerNode = updatedNodes.find(n => n.type === 'triggerNode')
-      const firstEdge = updatedEdges.find(e => e.source === triggerNode?.id)
-      const actionNode = updatedNodes.find(n => n.id === firstEdge?.target && n.type === 'actionNode')
+      const actionNode = updatedNodes.find(n => n.type === 'actionNode')
 
       if (triggerNode?.data) {
         if (triggerNode.data.triggerType === 'keyword') {
@@ -83,9 +82,18 @@ export default function AutomationBuilderPage() {
       if (actionNode?.data) {
         if (actionNode.data.actionType === 'send_template') {
           action_type = 'send_template'
+          
+          let body_variables: string[] = []
+          const mapping = (actionNode.data.actionPayload as any)?.templateVariablesMapping
+          if (mapping) {
+            const keys = Object.keys(mapping).filter(k => k.trim() !== '').sort((a, b) => parseInt(a) - parseInt(b))
+            body_variables = keys.map(k => mapping[k])
+          }
+
           action_payload = { 
             template_name: actionNode.data.templateId, // Backend uses this name or ID
-            language_code: actionNode.data.actionLanguage || 'fr' 
+            language_code: actionNode.data.actionLanguage || 'fr',
+            body_variables
           }
         } else if (actionNode.data.actionType === 'send_flow') {
           action_type = 'send_flow'

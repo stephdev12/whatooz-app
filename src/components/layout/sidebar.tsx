@@ -26,6 +26,7 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { useOrganization } from '@/hooks/use-organization'
+import { useUnreadCount } from '@/hooks/use-unread-count'
 
 export const navItems = [
   { label: 'Accueil', href: '/dashboard', exact: true, icon: LayoutDashboard },
@@ -56,6 +57,7 @@ export function Sidebar() {
   const { activeOrganization, organizations, setActiveOrganization } = useOrganization()
   const [isSwitcherOpen, setIsSwitcherOpen] = React.useState(false)
   const [isCollapsed, setIsCollapsed] = React.useState(false)
+  const unreadCount = useUnreadCount()
 
   return (
     <aside 
@@ -139,7 +141,7 @@ export function Sidebar() {
               href={item.href}
               title={isCollapsed ? item.label : undefined}
               className={cn(
-                'group flex items-center rounded-xl py-2 font-medium transition-all duration-150',
+                'group flex items-center rounded-xl py-2 font-medium transition-all duration-150 relative',
                 isCollapsed ? 'justify-center px-0' : 'gap-3 px-3 text-[13px]',
                 isActive
                   ? 'bg-sidebar-accent text-sidebar-accent-foreground shadow-sm'
@@ -152,7 +154,17 @@ export function Sidebar() {
                   isActive ? 'text-sidebar-accent-foreground' : 'text-sidebar-foreground group-hover:text-foreground'
                 )}
               />
-              {!isCollapsed && <span>{item.label}</span>}
+              {!isCollapsed && <span className="flex-1">{item.label}</span>}
+              {!isCollapsed && item.href === '/dashboard/inbox' && unreadCount > 0 && (
+                <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#fe5105] px-1.5 text-[10px] font-bold text-white shrink-0">
+                  {unreadCount}
+                </span>
+              )}
+              {isCollapsed && item.href === '/dashboard/inbox' && unreadCount > 0 && (
+                <span className="absolute top-1 right-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#fe5105] px-1 text-[9px] font-bold text-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </Link>
           )
         })}

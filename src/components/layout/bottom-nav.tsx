@@ -12,6 +12,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useUnreadCount } from '@/hooks/use-unread-count'
 
 const bottomNavItems = [
   {
@@ -44,6 +45,7 @@ const bottomNavItems = [
 
 export function BottomNav() {
   const pathname = usePathname()
+  const unreadCount = useUnreadCount()
 
   return (
     <div className="fixed bottom-3 inset-x-0 z-40 flex justify-center px-4 pointer-events-none lg:hidden">
@@ -64,10 +66,17 @@ export function BottomNav() {
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <item.icon className={cn(
-                'h-4 w-4 transition-all duration-300 ease-out group-active:-translate-y-1.5 group-active:scale-110', 
-                isActive ? 'text-white' : 'text-muted-foreground'
-              )} />
+              <div className="relative">
+                <item.icon className={cn(
+                  'h-4 w-4 transition-all duration-300 ease-out group-active:-translate-y-1.5 group-active:scale-110', 
+                  isActive ? 'text-white' : 'text-muted-foreground'
+                )} />
+                {item.href === '/dashboard/inbox' && unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex h-3 min-w-[12px] items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white shadow-sm border border-card">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </div>
               <span className="mt-0.5 leading-tight">{item.label}</span>
             </Link>
           )

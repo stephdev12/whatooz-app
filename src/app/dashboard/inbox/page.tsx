@@ -152,9 +152,49 @@ export default function InboxPage() {
   })
 
   return (
-    <div className="-m-4 flex h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-4rem)] sm:-m-6">
-      {/* Filters Sidebar (Thin) */}
-      <div className="w-16 md:w-20 shrink-0 border-r border-border bg-muted/20 flex flex-col items-center py-4 gap-4">
+    <div className="-m-4 flex flex-col md:flex-row h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-4rem)] sm:-m-6 overflow-hidden">
+      
+      {/* Mobile Filters (Top) */}
+      <div className={cn(
+        "md:hidden flex w-full overflow-x-auto border-b border-border bg-muted/20 p-2 gap-2 shrink-0 items-center justify-around",
+        selectedConvoId ? 'hidden' : 'flex'
+      )}>
+        <button 
+          onClick={() => setFilter('all')}
+          className={cn("p-2 rounded-xl transition-all flex items-center gap-1 text-xs", filter === 'all' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
+          title="Toutes"
+        >
+          <Inbox className="w-4 h-4" />
+          Toutes
+        </button>
+        <button 
+          onClick={() => setFilter('mine')}
+          className={cn("p-2 rounded-xl transition-all flex items-center gap-1 text-xs", filter === 'mine' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
+          title="Mes assignations"
+        >
+          <UserIcon className="w-4 h-4" />
+          Moi
+        </button>
+        <button 
+          onClick={() => setFilter('unassigned')}
+          className={cn("p-2 rounded-xl transition-all flex items-center gap-1 text-xs", filter === 'unassigned' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
+          title="Non assignées"
+        >
+          <HelpCircle className="w-4 h-4" />
+          Non assignées
+        </button>
+        <button 
+          onClick={() => setFilter('closed')}
+          className={cn("p-2 rounded-xl transition-all flex items-center gap-1 text-xs", filter === 'closed' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
+          title="Fermées"
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          Fermées
+        </button>
+      </div>
+
+      {/* Desktop Filters Sidebar (Thin) */}
+      <div className="hidden md:flex w-16 md:w-20 shrink-0 border-r border-border bg-muted/20 flex-col items-center py-4 gap-4">
         <button 
           onClick={() => setFilter('all')}
           className={cn("p-3 rounded-xl transition-all", filter === 'all' ? "bg-black text-white dark:bg-card dark:text-black" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
@@ -188,8 +228,8 @@ export default function InboxPage() {
       {/* Conversation list */}
       <div
         className={cn(
-          'w-full md:w-80 shrink-0 border-r border-border bg-background',
-          selectedConvoId ? 'hidden md:block' : 'block'
+          'w-full md:w-80 shrink-0 md:border-r border-border bg-background flex flex-col',
+          selectedConvoId ? 'hidden md:flex' : 'flex'
         )}
       >
         <ConversationList
@@ -204,7 +244,7 @@ export default function InboxPage() {
       {/* Chat area */}
       <div
         className={cn(
-          'flex-1 flex-col',
+          'flex-1 flex-col overflow-hidden',
           selectedConvoId ? 'flex' : 'hidden md:flex'
         )}
       >
@@ -222,7 +262,7 @@ export default function InboxPage() {
             </div>
             <div>
               <p className="text-base font-semibold text-foreground">Votre boîte de réception WhatsApp</p>
-              <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
                 Sélectionnez une discussion à gauche pour répondre à vos clients ou attendez l&apos;arrivée d&apos;un nouveau message.
               </p>
             </div>

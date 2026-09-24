@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/layout/sidebar'
 import { Header } from '@/components/layout/header'
 import { BottomNav } from '@/components/layout/bottom-nav'
 import { OrganizationProvider, useOrganization } from '@/hooks/use-organization'
+import { PushNotificationsProvider } from '@/components/layout/push-notifications-provider'
 import { cn } from '@/lib/utils'
 
 function DashboardShellInner({ children }: { children: React.ReactNode }) {
@@ -87,7 +88,9 @@ export default function DashboardLayout({
   return (
     <AuthProvider>
       <OrganizationProvider>
-        <DashboardShellInner>{children}</DashboardShellInner>
+        <PushNotificationsProvider>
+          <DashboardShellInner>{children}</DashboardShellInner>
+        </PushNotificationsProvider>
       </OrganizationProvider>
     </AuthProvider>
   )

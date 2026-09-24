@@ -62,9 +62,9 @@ export function ActionNode({ data, selected }: ActionNodeProps) {
         <div className="flex justify-between items-start text-[10px] gap-4">
           <span className="text-slate-500 font-medium uppercase tracking-wider flex-shrink-0">Détails</span>
           <span className="text-slate-700 dark:text-slate-300 truncate text-right">
-            {data.actionType === 'send_message' && (data.actionPayload?.text || 'Texte vide...')}
-            {data.actionType === 'send_template' && (data.actionPayload?.templateName || 'Non sélectionné')}
-            {data.actionType === 'send_flow' && (data.actionPayload?.flowId || 'Non sélectionné')}
+            {data.actionType === 'send_message' && ((data.actionPayload as any)?.text || 'Texte vide...')}
+            {data.actionType === 'send_template' && (data.templateId || 'Non sélectionné')}
+            {data.actionType === 'send_flow' && (data.flowId || 'Non sélectionné')}
           </span>
         </div>
       </div>
