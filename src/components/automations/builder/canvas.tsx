@@ -20,6 +20,7 @@ import {
 import '@xyflow/react/dist/style.css'
 import { v4 as uuidv4 } from 'uuid'
 import { useTheme } from 'next-themes'
+import { Menu, X } from 'lucide-react'
 
 import { Sidebar } from './sidebar'
 import { PropertiesPanel } from './properties-panel'
@@ -51,6 +52,9 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
   
   // Selected node state for properties panel
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null)
+  
+  // Mobile sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -156,11 +160,38 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
   }
 
   return (
-    <div className="flex w-full h-[calc(100vh-64px)] bg-background">
+    <div className="flex w-full h-[calc(100vh-64px)] bg-background relative overflow-hidden">
       <ReactFlowProvider>
-        <Sidebar />
+        {/* Sidebar wrapper */}
+        <div className={`absolute inset-y-0 left-0 z-40 h-full transform transition-transform duration-300 md:relative md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          <Sidebar />
+          {/* Close button inside sidebar on mobile */}
+          <button 
+            className="absolute top-4 right-4 md:hidden p-1.5 bg-background rounded-md text-muted-foreground hover:text-foreground border border-border"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        
+        {/* Overlay when sidebar is open on mobile */}
+        {sidebarOpen && (
+          <div 
+            className="absolute inset-0 bg-black/20 z-30 md:hidden backdrop-blur-sm" 
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
         
         <div className="flex-1 h-full relative" ref={reactFlowWrapper}>
+          <div className="absolute top-4 left-4 z-10 md:hidden flex gap-2">
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="bg-card text-foreground border border-border p-2 rounded-md shadow-sm hover:bg-muted"
+            >
+              <Menu className="w-4 h-4" />
+            </button>
+          </div>
+
           <div className="absolute top-4 right-4 z-10 flex gap-2">
             <button
               onClick={handleSave}
@@ -193,10 +224,13 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
         </div>
 
         {selectedNodeId && nodes.find(n => n.id === selectedNodeId) && (
-          <PropertiesPanel 
-            selectedNode={nodes.find(n => n.id === selectedNodeId) as BuilderNode} 
-            onUpdateNode={updateNodeData} 
-          />
+          <div className="absolute inset-y-0 right-0 z-40 md:relative bg-card h-full w-full md:w-auto shadow-xl md:shadow-none">
+            <PropertiesPanel 
+              selectedNode={nodes.find(n => n.id === selectedNodeId) as BuilderNode} 
+              onUpdateNode={updateNodeData} 
+              onClose={() => setSelectedNodeId(null)}
+            />
+          </div>
         )}
       </ReactFlowProvider>
     </div>

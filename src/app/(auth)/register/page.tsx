@@ -117,7 +117,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-background p-4 sm:p-6 lg:p-8">
+    <div className="flex min-h-screen bg-background p-0 lg:p-8">
       
       {/* Left side: Branding / Marketing (Hidden on mobile) */}
       <div className="hidden lg:flex flex-1 flex-col justify-between rounded-[32px] bg-gradient-to-br from-[#fe5105]/10 via-[#fe5105]/5 to-transparent p-12 relative overflow-hidden">
@@ -136,7 +136,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Right side: Auth Form */}
-      <div className="flex flex-1 items-center justify-center p-4 lg:p-12 relative">
+      <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6 lg:p-12 relative">
         <Link 
           href="/"
           className="absolute top-4 left-4 lg:hidden flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors bg-card px-3 py-1.5 rounded-full border border-border"
@@ -341,7 +341,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground">
+        <p className="text-center text-xs text-muted-foreground mt-8">
           Par Onlice • whatooz.space
         </p>
       </div>

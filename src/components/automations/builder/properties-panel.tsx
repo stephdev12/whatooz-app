@@ -4,14 +4,15 @@ import { BuilderNode } from './types'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
 import { VariableTextarea } from '@/components/ui/variable-textarea'
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, X } from 'lucide-react'
 
 interface PropertiesPanelProps {
   selectedNode: BuilderNode
   onUpdateNode: (nodeId: string, data: any) => void
+  onClose?: () => void
 }
 
-export function PropertiesPanel({ selectedNode, onUpdateNode }: PropertiesPanelProps) {
+export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: PropertiesPanelProps) {
   const { activeOrganization } = useOrganization()
   const [flows, setFlows] = useState<any[]>([])
   const [templates, setTemplates] = useState<any[]>([])
@@ -47,8 +48,18 @@ export function PropertiesPanel({ selectedNode, onUpdateNode }: PropertiesPanelP
   }
 
   return (
-    <div className="w-80 bg-card border-l border-border shadow-sm p-4 h-full overflow-y-auto">
-      <h2 className="font-semibold text-foreground mb-4">Configuration</h2>
+    <div className="w-full md:w-80 bg-card border-l border-border shadow-sm p-4 h-full overflow-y-auto relative">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="font-semibold text-foreground">Configuration</h2>
+        {onClose && (
+          <button 
+            onClick={onClose}
+            className="md:hidden p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
       
       <div className="space-y-4">
         {/* GLOBAL LABEL */}
