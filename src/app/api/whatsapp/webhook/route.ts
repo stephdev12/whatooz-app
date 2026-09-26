@@ -6,6 +6,7 @@ import {
   sendTextMessage,
   sendTemplateMessage,
   sendFlowMessage,
+  listTemplates,
 } from '@/lib/whatsapp/meta-api'
 
 export const dynamic = 'force-dynamic'
@@ -559,7 +560,7 @@ export async function POST(request: NextRequest) {
                   };
 
                   if (auto.action_type === 'send_template') {
-                    const templateName = payload.template_name
+                    const templateName = payload.template_name || payload.templateId
                     const languageCode = payload.language_code || 'fr'
                     
                     let resolvedComponents: Array<Record<string, unknown>> = []
@@ -568,25 +569,34 @@ export async function POST(request: NextRequest) {
                     if (payload.components && Array.isArray(payload.components) && payload.components.length > 0) {
                       resolvedComponents = payload.components;
                     } else {
-                      const headerImageUrl = payload.header_image_url
-                      const bodyVariables = payload.body_variables
+                      const headerImageUrl = payload.header_image_url || payload.headerImageUrl
+                      const bodyVariables = payload.body_variables || (payload.templateVariablesMapping ? Object.values(payload.templateVariablesMapping) : undefined)
 
                       const templateComponents: Array<Record<string, unknown>> = []
 
                       // Try to fetch template definition to see if we need to auto-fill missing components
                       let templateDef: any = null
                       try {
-                        const { data: tData } = await supabaseAdmin
-                          .from('message_templates')
-                          .select('components')
+                        const { data: config } = await supabaseAdmin
+                          .from('whatsapp_config')
+                          .select('access_token_encrypted, waba_id')
                           .eq('organization_id', organizationId)
-                          .eq('name', templateName)
                           .maybeSingle()
                         
-                        if (tData?.components) {
-                          templateDef = typeof tData.components === 'string' ? JSON.parse(tData.components) : tData.components
+                        if (config?.access_token_encrypted && config.waba_id) {
+                          const wAccessToken = decrypt(config.access_token_encrypted)
+                          const templatesList = await listTemplates({
+                            wabaId: config.waba_id,
+                            accessToken: wAccessToken
+                          })
+                          const foundTemplate = templatesList.find(t => t.name === templateName)
+                          if (foundTemplate) {
+                            templateDef = foundTemplate.components
+                          }
                         }
-                      } catch(e) {}
+                      } catch(e) {
+                        console.error('[Webhook] Failed to fetch templates list:', e)
+                      }
 
                       if (templateDef && Array.isArray(templateDef)) {
                         const carouselComp = templateDef.find((c: any) => c.type === 'CAROUSEL')
@@ -667,7 +677,7 @@ export async function POST(request: NextRequest) {
                           type: 'body',
                           parameters: bodyVariables.map((v: string) => ({
                             type: 'text',
-                            text: replaceVariables(String(v)) || ' ',
+                            text: replaceVariables(String(v)) || '-',
                           })),
                         })
                       } else if (templateDef && Array.isArray(templateDef)) {
@@ -676,7 +686,7 @@ export async function POST(request: NextRequest) {
                         if (bodyComp?.example?.body_text?.length && Array.isArray(bodyComp.example.body_text[0])) {
                            templateComponents.push({
                              type: 'body',
-                             parameters: bodyComp.example.body_text[0].map(() => ({ type: 'text', text: ' ' }))
+                             parameters: bodyComp.example.body_text[0].map(() => ({ type: 'text', text: '-' }))
                            })
                         }
                       }
@@ -698,7 +708,7 @@ export async function POST(request: NextRequest) {
                                 type: 'button',
                                 sub_type: 'url',
                                 index: String(i),
-                                parameters: btn.example.map(() => ({ type: 'text', text: ' ' }))
+                                parameters: btn.example.map(() => ({ type: 'text', text: '-' }))
                               })
                             }
                           })
