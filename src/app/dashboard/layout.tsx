@@ -70,9 +70,11 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
         {/* Scrollable Dashboard View */}
         <main className={cn(
            "flex-1 overflow-y-auto overflow-x-hidden flex flex-col relative",
-           isBuilderRoute ? "p-0" : isInboxRoute ? "p-0 pb-16 md:pb-0 inbox-main-content" : "p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8"
+           isBuilderRoute ? "p-0" : isInboxRoute ? "p-0 pb-16 md:pb-0 inbox-main-content" : "p-4 sm:p-6 lg:p-8 lg:pb-8"
         )}>
           {children}
+          {/* Explicit spacer to ensure content scrolls past the mobile bottom nav */}
+          {!isBuilderRoute && !isInboxRoute && <div className="h-24 lg:hidden shrink-0 w-full" />}
         </main>
 
         {/* Mobile Floating Bottom Nav (Single clean mobile navigation) */}

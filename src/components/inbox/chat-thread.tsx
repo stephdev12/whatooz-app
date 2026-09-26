@@ -84,10 +84,14 @@ export function ChatThread({
     }
   }
 
-  // Auto-scroll to bottom on new messages
+  // Scroll to bottom when opening a conversation
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    // Small delay to ensure messages are rendered before scrolling
+    const timer = setTimeout(() => {
+      bottomRef.current?.scrollIntoView()
+    }, 100)
+    return () => clearTimeout(timer)
+  }, [conversation.id])
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
@@ -112,6 +116,9 @@ export function ChatThread({
       if (res.ok) {
         setText('')
         onMessageSent()
+        setTimeout(() => {
+          bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+        }, 100)
       }
     } catch (err) {
       console.error('Send failed:', err)
