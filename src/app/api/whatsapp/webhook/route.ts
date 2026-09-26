@@ -593,21 +593,24 @@ export async function POST(request: NextRequest) {
                         if (carouselComp && Array.isArray(carouselComp.cards)) {
                           const cards = carouselComp.cards.map((card: any, index: number) => {
                             const cardComponents: any[] = []
-                            const cHeader = card.components?.find((c: any) => c.type === 'HEADER')
-                            if (cHeader && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(cHeader.format)) {
-                               const mediaType = cHeader.format.toLowerCase()
-                               let link = 'https://www.w3schools.com/html/img_girl.jpg'
-                               if (mediaType === 'video') link = 'https://www.w3schools.com/html/mov_bbb.mp4'
-                               else if (mediaType === 'document') link = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
-                               cardComponents.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link } }] })
-                            } else if (cHeader?.format === 'TEXT' && (cHeader.example?.header_text?.length || cHeader.text?.includes('{{1}}'))) {
-                               cardComponents.push({ type: 'header', parameters: [{ type: 'text', text: '-' }] })
+                            const cHeader = card.components?.find((c: any) => c.type?.toUpperCase() === 'HEADER')
+                            if (cHeader) {
+                               const format = (cHeader.format || 'IMAGE').toUpperCase()
+                               if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
+                                 const mediaType = format.toLowerCase()
+                                 let link = 'https://picsum.photos/600/400.jpg'
+                                 if (mediaType === 'video') link = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+                                 else if (mediaType === 'document') link = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+                                 cardComponents.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link } }] })
+                               } else if (format === 'TEXT' && (cHeader.example?.header_text?.length || cHeader.text?.includes('{{1}}'))) {
+                                 cardComponents.push({ type: 'header', parameters: [{ type: 'text', text: '-' }] })
+                               }
                             }
-                            const cBody = card.components?.find((c: any) => c.type === 'BODY')
+                            const cBody = card.components?.find((c: any) => c.type?.toUpperCase() === 'BODY')
                             if (cBody && (cBody.example?.body_text?.length || cBody.text?.includes('{{1}}'))) {
                                cardComponents.push({ type: 'body', parameters: [{ type: 'text', text: '-' }] })
                             }
-                            const cButtons = card.components?.find((c: any) => c.type === 'BUTTONS')
+                            const cButtons = card.components?.find((c: any) => c.type?.toUpperCase() === 'BUTTONS')
                             if (cButtons?.buttons) {
                               cButtons.buttons.forEach((btn: any, i: number) => {
                                 if (btn.type === 'URL' && (btn.example?.length || btn.url?.includes('{{1}}'))) {
