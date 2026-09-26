@@ -185,7 +185,7 @@ export default function PrivacyPolicyPage() {
               <li>Droit à la portabilité des données sous format structuré et lisible par machine.</li>
             </ul>
             <p>
-              Pour toute demande relative à vos droits, vous pouvez contacter notre Délégué à la Protection des Données (DPO) à l&apos;adresse ci-dessous.
+              Pour toute demande relative à vos droits, vous pouvez consulter notre <Link href="/data-deletion" className="text-[#fe5105] hover:underline font-medium">page d&apos;instructions de suppression des données</Link>, ou contacter notre Délégué à la Protection des Données (DPO) à l&apos;adresse ci-dessous.
             </p>
           </section>
 
