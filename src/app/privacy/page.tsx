@@ -199,9 +199,10 @@ export default function PrivacyPolicyPage() {
               Pour toute question concernant cette Politique de Confidentialité ou pour exercer vos droits, vous pouvez nous joindre :
             </p>
             <div className="text-xs space-y-1 text-foreground">
-              <p><strong>Plateforme :</strong> Whatooz</p>
-              <p><strong>Email support & confidentialité :</strong> privacy@whatooz.com / contact@whatooz.com</p>
-              <p><strong>Site Web :</strong> https://whatooz.com</p>
+              <p><strong>Plateforme :</strong> Whatooz (propulsé par GTEC)</p>
+              <p><strong>Email support & confidentialité :</strong> contact@onlice.com</p>
+              <p><strong>Téléphone :</strong> 650471093</p>
+              <p><strong>Site Web :</strong> https://whatooz.space</p>
             </div>
           </section>
         </div>
@@ -209,7 +210,7 @@ export default function PrivacyPolicyPage() {
 
       {/* Footer */}
       <footer className="border-t border-border bg-card py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Whatooz. Tous droits réservés. WhatsApp est une marque déposée de Meta Platforms, Inc.
+        © {new Date().getFullYear()} Whatooz (propulsé par GTEC). Tous droits réservés. WhatsApp est une marque déposée de Meta Platforms, Inc.
       </footer>
     </div>
   )

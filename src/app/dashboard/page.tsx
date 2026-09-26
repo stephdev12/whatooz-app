@@ -132,10 +132,17 @@ export default function DashboardPage() {
           dynamicChartData[peakIdx].peak = true
         }
 
+        // Fetch actual wallet balance
+        const { data: wData } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('organization_id', activeOrganization.id)
+          .maybeSingle()
+
         setStats({
           totalConversations: convoCount || 0,
           totalOrders: ordersCount,
-          totalRevenueFcfa: totalFcfa,
+          totalRevenueFcfa: wData?.balance || 0,
           recentInteractions: interactions,
           chartData: dynamicChartData,
         })

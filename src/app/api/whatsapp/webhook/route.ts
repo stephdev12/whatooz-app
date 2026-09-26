@@ -561,49 +561,149 @@ export async function POST(request: NextRequest) {
                   if (auto.action_type === 'send_template') {
                     const templateName = payload.template_name
                     const languageCode = payload.language_code || 'fr'
-                    const headerImageUrl = payload.header_image_url
-                    const bodyVariables = payload.body_variables
+                    
+                    let resolvedComponents: Array<Record<string, unknown>> = []
 
-                    const templateComponents: Array<Record<string, unknown>> = []
-                    if (headerImageUrl) {
-                      templateComponents.push({
-                        type: 'header',
-                        parameters: [
-                          {
-                            type: 'image',
-                            image: { link: headerImageUrl },
-                          },
-                        ],
-                      })
+                    // Use pre-built components if available (e.g. for carousels)
+                    if (payload.components && Array.isArray(payload.components) && payload.components.length > 0) {
+                      resolvedComponents = payload.components;
+                    } else {
+                      const headerImageUrl = payload.header_image_url
+                      const bodyVariables = payload.body_variables
+
+                      const templateComponents: Array<Record<string, unknown>> = []
+
+                      // Try to fetch template definition to see if we need to auto-fill missing components
+                      let templateDef: any = null
+                      try {
+                        const { data: tData } = await supabaseAdmin
+                          .from('message_templates')
+                          .select('components')
+                          .eq('organization_id', organizationId)
+                          .eq('name', templateName)
+                          .maybeSingle()
+                        
+                        if (tData?.components) {
+                          templateDef = typeof tData.components === 'string' ? JSON.parse(tData.components) : tData.components
+                        }
+                      } catch(e) {}
+
+                      if (templateDef && Array.isArray(templateDef)) {
+                        const headerComp = templateDef.find((c: any) => c.type === 'HEADER')
+                        if (headerComp) {
+                          if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp?.format)) {
+                            const mediaType = headerComp.format.toLowerCase()
+                            let link = headerImageUrl
+                            if (!link) {
+                                if (mediaType === 'image') link = 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80'
+                                else if (mediaType === 'video') link = 'https://www.w3schools.com/html/mov_bbb.mp4'
+                                else link = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+                            }
+                            templateComponents.push({
+                              type: 'header',
+                              parameters: [
+                                {
+                                  type: mediaType,
+                                  [mediaType]: { link },
+                                },
+                              ],
+                            })
+                          } else if (headerComp?.format === 'TEXT' && headerComp.example?.header_text?.length) {
+                             // Requires variables
+                             templateComponents.push({
+                               type: 'header',
+                               parameters: headerComp.example.header_text.map(() => ({ type: 'text', text: ' ' }))
+                             })
+                          }
+                        }
+                      } else if (headerImageUrl) {
+                        // Fallback if no templateDef but an image URL was provided
+                        templateComponents.push({
+                          type: 'header',
+                          parameters: [
+                            {
+                              type: 'image',
+                              image: { link: headerImageUrl },
+                            },
+                          ],
+                        })
+                      }
+
+                      if (bodyVariables && Array.isArray(bodyVariables) && bodyVariables.length > 0) {
+                        templateComponents.push({
+                          type: 'body',
+                          parameters: bodyVariables.map((v: string) => ({
+                            type: 'text',
+                            text: replaceVariables(String(v)) || ' ',
+                          })),
+                        })
+                      } else if (templateDef && Array.isArray(templateDef)) {
+                        // Fallback body variables if none provided but template requires them
+                        const bodyComp = templateDef.find((c: any) => c.type === 'BODY')
+                        if (bodyComp?.example?.body_text?.length && Array.isArray(bodyComp.example.body_text[0])) {
+                           templateComponents.push({
+                             type: 'body',
+                             parameters: bodyComp.example.body_text[0].map(() => ({ type: 'text', text: ' ' }))
+                           })
+                        }
+                      }
+
+                      // Check for buttons requiring variables
+                      if (templateDef && Array.isArray(templateDef)) {
+                        const buttonsComp = templateDef.find((c: any) => c.type === 'BUTTONS')
+                        if (buttonsComp?.buttons) {
+                          buttonsComp.buttons.forEach((btn: any, i: number) => {
+                            if (btn.type === 'COPY_CODE') {
+                              templateComponents.push({
+                                type: 'button',
+                                sub_type: 'copy_code',
+                                index: String(i),
+                                parameters: [{ type: 'coupon_code', coupon_code: btn.example?.length ? btn.example[0] : 'CODE123' }]
+                              })
+                            } else if (btn.type === 'URL' && btn.example?.length) {
+                              templateComponents.push({
+                                type: 'button',
+                                sub_type: 'url',
+                                index: String(i),
+                                parameters: btn.example.map(() => ({ type: 'text', text: ' ' }))
+                              })
+                            }
+                          })
+                        }
+                      }
+
+                      resolvedComponents = templateComponents;
                     }
-                    if (bodyVariables && Array.isArray(bodyVariables) && bodyVariables.length > 0) {
-                      templateComponents.push({
-                        type: 'body',
-                        parameters: bodyVariables.map((v: string) => ({
-                          type: 'text',
-                          text: replaceVariables(String(v)) || ' ',
-                        })),
+
+                    let outboundText = ''
+                    let sendStatus = 'sent'
+                    let wamid = `failed_${Date.now()}`
+
+                    try {
+                      const sendRes = await sendTemplateMessage({
+                        phoneNumberId,
+                        accessToken,
+                        to: senderPhone,
+                        templateName,
+                        languageCode,
+                        components: resolvedComponents.length > 0 ? resolvedComponents : undefined,
                       })
+                      outboundText = `[Template automatique: ${templateName}]`
+                      wamid = sendRes.messageId
+                    } catch (sendErr: any) {
+                      console.error('[Webhook] sendTemplateMessage error:', sendErr)
+                      outboundText = `[Erreur d'envoi du template "${templateName}": ${sendErr.message || 'Format invalide ou paramètres manquants'}]`
+                      sendStatus = 'failed'
                     }
 
-                    const sendRes = await sendTemplateMessage({
-                      phoneNumberId,
-                      accessToken,
-                      to: senderPhone,
-                      templateName,
-                      languageCode,
-                      components: templateComponents.length > 0 ? templateComponents : undefined,
-                    })
-
-                    outboundText = `[Template automatique: ${templateName}]`
                     await supabaseAdmin.from('messages').insert({
                       conversation_id: conversationId,
                       organization_id: organizationId,
                       direction: 'outbound',
                       message_type: 'template',
                       content_text: outboundText,
-                      wamid: sendRes.messageId,
-                      status: 'sent',
+                      wamid,
+                      status: sendStatus,
                     })
                   } else if (auto.action_type === 'send_flow' && payload.flow_id) {
                     let flowScreen: string | undefined = payload.screen

@@ -42,7 +42,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/send-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: fullPhone })
+        body: JSON.stringify({ phone: fullPhone, email })
       })
 
       const data = await res.json()
@@ -187,7 +187,7 @@ export default function RegisterPage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Nom Prénom"
+                  placeholder="Jean Dupont"
                   required
                   className="w-full rounded-lg border border-border bg-input py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
                 />
@@ -209,7 +209,7 @@ export default function RegisterPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="votre-email@exemple.com"
+                  placeholder="jean.dupont@exemple.com"
                   required
                   className="w-full rounded-lg border border-border bg-input py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
                 />
@@ -277,7 +277,7 @@ export default function RegisterPage() {
                       type="tel"
                       value={phoneNumber}
                       onChange={(e) => setPhoneNumber(e.target.value)}
-                      placeholder="612345678"
+                      placeholder="650000000"
                       required
                       className="w-full rounded-lg border border-border bg-input py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
                     />

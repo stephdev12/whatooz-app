@@ -164,14 +164,15 @@ export async function sendMediaMessage(args: {
   accessToken: string
   to: string
   mediaKind: MediaKind
-  mediaUrl: string
+  mediaUrl?: string
+  mediaId?: string
   caption?: string
   filename?: string
 }): Promise<MetaSendResult> {
-  const { phoneNumberId, accessToken, to, mediaKind, mediaUrl, caption, filename } = args
+  const { phoneNumberId, accessToken, to, mediaKind, mediaUrl, mediaId, caption, filename } = args
   const url = `${META_API_BASE}/${phoneNumberId}/messages`
 
-  const mediaPayload: Record<string, string> = { link: mediaUrl }
+  const mediaPayload: Record<string, string> = mediaId ? { id: mediaId } : { link: mediaUrl! }
   if (caption) mediaPayload.caption = caption
   if (filename && mediaKind === 'document') mediaPayload.filename = filename
 

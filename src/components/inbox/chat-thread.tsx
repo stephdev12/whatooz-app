@@ -12,6 +12,7 @@ import {
   User as UserIcon,
   Pencil,
   X,
+  Paperclip,
 } from 'lucide-react'
 import type { Conversation, Message } from '@/app/dashboard/inbox/page'
 import { useOrganization } from '@/hooks/use-organization'
@@ -36,6 +37,8 @@ export function ChatThread({
   const [members, setMembers] = useState<any[]>([])
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState(conversation.contact_name || '')
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setIsEditingName(false)
@@ -84,14 +87,7 @@ export function ChatThread({
     }
   }
 
-  // Scroll to bottom when opening a conversation
-  useEffect(() => {
-    // Small delay to ensure messages are rendered before scrolling
-    const timer = setTimeout(() => {
-      bottomRef.current?.scrollIntoView()
-    }, 100)
-    return () => clearTimeout(timer)
-  }, [conversation.id])
+  // Scroll removed as requested by user
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault()
@@ -124,6 +120,62 @@ export function ChatThread({
       console.error('Send failed:', err)
     } finally {
       setSending(false)
+    }
+  }
+
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !activeOrganization) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      
+      const uploadRes = await fetch('/api/whatsapp/upload-message-media', {
+        method: 'POST',
+        headers: {
+          'x-organization-id': activeOrganization.id
+        },
+        body: formData
+      })
+      
+      if (!uploadRes.ok) throw new Error('Upload failed')
+      
+      const { mediaId } = await uploadRes.json()
+      
+      let type = 'document'
+      if (file.type.startsWith('image/')) type = 'image'
+      else if (file.type.startsWith('video/')) type = 'video'
+      else if (file.type.startsWith('audio/')) type = 'audio'
+
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-organization-id': activeOrganization.id
+        },
+        body: JSON.stringify({
+          conversationId: conversation.id,
+          to: conversation.contact_phone,
+          type,
+          mediaId,
+          caption: text.trim() || undefined,
+        }),
+      })
+
+      if (res.ok) {
+        setText('')
+        onMessageSent()
+        setTimeout(() => {
+          bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+        }, 100)
+      }
+    } catch (err) {
+      console.error('File send failed:', err)
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -242,15 +294,48 @@ export function ChatThread({
               >
                 <div
                   className={cn(
-                    'max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-sm',
+                    'max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-sm flex flex-col',
                     isOutbound
                       ? 'wa-bubble-sent text-foreground'
                       : 'wa-bubble-received border border-border text-foreground'
                   )}
                 >
-                  <p className="whitespace-pre-wrap break-words">
-                    {msg.content_text}
-                  </p>
+                  {msg.media_url && (
+                    <div className="mb-2">
+                      {(() => {
+                        const isId = !msg.media_url.startsWith('http') && !msg.media_url.startsWith('/');
+                        const displayUrl = isId && activeOrganization?.id
+                          ? `/api/whatsapp/media/${msg.media_url}?orgId=${activeOrganization.id}`
+                          : msg.media_url;
+
+                        return (
+                          <>
+                            {msg.message_type === 'image' && (
+                              <img src={displayUrl} alt="Image jointe" className="max-w-full rounded-lg max-h-64 object-contain" />
+                            )}
+                            {msg.message_type === 'video' && (
+                              <video src={displayUrl} controls className="max-w-full rounded-lg max-h-64" />
+                            )}
+                            {msg.message_type === 'document' && (
+                              <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-500 hover:underline bg-background/50 p-2 rounded-lg text-xs">
+                                <Paperclip className="h-4 w-4" /> Document joint
+                              </a>
+                            )}
+                            {msg.message_type !== 'image' && msg.message_type !== 'video' && msg.message_type !== 'document' && (
+                              <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-500 hover:underline text-xs">
+                                Fichier joint ({msg.message_type})
+                              </a>
+                            )}
+                          </>
+                        )
+                      })()}
+                    </div>
+                  )}
+                  {msg.content_text && !msg.content_text.startsWith('[IMAGE]') && !msg.content_text.startsWith('[DOCUMENT]') && !msg.content_text.startsWith('[VIDEO]') && (
+                    <p className="whitespace-pre-wrap break-words">
+                      {msg.content_text}
+                    </p>
+                  )}
                   <div
                     className={cn(
                       'mt-1 flex items-center gap-1',
@@ -279,6 +364,22 @@ export function ChatThread({
           onSubmit={handleSend}
           className="mx-auto flex max-w-2xl items-center gap-3"
         >
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleFileUpload} 
+            className="hidden" 
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading || sending}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            title="Joindre un fichier"
+          >
+            {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
+          </button>
+          
           <input
             type="text"
             value={text}
@@ -288,7 +389,7 @@ export function ChatThread({
           />
           <button
             type="submit"
-            disabled={!text.trim() || sending}
+            disabled={!text.trim() || sending || uploading}
             className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fe5105] text-white transition-all hover:bg-[#e04602] disabled:opacity-50"
           >
             {sending ? (

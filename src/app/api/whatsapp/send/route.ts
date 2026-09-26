@@ -32,6 +32,7 @@ export const dynamic = 'force-dynamic'
  * - headerText?: string (for type=flow)
  * - footerText?: string (for type=flow)
  * - mediaUrl?: string (for media types)
+ * - mediaId?: string (for media types)
  * - caption?: string
  */
 export async function POST(request: NextRequest) {
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
     footerText,
     screen,
     mediaUrl,
+    mediaId,
     caption,
   } = body
 
@@ -273,9 +275,9 @@ export async function POST(request: NextRequest) {
       case 'video':
       case 'document':
       case 'audio':
-        if (!mediaUrl) {
+        if (!mediaUrl && !mediaId) {
           return NextResponse.json(
-            { error: 'mediaUrl is required for media messages' },
+            { error: 'mediaUrl or mediaId is required for media messages' },
             { status: 400 }
           )
         }
@@ -285,6 +287,7 @@ export async function POST(request: NextRequest) {
           to,
           mediaKind: type as MediaKind,
           mediaUrl,
+          mediaId,
           caption,
         })
         break
@@ -359,7 +362,7 @@ export async function POST(request: NextRequest) {
       direction: 'outbound',
       message_type: type,
       content_text: contentText,
-      media_url: mediaUrl ?? null,
+      media_url: mediaUrl || mediaId || null,
       wamid: result.messageId,
       status: 'sent',
     })

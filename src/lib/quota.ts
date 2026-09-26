@@ -48,8 +48,9 @@ export async function checkQuota(organizationId: string, quotaType: QuotaType): 
       .eq('organization_id', organizationId)
     
     if (countError) return { allowed: false, error: 'Erreur lors de la vérification des agents.' }
-    if (count !== null && count >= plan.max_agents) {
-      return { allowed: false, error: `Limite d'agents atteinte (${plan.max_agents}). Mettez à niveau votre plan.` }
+    const maxAgents = plan.max_agents ?? Infinity
+    if (count !== null && count >= maxAgents) {
+      return { allowed: false, error: `Limite d'agents atteinte (${maxAgents}). Mettez à niveau votre plan.` }
     }
   }
 
@@ -60,8 +61,9 @@ export async function checkQuota(organizationId: string, quotaType: QuotaType): 
       .eq('organization_id', organizationId)
     
     if (countError) return { allowed: false, error: 'Erreur lors de la vérification des automatisations.' }
-    if (count !== null && count >= plan.max_automations) {
-      return { allowed: false, error: `Limite d'automatisations atteinte (${plan.max_automations}). Mettez à niveau votre plan.` }
+    const maxAutomations = plan.max_automations ?? Infinity
+    if (count !== null && count >= maxAutomations) {
+      return { allowed: false, error: `Limite d'automatisations atteinte (${maxAutomations}). Mettez à niveau votre plan.` }
     }
   }
 

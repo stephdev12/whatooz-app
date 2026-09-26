@@ -91,18 +91,20 @@ export default function InboxPage() {
           if (newMsg.conversation_id === selectedConvoId) {
             setMessages((prev) => [...prev, newMsg])
             
-            // Immediately mark as read so the badge doesn't stay
-            fetch('/api/whatsapp/conversations/assign', {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-organization-id': activeOrganization.id,
-              },
-              body: JSON.stringify({
-                conversationId: newMsg.conversation_id,
-                unreadCount: 0,
-              }),
-            }).catch(console.error)
+            // Wait to ensure webhook finishes incrementing before resetting
+            setTimeout(() => {
+              fetch('/api/whatsapp/conversations/assign', {
+                method: 'PATCH',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-organization-id': activeOrganization.id,
+                },
+                body: JSON.stringify({
+                  conversationId: newMsg.conversation_id,
+                  unreadCount: 0,
+                }),
+              }).catch(console.error)
+            }, 1000)
           }
           // Refresh conversation list
           loadConversations()
@@ -129,43 +131,57 @@ export default function InboxPage() {
     }
   }, [activeOrganization, selectedConvoId, supabase, loadConversations])
 
-  // Polling fallback every 3 seconds to guarantee instant delivery even if Realtime drops
+  // Real-time subscription for conversations
   useEffect(() => {
     if (!activeOrganization) return
 
-    const interval = setInterval(() => {
-      loadConversations()
-      if (selectedConvoId) {
-        loadMessages(selectedConvoId)
-      }
-    }, 3000)
+    const channelName = `inbox-conversations-${activeOrganization.id}-${Math.random().toString(36).substring(7)}`
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+          filter: `organization_id=eq.${activeOrganization.id}`
+        },
+        () => {
+          loadConversations()
+        }
+      )
+      .subscribe()
 
-    return () => clearInterval(interval)
-  }, [activeOrganization, selectedConvoId, loadConversations, loadMessages])
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [activeOrganization, supabase, loadConversations])
 
   function handleSelectConversation(convoId: string) {
     setSelectedConvoId(convoId)
     loadMessages(convoId)
 
-    // Reset unread count
-    const convo = conversations.find((c) => c.id === convoId)
-    if (convo && convo.unread_count > 0 && activeOrganization) {
-      fetch('/api/whatsapp/conversations/assign', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-organization-id': activeOrganization.id,
-        },
-        body: JSON.stringify({
-          conversationId: convoId,
-          unreadCount: 0,
-        }),
-      }).catch(console.error)
+    // Reset unread count immediately and optimistically
+    if (activeOrganization) {
+      const convo = conversations.find((c) => c.id === convoId)
+      if (convo && convo.unread_count > 0) {
+        fetch('/api/whatsapp/conversations/assign', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-organization-id': activeOrganization.id,
+          },
+          body: JSON.stringify({
+            conversationId: convoId,
+            unreadCount: 0,
+          }),
+        }).catch(console.error)
 
-      // Optimistic update
-      setConversations((prev) =>
-        prev.map((c) => (c.id === convoId ? { ...c, unread_count: 0 } : c))
-      )
+        // Optimistic update
+        setConversations((prev) =>
+          prev.map((c) => (c.id === convoId ? { ...c, unread_count: 0 } : c))
+        )
+      }
     }
   }
 

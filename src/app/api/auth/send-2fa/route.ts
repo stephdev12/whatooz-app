@@ -3,12 +3,26 @@ import { getSupabaseAdmin } from '@/lib/supabase/admin'
 
 export async function POST(req: Request) {
   try {
-    const { phone } = await req.json()
+    const { phone, email } = await req.json()
     if (!phone) {
       return NextResponse.json({ error: 'Phone number is required' }, { status: 400 })
     }
+    if (!email) {
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 })
+    }
 
     const supabase = getSupabaseAdmin()
+
+    // Vérifier si l'email existe déjà pour éviter d'envoyer un code inutilement
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle()
+
+    if (existingProfile) {
+      return NextResponse.json({ error: 'Ce compte existe déjà avec cet e-mail. Veuillez vous connecter.' }, { status: 400 })
+    }
     
     // Générer un code à 4 chiffres
     const code = Math.floor(1000 + Math.random() * 9000).toString()
