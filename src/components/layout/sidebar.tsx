@@ -37,6 +37,11 @@ export const navItems = [
     icon: Workflow,
   },
   {
+    label: 'Diffusions',
+    href: '/dashboard/broadcasts',
+    icon: Zap,
+  },
+  {
     label: 'Flux WhatsApp',
     href: '/dashboard/flows',
     icon: Layers,
