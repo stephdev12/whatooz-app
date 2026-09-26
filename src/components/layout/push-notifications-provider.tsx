@@ -29,8 +29,9 @@ export function PushNotificationsProvider({ children }: { children: React.ReactN
 
     const supabase = createClient()
 
+    const channelName = `global-notifications-${activeOrganization.id}-${Math.random().toString(36).substring(7)}`
     const channel = supabase
-      .channel('global-notifications')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {

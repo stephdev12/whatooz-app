@@ -30,8 +30,12 @@ export function useUnreadCount() {
 
     fetchCount()
 
+    // Use a unique channel name to prevent conflicts if the hook is used in multiple components
+    // (e.g. Sidebar and BottomNav rendered at the same time)
+    const channelName = `unread-count-${activeOrganization.id}-${Math.random().toString(36).substring(7)}`
+    
     const channel = supabase
-      .channel('unread-count')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {

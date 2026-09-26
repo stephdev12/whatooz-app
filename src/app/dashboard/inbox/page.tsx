@@ -75,8 +75,9 @@ export default function InboxPage() {
   useEffect(() => {
     if (!activeOrganization) return
 
+    const channelName = `inbox-messages-${activeOrganization.id}-${Math.random().toString(36).substring(7)}`
     const channel = supabase
-      .channel('inbox-messages')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
