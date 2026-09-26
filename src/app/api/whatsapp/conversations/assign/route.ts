@@ -38,6 +38,9 @@ export async function PATCH(request: NextRequest) {
   if (contactName !== undefined) {
     updatePayload.contact_name = contactName
   }
+  if (body.unreadCount !== undefined) {
+    updatePayload.unread_count = body.unreadCount
+  }
   
   if (Object.keys(updatePayload).length === 0) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 })

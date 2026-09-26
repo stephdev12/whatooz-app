@@ -90,6 +90,19 @@ export default function InboxPage() {
           // If viewing this conversation, add message
           if (newMsg.conversation_id === selectedConvoId) {
             setMessages((prev) => [...prev, newMsg])
+            
+            // Immediately mark as read so the badge doesn't stay
+            fetch('/api/whatsapp/conversations/assign', {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-organization-id': activeOrganization.id,
+              },
+              body: JSON.stringify({
+                conversationId: newMsg.conversation_id,
+                unreadCount: 0,
+              }),
+            }).catch(console.error)
           }
           // Refresh conversation list
           loadConversations()
@@ -133,6 +146,27 @@ export default function InboxPage() {
   function handleSelectConversation(convoId: string) {
     setSelectedConvoId(convoId)
     loadMessages(convoId)
+
+    // Reset unread count
+    const convo = conversations.find((c) => c.id === convoId)
+    if (convo && convo.unread_count > 0 && activeOrganization) {
+      fetch('/api/whatsapp/conversations/assign', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-organization-id': activeOrganization.id,
+        },
+        body: JSON.stringify({
+          conversationId: convoId,
+          unreadCount: 0,
+        }),
+      }).catch(console.error)
+
+      // Optimistic update
+      setConversations((prev) =>
+        prev.map((c) => (c.id === convoId ? { ...c, unread_count: 0 } : c))
+      )
+    }
   }
 
   function handleMessageSent() {
