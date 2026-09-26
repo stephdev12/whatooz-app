@@ -601,17 +601,17 @@ export async function POST(request: NextRequest) {
                                else if (mediaType === 'document') link = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
                                cardComponents.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link } }] })
                             } else if (cHeader?.format === 'TEXT' && (cHeader.example?.header_text?.length || cHeader.text?.includes('{{1}}'))) {
-                               cardComponents.push({ type: 'header', parameters: [{ type: 'text', text: ' ' }] })
+                               cardComponents.push({ type: 'header', parameters: [{ type: 'text', text: '-' }] })
                             }
                             const cBody = card.components?.find((c: any) => c.type === 'BODY')
                             if (cBody && (cBody.example?.body_text?.length || cBody.text?.includes('{{1}}'))) {
-                               cardComponents.push({ type: 'body', parameters: [{ type: 'text', text: ' ' }] })
+                               cardComponents.push({ type: 'body', parameters: [{ type: 'text', text: '-' }] })
                             }
                             const cButtons = card.components?.find((c: any) => c.type === 'BUTTONS')
                             if (cButtons?.buttons) {
                               cButtons.buttons.forEach((btn: any, i: number) => {
                                 if (btn.type === 'URL' && (btn.example?.length || btn.url?.includes('{{1}}'))) {
-                                  cardComponents.push({ type: 'button', sub_type: 'url', index: String(i), parameters: [{ type: 'text', text: ' ' }] })
+                                  cardComponents.push({ type: 'button', sub_type: 'url', index: String(i), parameters: [{ type: 'text', text: '-' }] })
                                 }
                               })
                             }
@@ -641,7 +641,7 @@ export async function POST(request: NextRequest) {
                             } else if (headerComp?.format === 'TEXT' && (headerComp.example?.header_text?.length || headerComp.text?.includes('{{1}}'))) {
                                templateComponents.push({
                                  type: 'header',
-                                 parameters: [{ type: 'text', text: ' ' }]
+                                 parameters: [{ type: 'text', text: '-' }]
                                })
                             }
                           }
