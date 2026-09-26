@@ -47,7 +47,7 @@ export default function RootLayout({
     <html lang="fr" suppressHydrationWarning>
       <head>
         <link
-          href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800&display=swap"
+          href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700,800,900&display=swap"
           rel="stylesheet"
         />
         <link

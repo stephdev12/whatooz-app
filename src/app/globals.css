@@ -1,4 +1,4 @@
-@import url('https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@400,500,700,800,900&display=swap');
+@import url('https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700,800,900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -7,8 +7,8 @@
 
 /*
  * Whatooz Design System
- * Accent: #fe5105 (warm orange) — inherited from original Whatooz branding
- * Font: Cabinet Grotesk (headings) + Inter (body)
+ * Accent: #fe5105 (warm orange)
+ * Font: Switzer (headings) + Inter (body)
  * Theme: Dark-first premium SaaS
  */
 
@@ -46,10 +46,10 @@
 
 /* ── Light Mode ── */
 :root {
-  --font-display: 'Cabinet Grotesk', 'Inter', sans-serif;
+  --font-display: 'Switzer', 'Inter', sans-serif;
   --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 
-  --background: #f4f4f5; /* Very light gray for island layout background */
+  --background: #f2f2f4; /* Gray like but not too much */
   --foreground: #111111;
   --card: #ffffff;
   --card-foreground: #111111;
@@ -77,23 +77,23 @@
 
 /* ── Dark Mode (default for Whatooz premium feel) ── */
 .dark {
-  --background: #09090b;
+  --background: #141416; /* Dark gray like but not too much */
   --foreground: #f4f4f5;
-  --card: #18181b; /* Island card in dark mode */
+  --card: #1c1c1f; 
   --card-foreground: #f4f4f5;
-  --popover: #18181b;
+  --popover: #1c1c1f;
   --popover-foreground: #f4f4f5;
   --primary: #fe5105;
   --primary-foreground: #ffffff;
-  --secondary: #27272a;
+  --secondary: #2a2a2d;
   --secondary-foreground: #f4f4f5;
-  --muted: #27272a;
+  --muted: #2a2a2d;
   --muted-foreground: #a1a1aa;
   --accent: #271206;
   --accent-foreground: #fe5105;
   --destructive: #ef4444;
-  --border: #27272a;
-  --input: #18181b;
+  --border: #2a2a2d;
+  --input: #1c1c1f;
   --ring: #fe5105;
 
   --sidebar: transparent;
