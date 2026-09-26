@@ -52,6 +52,8 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
     )
   }
 
+  const isInboxRoute = pathname.includes('/dashboard/inbox')
+
   return (
     <div className="flex h-screen overflow-hidden bg-noisy-canvas">
       {/* Desktop Sidebar (Floating on background) */}
@@ -67,8 +69,8 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
 
         {/* Scrollable Dashboard View */}
         <main className={cn(
-           "flex-1 overflow-y-auto overflow-x-hidden",
-           isBuilderRoute ? "p-0" : "p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8"
+           "flex-1 overflow-y-auto overflow-x-hidden flex flex-col relative",
+           isBuilderRoute ? "p-0" : isInboxRoute ? "p-0 pb-16 md:pb-0" : "p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8"
         )}>
           {children}
         </main>

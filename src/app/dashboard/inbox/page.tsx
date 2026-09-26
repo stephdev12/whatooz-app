@@ -152,7 +152,7 @@ export default function InboxPage() {
   })
 
   return (
-    <div className="-m-4 flex flex-col md:flex-row h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-4rem)] sm:-m-6 overflow-hidden">
+    <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
       
       {/* Mobile Filters (Top) */}
       <div className={cn(

@@ -13,7 +13,9 @@ export async function checkQuota(organizationId: string, quotaType: QuotaType): 
     .single()
 
   if (subError || !subscription) {
-    return { allowed: false, error: 'Abonnement introuvable.' }
+    // Si l'organisation n'a pas d'abonnement (compte legacy créé avant le système de quota),
+    // on lui accorde un accès illimité par défaut pour ne pas bloquer ses actions.
+    return { allowed: true }
   }
 
   // 2. Check if subscription is valid

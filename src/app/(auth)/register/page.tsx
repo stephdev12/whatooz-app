@@ -13,6 +13,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
+  const [countryCode, setCountryCode] = useState('+33')
+  const [phoneNumber, setPhoneNumber] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [step, setStep] = useState<'details' | 'otp'>('details')
@@ -25,8 +27,12 @@ export default function RegisterPage() {
     setError('')
     setLoading(true)
 
+    const cleanPhone = phoneNumber.replace(/^0+/, '').replace(/\D/g, '')
+    const fullPhone = `${countryCode}${cleanPhone}`
+    setWhatsapp(fullPhone)
+
     // Optional basic validation could go here
-    if (!whatsapp.startsWith('+')) {
+    if (!fullPhone.startsWith('+')) {
       setError('Le numéro doit commencer par + (ex: +33...)')
       setLoading(false)
       return
@@ -36,7 +42,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/send-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: whatsapp })
+        body: JSON.stringify({ phone: fullPhone })
       })
 
       const data = await res.json()
@@ -81,6 +87,9 @@ export default function RegisterPage() {
       })
 
       if (signUpError) {
+        if (signUpError.message.includes('already registered')) {
+            throw new Error('Ce compte existe déjà. Veuillez vous connecter.')
+        }
         throw new Error(signUpError.message)
       }
 
@@ -169,7 +178,7 @@ export default function RegisterPage() {
                 htmlFor="fullName"
                 className="text-sm font-medium text-card-foreground"
               >
-                Nom complet
+                Nom et prénom
               </label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -178,7 +187,7 @@ export default function RegisterPage() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Jean Dupont"
+                  placeholder="Nom Prénom"
                   required
                   className="w-full rounded-lg border border-border bg-input py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
                 />
@@ -191,7 +200,7 @@ export default function RegisterPage() {
                 htmlFor="email"
                 className="text-sm font-medium text-card-foreground"
               >
-                Email
+                Adresse e-mail
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -200,7 +209,7 @@ export default function RegisterPage() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="vous@exemple.com"
+                  placeholder="votre-email@exemple.com"
                   required
                   className="w-full rounded-lg border border-border bg-input py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
                 />
@@ -222,7 +231,7 @@ export default function RegisterPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Votre mot de passe"
                   required
                   minLength={6}
                   className="w-full rounded-lg border border-border bg-input py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
@@ -238,17 +247,41 @@ export default function RegisterPage() {
                 >
                   Numéro WhatsApp
                 </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    id="whatsapp"
-                    type="tel"
-                    value={whatsapp}
-                    onChange={(e) => setWhatsapp(e.target.value)}
-                    placeholder="+33612345678"
-                    required
-                    className="w-full rounded-lg border border-border bg-input py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
-                  />
+                <div className="flex gap-2">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="w-[100px] rounded-lg border border-border bg-input py-2.5 px-2 text-sm text-foreground outline-none focus:border-[#fe5105]"
+                  >
+                    <option value="+33">🇫🇷 +33</option>
+                    <option value="+237">🇨🇲 +237</option>
+                    <option value="+225">🇨🇮 +225</option>
+                    <option value="+221">🇸🇳 +221</option>
+                    <option value="+241">🇬🇦 +241</option>
+                    <option value="+242">🇨🇬 +242</option>
+                    <option value="+243">🇨🇩 +243</option>
+                    <option value="+228">🇹🇬 +228</option>
+                    <option value="+229">🇧🇯 +229</option>
+                    <option value="+212">🇲🇦 +212</option>
+                    <option value="+213">🇩🇿 +213</option>
+                    <option value="+216">🇹🇳 +216</option>
+                    <option value="+1">🇺🇸 +1</option>
+                    <option value="+44">🇬🇧 +44</option>
+                    <option value="+32">🇧🇪 +32</option>
+                    <option value="+41">🇨🇭 +41</option>
+                  </select>
+                  <div className="relative flex-1">
+                    <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <input
+                      id="whatsapp"
+                      type="tel"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="612345678"
+                      required
+                      className="w-full rounded-lg border border-border bg-input py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
+                    />
+                  </div>
                 </div>
               </div>
             </>

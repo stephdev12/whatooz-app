@@ -7,6 +7,12 @@ const nextConfig: NextConfig = {
   // Strict React mode for catching issues early
   reactStrictMode: true,
 
+  // Fix: Tell Turbopack that *this* directory is the workspace root,
+  // not the parent whatooz/ folder (which has its own package-lock.json).
+  turbopack: {
+    root: import.meta.dirname,
+  },
+
   // WhatsApp media images from Meta CDN
   images: {
     remotePatterns: [
