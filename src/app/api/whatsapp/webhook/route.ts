@@ -594,8 +594,8 @@ export async function POST(request: NextRequest) {
                           if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp?.format)) {
                             const mediaType = headerComp.format.toLowerCase()
                             let link = headerImageUrl
-                            if (!link) {
-                                if (mediaType === 'image') link = 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80'
+                            if (!link || !link.startsWith('http')) {
+                                if (mediaType === 'image') link = 'https://www.w3schools.com/html/img_girl.jpg'
                                 else if (mediaType === 'video') link = 'https://www.w3schools.com/html/mov_bbb.mp4'
                                 else link = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
                             }
