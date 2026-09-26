@@ -128,8 +128,64 @@ export async function sendTemplateMessage(args: {
     name: templateName,
     language: { code: languageCode },
   }
+
+  // Recursive function to sanitize template components
+  const sanitizeComponents = (comps: any[]): any[] => {
+    if (!comps || !Array.isArray(comps)) return [];
+    
+    return comps.map(comp => {
+      // Clean up carousel cards recursively
+      if (comp.type === 'carousel' && Array.isArray(comp.cards)) {
+        const sanitizedCards = comp.cards.map((card: any) => {
+          return {
+            ...card,
+            components: sanitizeComponents(card.components)
+          };
+        });
+        return { ...comp, cards: sanitizedCards };
+      }
+      
+      // Clean up parameters array for other components
+      if (comp.parameters && Array.isArray(comp.parameters)) {
+        const validParams = comp.parameters.filter((param: any) => {
+          if (!param || !param.type) return false;
+          const pType = param.type;
+          
+          if (pType === 'text') {
+            return typeof param.text === 'string' && param.text.trim().length > 0;
+          }
+          if (['image', 'video', 'document', 'audio'].includes(pType)) {
+            const mediaObj = param[pType];
+            return mediaObj && (
+              (typeof mediaObj.link === 'string' && mediaObj.link.startsWith('http')) || 
+              (typeof mediaObj.id === 'string' && mediaObj.id.trim().length > 0)
+            );
+          }
+          if (pType === 'location') {
+            return param.location && param.location.latitude && param.location.longitude;
+          }
+          return true; // Keep other types (like coupon_code, etc) if we don't strictly know them
+        });
+        
+        return { ...comp, parameters: validParams };
+      }
+      
+      return comp;
+    }).filter(comp => {
+      // Keep carousel components as long as they have cards
+      if (comp.type === 'carousel') return comp.cards && comp.cards.length > 0;
+      
+      // For all other components (header, body, buttons), they MUST have valid parameters array
+      // Meta API will throw "header component parameter should not be empty" if we send empty parameters
+      return comp.parameters && Array.isArray(comp.parameters) && comp.parameters.length > 0;
+    });
+  };
+
   if (components?.length) {
-    template.components = components
+    const validComponents = sanitizeComponents(components);
+    if (validComponents.length > 0) {
+      template.components = validComponents;
+    }
   }
 
   const response = await fetch(url, {
