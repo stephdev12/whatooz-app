@@ -589,31 +589,61 @@ export async function POST(request: NextRequest) {
                       } catch(e) {}
 
                       if (templateDef && Array.isArray(templateDef)) {
-                        const headerComp = templateDef.find((c: any) => c.type === 'HEADER')
-                        if (headerComp) {
-                          if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp?.format)) {
-                            const mediaType = headerComp.format.toLowerCase()
-                            let link = headerImageUrl
-                            if (!link || !link.startsWith('http')) {
-                                if (mediaType === 'image') link = 'https://www.w3schools.com/html/img_girl.jpg'
-                                else if (mediaType === 'video') link = 'https://www.w3schools.com/html/mov_bbb.mp4'
-                                else link = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+                        const carouselComp = templateDef.find((c: any) => c.type === 'CAROUSEL')
+                        if (carouselComp && Array.isArray(carouselComp.cards)) {
+                          const cards = carouselComp.cards.map((card: any, index: number) => {
+                            const cardComponents: any[] = []
+                            const cHeader = card.components?.find((c: any) => c.type === 'HEADER')
+                            if (cHeader && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(cHeader.format)) {
+                               const mediaType = cHeader.format.toLowerCase()
+                               let link = 'https://www.w3schools.com/html/img_girl.jpg'
+                               if (mediaType === 'video') link = 'https://www.w3schools.com/html/mov_bbb.mp4'
+                               else if (mediaType === 'document') link = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+                               cardComponents.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link } }] })
+                            } else if (cHeader?.format === 'TEXT' && (cHeader.example?.header_text?.length || cHeader.text?.includes('{{1}}'))) {
+                               cardComponents.push({ type: 'header', parameters: [{ type: 'text', text: ' ' }] })
                             }
-                            templateComponents.push({
-                              type: 'header',
-                              parameters: [
-                                {
-                                  type: mediaType,
-                                  [mediaType]: { link },
-                                },
-                              ],
-                            })
-                          } else if (headerComp?.format === 'TEXT' && headerComp.example?.header_text?.length) {
-                             // Requires variables
-                             templateComponents.push({
-                               type: 'header',
-                               parameters: headerComp.example.header_text.map(() => ({ type: 'text', text: ' ' }))
-                             })
+                            const cBody = card.components?.find((c: any) => c.type === 'BODY')
+                            if (cBody && (cBody.example?.body_text?.length || cBody.text?.includes('{{1}}'))) {
+                               cardComponents.push({ type: 'body', parameters: [{ type: 'text', text: ' ' }] })
+                            }
+                            const cButtons = card.components?.find((c: any) => c.type === 'BUTTONS')
+                            if (cButtons?.buttons) {
+                              cButtons.buttons.forEach((btn: any, i: number) => {
+                                if (btn.type === 'URL' && (btn.example?.length || btn.url?.includes('{{1}}'))) {
+                                  cardComponents.push({ type: 'button', sub_type: 'url', index: String(i), parameters: [{ type: 'text', text: ' ' }] })
+                                }
+                              })
+                            }
+                            return { card_index: index, components: cardComponents }
+                          })
+                          templateComponents.push({ type: 'carousel', cards })
+                        } else {
+                          const headerComp = templateDef.find((c: any) => c.type === 'HEADER')
+                          if (headerComp) {
+                            if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp?.format)) {
+                              const mediaType = headerComp.format.toLowerCase()
+                              let link = headerImageUrl
+                              if (!link || !link.startsWith('http')) {
+                                  if (mediaType === 'image') link = 'https://www.w3schools.com/html/img_girl.jpg'
+                                  else if (mediaType === 'video') link = 'https://www.w3schools.com/html/mov_bbb.mp4'
+                                  else link = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+                              }
+                              templateComponents.push({
+                                type: 'header',
+                                parameters: [
+                                  {
+                                    type: mediaType,
+                                    [mediaType]: { link },
+                                  },
+                                ],
+                              })
+                            } else if (headerComp?.format === 'TEXT' && (headerComp.example?.header_text?.length || headerComp.text?.includes('{{1}}'))) {
+                               templateComponents.push({
+                                 type: 'header',
+                                 parameters: [{ type: 'text', text: ' ' }]
+                               })
+                            }
                           }
                         }
                       } else if (headerImageUrl) {
