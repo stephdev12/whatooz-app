@@ -18,7 +18,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
 
   // Full-screen mode for builders (Flow Builder & Automation Builder)
   // We check if the route is a specific flow (e.g. /dashboard/flows/[id]) or automation builder
-  const isBuilderRoute = pathname.includes('/automations/builder/') || (pathname.includes('/flows/') && pathname !== '/dashboard/flows')
+  const isBuilderRoute = pathname?.includes('/automations/builder/') || (pathname?.includes('/flows/') && pathname !== '/dashboard/flows')
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -52,7 +52,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
     )
   }
 
-  const isInboxRoute = pathname.includes('/dashboard/inbox')
+  const isInboxRoute = pathname?.includes('/dashboard/inbox')
 
   return (
     <div className="flex h-screen overflow-hidden bg-noisy-canvas">
@@ -70,13 +70,13 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
         {/* Scrollable Dashboard View */}
         <main className={cn(
            "flex-1 overflow-y-auto overflow-x-hidden flex flex-col relative",
-           isBuilderRoute ? "p-0" : isInboxRoute ? "p-0 pb-16 md:pb-0" : "p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8"
+           isBuilderRoute ? "p-0" : isInboxRoute ? "p-0 pb-16 md:pb-0 inbox-main-content" : "p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8"
         )}>
           {children}
         </main>
 
         {/* Mobile Floating Bottom Nav (Single clean mobile navigation) */}
-        {!isBuilderRoute && <BottomNav />}
+        {!isBuilderRoute && <BottomNav className="mobile-bottom-nav" />}
       </div>
     </div>
   )

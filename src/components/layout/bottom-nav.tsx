@@ -43,12 +43,12 @@ const bottomNavItems = [
   },
 ]
 
-export function BottomNav() {
+export function BottomNav({ className }: { className?: string }) {
   const pathname = usePathname()
   const unreadCount = useUnreadCount()
 
   return (
-    <div className="fixed bottom-3 inset-x-0 z-40 flex justify-center px-4 pointer-events-none lg:hidden">
+    <div className={cn("fixed bottom-3 inset-x-0 z-40 flex justify-center px-4 pointer-events-none lg:hidden", className)}>
       <nav className="pointer-events-auto flex items-center justify-around gap-1 w-full max-w-sm rounded-full border border-black/10 dark:border-white/10 bg-card/90 backdrop-blur-xl shadow-2xl p-1.5">
         {bottomNavItems.map((item) => {
           const isActive = item.exact

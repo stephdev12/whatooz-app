@@ -32,12 +32,12 @@ export async function checkQuota(organizationId: string, quotaType: QuotaType): 
     return { allowed: false, error: 'Abonnement inactif.' }
   }
 
-  // If no plan is attached (e.g. they deleted a plan but the subscription remains, though unlikely due to constraints), 
-  // we fallback to basic limits
+  // If no plan is attached (e.g. they deleted a plan but the subscription remains, or legacy subscription), 
+  // we fallback to allowing the action so they are not blocked.
   const plan = Array.isArray(subscription.plans) ? subscription.plans[0] : subscription.plans
   
   if (!plan) {
-    return { allowed: false, error: 'Aucun forfait associé à cet abonnement.' }
+    return { allowed: true }
   }
 
   // 3. Check specific quota

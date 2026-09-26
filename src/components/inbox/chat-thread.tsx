@@ -204,7 +204,7 @@ export function ChatThread({
           <select
             value={conversation.assigned_user_id || 'unassigned'}
             onChange={(e) => handleUpdate({ assignedUserId: e.target.value })}
-            className="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-w-[120px] truncate"
+            className="hidden md:block h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-w-[120px] truncate"
           >
             <option value="unassigned">Non assigné</option>
             {members.map(m => (
