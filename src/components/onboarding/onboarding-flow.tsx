@@ -28,13 +28,10 @@ export function OnboardingFlow() {
     try {
       const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Math.floor(Math.random() * 1000)
       
-      const { data, error: insertError } = await supabase
-        .from('organizations')
-        .insert({ name: orgName, slug })
-        .select()
-        .single()
+      const { data, error: rpcError } = await supabase
+        .rpc('create_organization', { org_name: orgName, org_slug: slug })
         
-      if (insertError) throw insertError
+      if (rpcError) throw rpcError
 
       await refreshOrganizations()
       // Active org is automatically set by the hook if it's the first one
