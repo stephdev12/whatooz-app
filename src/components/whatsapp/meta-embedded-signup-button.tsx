@@ -180,9 +180,10 @@ export function MetaEmbeddedSignupButton({
                 const { wabaId, phoneNumberId } = sessionInfoRef.current
                 await handleBackendSync(response.authResponse.code, phoneNumberId, wabaId)
               } catch (err) {
-                const msg = err instanceof Error ? err.message : 'Erreur de connexion'
+                const msg = err instanceof Error ? err.message : (typeof err === 'object' ? JSON.stringify(err) : 'Erreur de connexion')
+                console.error('Embedded Signup error:', err)
                 onError?.(msg)
-                alert(msg)
+                alert(`Erreur: ${msg}`)
               } finally {
                 setLoading(false)
               }
@@ -195,9 +196,7 @@ export function MetaEmbeddedSignupButton({
             response_type: 'code',
             override_default_response_type: true,
             extras: {
-              featureType: 'whatsapp_business_app_onboarding',
-              version: 'v4',
-              sessionInfoVersion: '3',
+              version: 'v4'
             },
           }
         )
