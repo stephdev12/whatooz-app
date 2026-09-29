@@ -1,17 +1,17 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Calendar, Play, CheckCircle2, XCircle, Clock } from 'lucide-react'
+import { Plus, Search, Calendar, Play, CheckCircle2, XCircle, Clock, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { createClient } from '@/lib/supabase/client'
 import { useOrganization } from '@/hooks/use-organization'
 
 export default function BroadcastsPage() {
   const [broadcasts, setBroadcasts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
   const { activeOrganization } = useOrganization()
 
   useEffect(() => {

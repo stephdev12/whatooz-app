@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { Building2, KeyRound, ArrowRight, CheckCircle2, Loader2, LogOut } from 'lucide-react'
 import { useOrganization } from '@/hooks/use-organization'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
+import { createClient } from '@/lib/supabase/client'
 
 export function OnboardingFlow() {
   const [mode, setMode] = useState<'select' | 'create' | 'join'>('select')
@@ -14,7 +14,7 @@ export function OnboardingFlow() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
   const { setActiveOrganization, refreshOrganizations } = useOrganization()
   const { signOut } = useAuth()
   const router = useRouter()
