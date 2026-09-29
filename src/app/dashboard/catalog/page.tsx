@@ -37,13 +37,23 @@ export default function CatalogPage() {
     setIsSyncing(true)
     
     try {
-      // Simuler le délai de synchro ou appeler l'API de synchronisation
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      const response = await fetch('/api/whatsapp/catalog/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organizationId: activeOrganization.id })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || error.error || 'Erreur lors de la synchronisation')
+      }
+
+      const data = await response.json()
       await loadCatalogs()
-      alert('Catalogue synchronisé avec succès ! (Simulation)')
-    } catch (err) {
+      alert(data.message || 'Catalogue et produits synchronisés avec succès !')
+    } catch (err: any) {
       console.error(err)
-      alert('Erreur lors de la synchronisation.')
+      alert(err.message || 'Erreur lors de la synchronisation.')
     } finally {
       setIsSyncing(false)
     }

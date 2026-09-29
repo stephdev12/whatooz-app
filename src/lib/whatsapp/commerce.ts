@@ -24,11 +24,11 @@ export interface MetaProduct {
  * Retrieves the catalogs owned by the business.
  */
 export async function getCatalogs(args: {
-  businessId: string
+  wabaId: string
   accessToken: string
 }): Promise<MetaCatalog[]> {
-  const { businessId, accessToken } = args
-  const url = `${META_API_BASE}/${businessId}/owned_product_catalogs?fields=id,name,vertical,product_count`
+  const { wabaId, accessToken } = args
+  const url = `${META_API_BASE}/${wabaId}/product_catalogs?fields=id,name,vertical,product_count`
   
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
