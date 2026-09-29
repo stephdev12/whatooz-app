@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, CheckCircle2 } from 'lucide-react'
+import { Loader2, CheckCircle2, AlertTriangle } from 'lucide-react'
 import { useOrganization } from '@/hooks/use-organization'
 
 // Extend window interface for FB SDK
@@ -42,6 +42,7 @@ export function MetaEmbeddedSignupButton({
 }: MetaEmbeddedSignupButtonProps) {
   const [loading, setLoading] = useState(false)
   const [sdkReady, setSdkReady] = useState(false)
+  const [sdkFailed, setSdkFailed] = useState(false)
   const [success, setSuccess] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const router = useRouter()
@@ -61,6 +62,7 @@ export function MetaEmbeddedSignupButton({
 
     if (window.FB) {
       setSdkReady(true)
+      console.log('[Whatooz] Facebook SDK already loaded')
       return
     }
 
@@ -73,7 +75,8 @@ export function MetaEmbeddedSignupButton({
         version: 'v26.0',
       })
       setSdkReady(true)
-      console.log('[Whatooz] Facebook SDK initialized')
+      setSdkFailed(false)
+      console.log('[Whatooz] Facebook SDK initialized successfully')
     }
 
     // Load SDK script if not already present
@@ -82,9 +85,22 @@ export function MetaEmbeddedSignupButton({
       js.id = 'facebook-jssdk'
       js.src = 'https://connect.facebook.net/fr_FR/sdk.js'
       js.async = true
-      js.defer = true
+      js.onerror = () => {
+        console.error('[Whatooz] Failed to load Facebook SDK script')
+        setSdkFailed(true)
+      }
       document.body.appendChild(js)
     }
+
+    // Timeout: if SDK doesn't load within 15 seconds, show warning
+    const timeout = setTimeout(() => {
+      if (!window.FB) {
+        console.warn('[Whatooz] Facebook SDK did not load within 15s')
+        setSdkFailed(true)
+      }
+    }, 15000)
+
+    return () => clearTimeout(timeout)
   }, [appId])
 
   // Capture Embedded Signup event from Meta popup
@@ -167,76 +183,63 @@ export function MetaEmbeddedSignupButton({
   }
 
   function launchEmbeddedSignup() {
+    if (!window.FB) {
+      alert('Le SDK Facebook n\'est pas encore chargé. Vérifiez votre connexion internet et désactivez les bloqueurs de publicités, puis rechargez la page.')
+      return
+    }
+
     setLoading(true)
     setStatusMessage('Ouverture de la fenêtre Meta...')
 
     // Reset session info
     sessionInfoRef.current = {}
 
-    // Check if FB SDK is available
-    if (window.FB) {
-      try {
-        window.FB.login(
-          async (response: any) => {
-            console.log('[Whatooz] FB.login callback received:', {
-              status: response.status,
-              hasAuthResponse: !!response.authResponse,
-              hasCode: !!response.authResponse?.code,
-            })
+    try {
+      window.FB.login(
+        async (response: any) => {
+          console.log('[Whatooz] FB.login callback received:', {
+            status: response.status,
+            hasAuthResponse: !!response.authResponse,
+            hasCode: !!response.authResponse?.code,
+          })
 
-            if (response.authResponse && response.authResponse.code) {
-              try {
-                setStatusMessage('Synchronisation du compte WhatsApp...')
-                const { wabaId, phoneNumberId } = sessionInfoRef.current
-                console.log('[Whatooz] Sending to backend:', { hasCode: true, wabaId, phoneNumberId })
-                await handleBackendSync(response.authResponse.code, phoneNumberId, wabaId)
-              } catch (err) {
-                const msg = err instanceof Error ? err.message : (typeof err === 'object' ? JSON.stringify(err) : 'Erreur de connexion')
-                console.error('[Whatooz] Backend sync error:', err)
-                setStatusMessage('')
-                onError?.(msg)
-                alert(`Erreur de synchronisation WhatsApp:\n${msg}`)
-              } finally {
-                setLoading(false)
-              }
-            } else {
-              console.error('[Whatooz] FB.login failed or cancelled. Full response:', JSON.stringify(response))
+          if (response.authResponse && response.authResponse.code) {
+            try {
+              setStatusMessage('Synchronisation du compte WhatsApp...')
+              const { wabaId, phoneNumberId } = sessionInfoRef.current
+              console.log('[Whatooz] Sending to backend:', { hasCode: true, wabaId, phoneNumberId })
+              await handleBackendSync(response.authResponse.code, phoneNumberId, wabaId)
+            } catch (err) {
+              const msg = err instanceof Error ? err.message : (typeof err === 'object' ? JSON.stringify(err) : 'Erreur de connexion')
+              console.error('[Whatooz] Backend sync error:', err)
               setStatusMessage('')
-              alert('La connexion Meta a été annulée ou n\'a pas renvoyé de code d\'autorisation.')
+              onError?.(msg)
+              alert(`Erreur de synchronisation WhatsApp:\n${msg}`)
+            } finally {
               setLoading(false)
             }
-          },
-          {
-            config_id: configId,
-            response_type: 'code',
-            override_default_response_type: true,
-            extras: {
-              version: 'v4',
-            },
+          } else {
+            console.error('[Whatooz] FB.login failed or cancelled. Full response:', JSON.stringify(response))
+            setStatusMessage('')
+            alert('La connexion Meta a été annulée ou n\'a pas renvoyé de code d\'autorisation.')
+            setLoading(false)
           }
-        )
-        return
-      } catch (err) {
-        console.warn('[Whatooz] FB.login error, fallback to direct redirect:', err)
-      }
+        },
+        {
+          config_id: configId,
+          response_type: 'code',
+          override_default_response_type: true,
+          extras: {
+            version: 'v4',
+          },
+        }
+      )
+    } catch (err) {
+      console.error('[Whatooz] FB.login threw error:', err)
+      setStatusMessage('')
+      setLoading(false)
+      alert('Erreur lors de l\'ouverture de la fenêtre Meta. Rechargez la page et réessayez.')
     }
-
-    // Fallback: Direct onboard redirect
-    const siteUrl = window.location.origin
-    const redirectUri = `${siteUrl}/api/whatsapp/embedded-signup/callback`
-    const extras = encodeURIComponent(
-      JSON.stringify({
-        version: 'v4',
-        sessionInfoVersion: '3',
-        featureType: 'whatsapp_business_app_onboarding',
-      })
-    )
-
-    const onboardUrl = `https://business.facebook.com/messaging/whatsapp/onboard/?app_id=${appId}&config_id=${configId}&extras=${extras}&redirect_uri=${encodeURIComponent(
-      redirectUri
-    )}`
-
-    window.location.href = onboardUrl
   }
 
   if (success) {
@@ -253,7 +256,7 @@ export function MetaEmbeddedSignupButton({
       <button
         type="button"
         onClick={launchEmbeddedSignup}
-        disabled={loading}
+        disabled={loading || (!sdkReady && !sdkFailed)}
         className={`group relative flex w-full items-center justify-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 disabled:opacity-50 ${
           variant === 'primary'
             ? 'bg-[#1877F2] text-white hover:bg-[#166fe5] shadow-sm hover:shadow-md'
@@ -262,18 +265,33 @@ export function MetaEmbeddedSignupButton({
             : 'border border-border bg-card hover:bg-accent text-foreground'
         }`}
       >
-        {loading ? (
+        {loading || (!sdkReady && !sdkFailed) ? (
           <Loader2 className="h-5 w-5 animate-spin text-current" />
         ) : (
-          /* Meta/Facebook & WhatsApp SVG Icons */
           <div className="flex items-center gap-1.5">
             <svg className="h-5 w-5 fill-current text-white" viewBox="0 0 24 24">
               <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
             </svg>
           </div>
         )}
-        <span>{loading ? 'Connexion en cours...' : label}</span>
+        <span>
+          {!sdkReady && !sdkFailed
+            ? 'Chargement du SDK Facebook...'
+            : loading
+            ? 'Connexion en cours...'
+            : label}
+        </span>
       </button>
+
+      {sdkFailed && (
+        <div className="flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+          <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>
+            Le SDK Facebook n'a pas pu se charger. Vérifiez votre connexion internet et désactivez tout bloqueur de publicités, puis rechargez la page.
+          </span>
+        </div>
+      )}
+
       {statusMessage && (
         <p className="text-xs text-muted-foreground text-center animate-pulse">
           {statusMessage}
