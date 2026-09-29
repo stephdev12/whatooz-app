@@ -196,7 +196,7 @@ export function MetaEmbeddedSignupButton({
 
     try {
       window.FB.login(
-        async (response: any) => {
+        (response: any) => {
           console.log('[Whatooz] FB.login callback received:', {
             status: response.status,
             hasAuthResponse: !!response.authResponse,
@@ -204,20 +204,22 @@ export function MetaEmbeddedSignupButton({
           })
 
           if (response.authResponse && response.authResponse.code) {
-            try {
-              setStatusMessage('Synchronisation du compte WhatsApp...')
-              const { wabaId, phoneNumberId } = sessionInfoRef.current
-              console.log('[Whatooz] Sending to backend:', { hasCode: true, wabaId, phoneNumberId })
-              await handleBackendSync(response.authResponse.code, phoneNumberId, wabaId)
-            } catch (err) {
-              const msg = err instanceof Error ? err.message : (typeof err === 'object' ? JSON.stringify(err) : 'Erreur de connexion')
-              console.error('[Whatooz] Backend sync error:', err)
-              setStatusMessage('')
-              onError?.(msg)
-              alert(`Erreur de synchronisation WhatsApp:\n${msg}`)
-            } finally {
-              setLoading(false)
-            }
+            setStatusMessage('Synchronisation du compte WhatsApp...')
+            const { wabaId, phoneNumberId } = sessionInfoRef.current
+            console.log('[Whatooz] Sending to backend:', { hasCode: true, wabaId, phoneNumberId })
+            
+            handleBackendSync(response.authResponse.code, phoneNumberId, wabaId)
+              .then(() => {
+                setLoading(false)
+              })
+              .catch((err) => {
+                const msg = err instanceof Error ? err.message : (typeof err === 'object' ? JSON.stringify(err) : 'Erreur de connexion')
+                console.error('[Whatooz] Backend sync error:', err)
+                setStatusMessage('')
+                onError?.(msg)
+                alert(`Erreur de synchronisation WhatsApp:\n${msg}`)
+                setLoading(false)
+              })
           } else {
             console.error('[Whatooz] FB.login failed or cancelled. Full response:', JSON.stringify(response))
             setStatusMessage('')
