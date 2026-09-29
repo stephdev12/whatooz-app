@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, CheckCircle2 } from 'lucide-react'
 import { useOrganization } from '@/hooks/use-organization'
@@ -60,6 +60,9 @@ export function MetaEmbeddedSignupButton({
   const [success, setSuccess] = useState(false)
   const router = useRouter()
   const { activeOrganization } = useOrganization()
+  
+  // Ref to store session info from postMessage
+  const sessionInfoRef = useRef<{ wabaId?: string; phoneNumberId?: string }>({})
 
   const appId =
     process.env.NEXT_PUBLIC_META_APP_ID || '1638932931226462'
@@ -115,6 +118,10 @@ export function MetaEmbeddedSignupButton({
           const eventData = data.data || {}
           if (data.event === 'FINISH' || eventData.phone_number_id) {
             console.log('WA_EMBEDDED_SIGNUP success data:', eventData)
+            sessionInfoRef.current = {
+              wabaId: eventData.waba_id || eventData.whatsapp_business_account_id,
+              phoneNumberId: eventData.phone_number_id,
+            }
           }
         }
       } catch {
@@ -174,7 +181,8 @@ export function MetaEmbeddedSignupButton({
           async (response) => {
             if (response.authResponse && response.authResponse.code) {
               try {
-                await handleBackendSync(response.authResponse.code)
+                const { wabaId, phoneNumberId } = sessionInfoRef.current
+                await handleBackendSync(response.authResponse.code, phoneNumberId, wabaId)
               } catch (err) {
                 const msg = err instanceof Error ? err.message : 'Erreur de connexion'
                 onError?.(msg)
