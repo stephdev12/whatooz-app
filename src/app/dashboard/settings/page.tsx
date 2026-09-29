@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import {
   Settings as SettingsIcon,
   Phone,
@@ -51,6 +52,25 @@ export default function SettingsPage() {
 
   const [savingMiniSite, setSavingMiniSite] = useState(false)
   const [miniSiteSuccess, setMiniSiteSuccess] = useState('')
+
+  const searchParams = useSearchParams()
+
+  // Handle callback redirect params (from Hosted Embedded Signup)
+  useEffect(() => {
+    const metaConnected = searchParams.get('meta_connected')
+    const callbackError = searchParams.get('error')
+    
+    if (metaConnected === 'true') {
+      setSuccess('Compte WhatsApp connecté avec succès via Meta !')
+      loadConfig()
+      // Clean URL
+      window.history.replaceState({}, '', '/dashboard/settings')
+    }
+    if (callbackError) {
+      setError(decodeURIComponent(callbackError))
+      window.history.replaceState({}, '', '/dashboard/settings')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (activeOrganization) {
