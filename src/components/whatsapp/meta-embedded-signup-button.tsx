@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, CheckCircle2 } from 'lucide-react'
+import { useOrganization } from '@/hooks/use-organization'
 
 // Extend window interface for FB SDK
 declare global {
@@ -58,6 +59,7 @@ export function MetaEmbeddedSignupButton({
   const [sdkReady, setSdkReady] = useState(false)
   const [success, setSuccess] = useState(false)
   const router = useRouter()
+  const { activeOrganization } = useOrganization()
 
   const appId =
     process.env.NEXT_PUBLIC_META_APP_ID || '1638932931226462'
@@ -131,9 +133,16 @@ export function MetaEmbeddedSignupButton({
     const siteUrl = window.location.origin
     const redirectUri = `${siteUrl}/api/whatsapp/embedded-signup/callback`
 
+    if (!activeOrganization?.id) {
+      throw new Error('Organisation non sélectionnée')
+    }
+
     const res = await fetch('/api/whatsapp/embedded-signup', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-organization-id': activeOrganization.id
+      },
       body: JSON.stringify({
         code,
         phoneNumberId: phoneId,

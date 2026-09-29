@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Mail, Lock, ArrowRight, Loader2, ArrowLeft } from 'lucide-react'
-import { MetaEmbeddedSignupButton } from '@/components/whatsapp/meta-embedded-signup-button'
 
 import { WhatoozLogo } from '@/components/ui/whatooz-logo'
 
@@ -147,26 +146,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Divider */}
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              Ou
-            </span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          {/* Meta 1-Click WhatsApp Onboarding */}
-          <div className="space-y-2">
-            <MetaEmbeddedSignupButton
-              label="Continuer avec Meta WhatsApp"
-              redirectAfterSuccess="/dashboard/inbox"
-            />
-            <p className="text-center text-[11px] text-muted-foreground">
-              Connexion instantanée via votre compte professionnel Meta
-            </p>
-          </div>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
             Pas encore de compte ?{' '}
