@@ -174,7 +174,8 @@ export function MetaEmbeddedSignupButton({
     if (window.FB) {
       try {
         window.FB.login(
-          async (response) => {
+          async (response: any) => {
+            console.log('FB.login response:', response)
             if (response.authResponse && response.authResponse.code) {
               try {
                 const { wabaId, phoneNumberId } = sessionInfoRef.current
@@ -188,6 +189,8 @@ export function MetaEmbeddedSignupButton({
                 setLoading(false)
               }
             } else {
+              console.error('FB.login failed or cancelled. Response:', response)
+              alert('La connexion a été annulée ou Meta n\'a pas renvoyé de code d\'autorisation.')
               setLoading(false)
             }
           },
