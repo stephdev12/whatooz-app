@@ -137,9 +137,6 @@ export function MetaEmbeddedSignupButton({
   }, [handleMessage])
 
   async function handleBackendSync(code: string, phoneId?: string, wabaId?: string) {
-    const siteUrl = window.location.origin
-    const redirectUri = `${siteUrl}/api/whatsapp/embedded-signup/callback`
-
     if (!activeOrganization?.id) {
       throw new Error('Organisation non sélectionnée')
     }
@@ -154,7 +151,6 @@ export function MetaEmbeddedSignupButton({
         code,
         phoneNumberId: phoneId,
         wabaId,
-        redirectUri,
       }),
     })
 
