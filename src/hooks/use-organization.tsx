@@ -8,6 +8,7 @@ export type Organization = {
   id: string
   name: string
   slug: string
+  access_code?: string
 }
 
 export type OrganizationMember = {
@@ -22,6 +23,7 @@ interface OrganizationContextType {
   organizations: OrganizationMember[]
   loading: boolean
   setActiveOrganization: (orgId: string) => void
+  refreshOrganizations: () => Promise<void>
 }
 
 const OrganizationContext = createContext<OrganizationContextType>({
@@ -30,6 +32,7 @@ const OrganizationContext = createContext<OrganizationContextType>({
   organizations: [],
   loading: true,
   setActiveOrganization: () => {},
+  refreshOrganizations: async () => {},
 })
 
 export function OrganizationProvider({ children }: { children: React.ReactNode }) {
@@ -39,45 +42,46 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(true)
   const supabase = useMemo(() => createClient(), [])
 
-  useEffect(() => {
+  const fetchOrganizations = useCallback(async () => {
     if (!user) {
       setOrganizations([])
       setActiveOrganizationId(null)
       setLoading(false)
       return
     }
+    const { data, error } = await supabase
+      .from('organization_members')
+      .select(`
+        organization_id,
+        role,
+        organization:organizations ( id, name, slug, access_code )
+      `)
+      .eq('user_id', user.id)
 
-    async function fetchOrganizations() {
-      const { data, error } = await supabase
-        .from('organization_members')
-        .select(`
-          organization_id,
-          role,
-          organization:organizations ( id, name, slug )
-        `)
-        .eq('user_id', user!.id)
+    if (data && data.length > 0) {
+      const formattedOrgs = data.map(item => ({
+        ...item,
+        organization: Array.isArray(item.organization) ? item.organization[0] : item.organization
+      })) as unknown as OrganizationMember[]
 
-      if (data && data.length > 0) {
-        const formattedOrgs = data.map(item => ({
-          ...item,
-          organization: Array.isArray(item.organization) ? item.organization[0] : item.organization
-        })) as unknown as OrganizationMember[]
-
-        setOrganizations(formattedOrgs)
+      setOrganizations(formattedOrgs)
         
-        // Retrieve last active from localStorage or pick the first one
-        const saved = localStorage.getItem('whatooz_active_org')
-        if (saved && formattedOrgs.some(o => o.organization_id === saved)) {
-          setActiveOrganizationId(saved)
-        } else {
-          setActiveOrganizationId(formattedOrgs[0].organization_id)
-        }
+      // Retrieve last active from localStorage or pick the first one
+      const saved = localStorage.getItem('whatooz_active_org')
+      if (saved && formattedOrgs.some(o => o.organization_id === saved)) {
+        setActiveOrganizationId(saved)
+      } else {
+        setActiveOrganizationId(formattedOrgs[0].organization_id)
       }
-      setLoading(false)
+    } else {
+      setOrganizations([])
     }
+    setLoading(false)
+  }, [user, supabase])
 
+  useEffect(() => {
     fetchOrganizations()
-  }, [user?.id, supabase])
+  }, [fetchOrganizations])
 
   const setActiveOrganization = useCallback((orgId: string) => {
     setActiveOrganizationId(orgId)
@@ -94,6 +98,7 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
         organizations,
         loading,
         setActiveOrganization,
+        refreshOrganizations: fetchOrganizations,
       }}
     >
       {children}

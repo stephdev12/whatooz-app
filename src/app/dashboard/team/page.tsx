@@ -133,6 +133,20 @@ export default function TeamPage() {
           </button>
         </div>
 
+        {activeOrganization?.access_code && (
+          <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <h3 className="font-medium text-primary">Code d'accès de l'organisation</h3>
+              <p className="text-sm text-primary/80 mt-0.5">
+                Partagez ce code avec vos collaborateurs pour qu'ils rejoignent votre espace :
+              </p>
+            </div>
+            <div className="bg-background border border-border px-4 py-2 rounded-lg text-lg font-mono tracking-widest font-bold">
+              {activeOrganization.access_code}
+            </div>
+          </div>
+        )}
+
         {/* List */}
         <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
           {loading ? (

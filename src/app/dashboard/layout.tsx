@@ -8,6 +8,7 @@ import { Header } from '@/components/layout/header'
 import { BottomNav } from '@/components/layout/bottom-nav'
 import { OrganizationProvider, useOrganization } from '@/hooks/use-organization'
 import { PushNotificationsProvider } from '@/components/layout/push-notifications-provider'
+import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { cn } from '@/lib/utils'
 
 function DashboardShellInner({ children }: { children: React.ReactNode }) {
@@ -40,16 +41,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
   if (!user) return null
 
   if (!activeOrganization && !orgLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-noisy-canvas p-4 text-center">
-        <div className="max-w-md space-y-4">
-          <h2 className="text-xl font-semibold">Aucune organisation trouvée</h2>
-          <p className="text-muted-foreground">
-            Vous n&apos;êtes membre d&apos;aucune organisation. Veuillez contacter votre administrateur ou créer une nouvelle organisation.
-          </p>
-        </div>
-      </div>
-    )
+    return <OnboardingFlow />
   }
 
   const isInboxRoute = pathname?.includes('/dashboard/inbox')
