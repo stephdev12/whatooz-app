@@ -12,29 +12,14 @@ declare global {
     FB?: {
       init: (options: {
         appId: string
+        autoLogAppEvents?: boolean
         cookie?: boolean
         xfbml?: boolean
         version: string
       }) => void
       login: (
-        callback: (response: {
-          authResponse?: {
-            code?: string
-            accessToken?: string
-            userID?: string
-          }
-          status?: string
-        }) => void,
-        options: {
-          config_id: string
-          response_type: string
-          override_default_response_type: boolean
-          extras: {
-            featureType: string
-            version: string
-            sessionInfoVersion: string
-          }
-        }
+        callback: (response: any) => void,
+        options: Record<string, any>
       ) => void
     }
   }
@@ -58,6 +43,7 @@ export function MetaEmbeddedSignupButton({
   const [loading, setLoading] = useState(false)
   const [sdkReady, setSdkReady] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [statusMessage, setStatusMessage] = useState('')
   const router = useRouter()
   const { activeOrganization } = useOrganization()
   
@@ -81,11 +67,13 @@ export function MetaEmbeddedSignupButton({
     window.fbAsyncInit = function () {
       window.FB?.init({
         appId,
+        autoLogAppEvents: true,
         cookie: true,
         xfbml: true,
-        version: 'v21.0',
+        version: 'v26.0',
       })
       setSdkReady(true)
+      console.log('[Whatooz] Facebook SDK initialized')
     }
 
     // Load SDK script if not already present
@@ -114,14 +102,19 @@ export function MetaEmbeddedSignupButton({
           typeof event.data === 'string' ? JSON.parse(event.data) : event.data
 
         if (data.type === 'WA_EMBEDDED_SIGNUP') {
-          // Meta session info payload
           const eventData = data.data || {}
-          if (data.event === 'FINISH' || eventData.phone_number_id) {
-            console.log('WA_EMBEDDED_SIGNUP success data:', eventData)
+          console.log('[Whatooz] WA_EMBEDDED_SIGNUP event:', data.event, eventData)
+          
+          if (data.event === 'FINISH') {
             sessionInfoRef.current = {
               wabaId: eventData.waba_id || eventData.whatsapp_business_account_id,
               phoneNumberId: eventData.phone_number_id,
             }
+            console.log('[Whatooz] Session info captured:', sessionInfoRef.current)
+          } else if (data.event === 'CANCEL') {
+            console.warn('[Whatooz] User cancelled the Embedded Signup')
+          } else if (data.event === 'ERROR') {
+            console.error('[Whatooz] Embedded Signup error event:', eventData)
           }
         }
       } catch {
@@ -141,6 +134,8 @@ export function MetaEmbeddedSignupButton({
       throw new Error('Organisation non sélectionnée')
     }
 
+    setStatusMessage('Échange du code d\'autorisation...')
+
     const res = await fetch('/api/whatsapp/embedded-signup', {
       method: 'POST',
       headers: { 
@@ -155,10 +150,14 @@ export function MetaEmbeddedSignupButton({
     })
 
     const data = await res.json()
+    
     if (!res.ok) {
+      console.error('[Whatooz] Backend sync failed:', data)
       throw new Error(data.error || 'Échec de liaison du compte WhatsApp')
     }
 
+    console.log('[Whatooz] Backend sync successful:', data)
+    setStatusMessage('WhatsApp connecté ✓')
     setSuccess(true)
     onSuccess?.()
 
@@ -169,28 +168,41 @@ export function MetaEmbeddedSignupButton({
 
   function launchEmbeddedSignup() {
     setLoading(true)
+    setStatusMessage('Ouverture de la fenêtre Meta...')
+
+    // Reset session info
+    sessionInfoRef.current = {}
 
     // Check if FB SDK is available
     if (window.FB) {
       try {
         window.FB.login(
           async (response: any) => {
-            console.log('FB.login response:', response)
+            console.log('[Whatooz] FB.login callback received:', {
+              status: response.status,
+              hasAuthResponse: !!response.authResponse,
+              hasCode: !!response.authResponse?.code,
+            })
+
             if (response.authResponse && response.authResponse.code) {
               try {
+                setStatusMessage('Synchronisation du compte WhatsApp...')
                 const { wabaId, phoneNumberId } = sessionInfoRef.current
+                console.log('[Whatooz] Sending to backend:', { hasCode: true, wabaId, phoneNumberId })
                 await handleBackendSync(response.authResponse.code, phoneNumberId, wabaId)
               } catch (err) {
                 const msg = err instanceof Error ? err.message : (typeof err === 'object' ? JSON.stringify(err) : 'Erreur de connexion')
-                console.error('Embedded Signup error:', err)
+                console.error('[Whatooz] Backend sync error:', err)
+                setStatusMessage('')
                 onError?.(msg)
-                alert(`Erreur: ${msg}`)
+                alert(`Erreur de synchronisation WhatsApp:\n${msg}`)
               } finally {
                 setLoading(false)
               }
             } else {
-              console.error('FB.login failed or cancelled. Response:', response)
-              alert('La connexion a été annulée ou Meta n\'a pas renvoyé de code d\'autorisation.')
+              console.error('[Whatooz] FB.login failed or cancelled. Full response:', JSON.stringify(response))
+              setStatusMessage('')
+              alert('La connexion Meta a été annulée ou n\'a pas renvoyé de code d\'autorisation.')
               setLoading(false)
             }
           },
@@ -199,13 +211,13 @@ export function MetaEmbeddedSignupButton({
             response_type: 'code',
             override_default_response_type: true,
             extras: {
-              version: 'v4'
+              version: 'v4',
             },
           }
         )
         return
       } catch (err) {
-        console.warn('FB.login error, fallback to direct redirect:', err)
+        console.warn('[Whatooz] FB.login error, fallback to direct redirect:', err)
       }
     }
 
@@ -237,29 +249,36 @@ export function MetaEmbeddedSignupButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={launchEmbeddedSignup}
-      disabled={loading}
-      className={`group relative flex w-full items-center justify-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 disabled:opacity-50 ${
-        variant === 'primary'
-          ? 'bg-[#1877F2] text-white hover:bg-[#166fe5] shadow-sm hover:shadow-md'
-          : variant === 'card'
-          ? 'border border-[#1877F2]/30 bg-[#1877F2]/5 hover:bg-[#1877F2]/10 text-foreground'
-          : 'border border-border bg-card hover:bg-accent text-foreground'
-      }`}
-    >
-      {loading ? (
-        <Loader2 className="h-5 w-5 animate-spin text-current" />
-      ) : (
-        /* Meta/Facebook & WhatsApp SVG Icons */
-        <div className="flex items-center gap-1.5">
-          <svg className="h-5 w-5 fill-current text-white" viewBox="0 0 24 24">
-            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
-          </svg>
-        </div>
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={launchEmbeddedSignup}
+        disabled={loading}
+        className={`group relative flex w-full items-center justify-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 disabled:opacity-50 ${
+          variant === 'primary'
+            ? 'bg-[#1877F2] text-white hover:bg-[#166fe5] shadow-sm hover:shadow-md'
+            : variant === 'card'
+            ? 'border border-[#1877F2]/30 bg-[#1877F2]/5 hover:bg-[#1877F2]/10 text-foreground'
+            : 'border border-border bg-card hover:bg-accent text-foreground'
+        }`}
+      >
+        {loading ? (
+          <Loader2 className="h-5 w-5 animate-spin text-current" />
+        ) : (
+          /* Meta/Facebook & WhatsApp SVG Icons */
+          <div className="flex items-center gap-1.5">
+            <svg className="h-5 w-5 fill-current text-white" viewBox="0 0 24 24">
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+            </svg>
+          </div>
+        )}
+        <span>{loading ? 'Connexion en cours...' : label}</span>
+      </button>
+      {statusMessage && (
+        <p className="text-xs text-muted-foreground text-center animate-pulse">
+          {statusMessage}
+        </p>
       )}
-      <span>{loading ? 'Connexion en cours...' : label}</span>
-    </button>
+    </div>
   )
 }
