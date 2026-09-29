@@ -54,7 +54,7 @@ export function MetaEmbeddedSignupButton({
   const appId =
     process.env.NEXT_PUBLIC_META_APP_ID || '1638932931226462'
   const configId =
-    process.env.NEXT_PUBLIC_META_CONFIG_ID || '1092674023546716'
+    process.env.NEXT_PUBLIC_META_CONFIG_ID || '1065810779669643'
 
   // Initialize Facebook SDK
   useEffect(() => {
@@ -232,7 +232,9 @@ export function MetaEmbeddedSignupButton({
           response_type: 'code',
           override_default_response_type: true,
           extras: {
-            version: 'v4',
+            featureType: 'whatsapp_business_app_onboarding',
+            sessionInfoVersion: '3',
+            version: 'v4-public-preview',
           },
         }
       )
