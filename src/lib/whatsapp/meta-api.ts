@@ -636,6 +636,28 @@ export async function getWabaPhoneNumbers(args: {
 }
 
 /**
+ * Subscribe Whatooz App to WhatsApp Business Account webhooks (subscribed_apps edge).
+ * Mandatory for Meta to forward inbound messages and status updates.
+ */
+export async function subscribeWabaToApp(args: {
+  wabaId: string
+  accessToken: string
+}): Promise<{ success: boolean }> {
+  const { wabaId, accessToken } = args
+  const url = `${META_API_BASE}/${wabaId}/subscribed_apps`
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Souscription de la WABA ${wabaId} aux webhooks a échoué: ${response.status}`)
+  }
+  return response.json()
+}
+
+/**
  * Fetch Meta user profile information (ID, name, email).
  */
 export async function getMetaUserProfile(args: {

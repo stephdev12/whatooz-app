@@ -185,7 +185,15 @@ export default function InboxPage() {
     }
   }
 
-  function handleMessageSent() {
+  function handleMessageSent(newMsg?: Message) {
+    if (newMsg && newMsg.conversation_id === selectedConvoId) {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === newMsg.id || (newMsg.wamid && m.wamid === newMsg.wamid))) {
+          return prev
+        }
+        return [...prev, newMsg]
+      })
+    }
     if (selectedConvoId) {
       loadMessages(selectedConvoId)
     }

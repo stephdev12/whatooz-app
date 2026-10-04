@@ -7,6 +7,7 @@ import {
   debugTokenInfo,
   getWabaPhoneNumbers,
   verifyPhoneNumber,
+  subscribeWabaToApp,
 } from '@/lib/whatsapp/meta-api'
 
 export const dynamic = 'force-dynamic'
@@ -126,6 +127,15 @@ export async function POST(request: NextRequest) {
       console.error('[EMBEDDED_SIGNUP] Step 5 FAILED: Phone verification error:', err)
       const msg = err instanceof Error ? err.message : 'Phone verification failed'
       return NextResponse.json({ error: msg }, { status: 500 })
+    }
+
+    // 4.5. Subscribe WABA to app webhooks
+    console.log('[EMBEDDED_SIGNUP] Step 5.5: Subscribing WABA to app webhooks...')
+    try {
+      await subscribeWabaToApp({ wabaId, accessToken })
+      console.log('[EMBEDDED_SIGNUP] Step 5.5: WABA webhooks subscribed successfully')
+    } catch (subErr) {
+      console.warn('[EMBEDDED_SIGNUP] Step 5.5 WARNING: Could not subscribe WABA to webhooks:', subErr)
     }
 
     // 5. Resolve Supabase user

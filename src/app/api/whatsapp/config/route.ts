@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
-import { verifyPhoneNumber } from '@/lib/whatsapp/meta-api'
+import { verifyPhoneNumber, subscribeWabaToApp } from '@/lib/whatsapp/meta-api'
 
 export const dynamic = 'force-dynamic'
 
@@ -63,6 +63,29 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json()
+
+  // Allow re-subscribing webhooks for already configured WABA
+  if (body.action === 'resync') {
+    const { data: currentConfig } = await supabaseAdmin
+      .from('whatsapp_config')
+      .select('*')
+      .eq('organization_id', organizationId)
+      .single()
+
+    if (!currentConfig?.access_token_encrypted || !currentConfig.waba_id) {
+      return NextResponse.json({ error: 'WhatsApp non configuré pour cette organisation' }, { status: 400 })
+    }
+
+    try {
+      const token = decrypt(currentConfig.access_token_encrypted)
+      await subscribeWabaToApp({ wabaId: currentConfig.waba_id, accessToken: token })
+      return NextResponse.json({ success: true, message: 'Webhooks WhatsApp réactivés et synchronisés avec succès.' })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Échec de synchronisation'
+      return NextResponse.json({ error: `Erreur lors de la réactivation des webhooks: ${message}` }, { status: 500 })
+    }
+  }
+
   const { accessToken, phoneNumberId, wabaId } = body
 
   if (!accessToken || !phoneNumberId || !wabaId) {
@@ -85,6 +108,14 @@ export async function POST(request: NextRequest) {
       { error: `Meta verification failed: ${message}` },
       { status: 400 }
     )
+  }
+
+  // Subscribe WABA to app webhooks
+  try {
+    await subscribeWabaToApp({ wabaId, accessToken })
+    console.log(`[Config POST] WABA ${wabaId} subscribed to app webhooks successfully.`)
+  } catch (subErr) {
+    console.warn(`[Config POST] Could not subscribe WABA ${wabaId} to webhooks:`, subErr)
   }
 
   let encryptedToken: string

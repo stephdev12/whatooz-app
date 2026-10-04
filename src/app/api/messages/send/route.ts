@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createClient as createServiceClient } from '@supabase/supabase-js'
-import { decryptToken } from '@/lib/encryption'
+import { decrypt } from '@/lib/whatsapp/encryption'
 import { checkQuota } from '@/lib/quota'
 
 export async function POST(req: Request) {
@@ -55,7 +55,7 @@ export async function POST(req: Request) {
     }
 
     // 3. Decrypt token
-    const accessToken = decryptToken(config.access_token_encrypted)
+    const accessToken = decrypt(config.access_token_encrypted)
 
     // 4. Build Meta API payload
     const metaPayload: any = {

@@ -7,6 +7,7 @@ import {
   debugTokenInfo,
   getWabaPhoneNumbers,
   verifyPhoneNumber,
+  subscribeWabaToApp,
 } from '@/lib/whatsapp/meta-api'
 
 export const dynamic = 'force-dynamic'
@@ -87,6 +88,15 @@ export async function GET(request: NextRequest) {
       display: phoneInfo.display_phone_number,
       name: phoneInfo.verified_name,
     })
+
+    // 4.5. Subscribe WABA to app webhooks
+    console.log('[CALLBACK] Step 5.5: Subscribing WABA to app webhooks...')
+    try {
+      await subscribeWabaToApp({ wabaId, accessToken })
+      console.log('[CALLBACK] Step 5.5: WABA webhooks subscribed successfully')
+    } catch (subErr) {
+      console.warn('[CALLBACK] Step 5.5 WARNING: Could not subscribe WABA to webhooks:', subErr)
+    }
 
     // 5. Try to get the authenticated user from session
     console.log('[CALLBACK] Step 6: Resolving user session...')

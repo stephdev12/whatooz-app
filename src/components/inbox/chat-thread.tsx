@@ -20,7 +20,7 @@ import { useOrganization } from '@/hooks/use-organization'
 interface ChatThreadProps {
   conversation: Conversation
   messages: Message[]
-  onMessageSent: () => void
+  onMessageSent: (newMsg?: Message) => void
   onBack?: () => void
 }
 
@@ -32,6 +32,7 @@ export function ChatThread({
 }: ChatThreadProps) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const { activeOrganization } = useOrganization()
   const [members, setMembers] = useState<any[]>([])
@@ -93,13 +94,19 @@ export function ChatThread({
     e.preventDefault()
     if (!text.trim() || sending) return
 
+    if (!activeOrganization?.id) {
+      setSendError("Aucune organisation active sélectionnée.")
+      return
+    }
+
     setSending(true)
+    setSendError(null)
     try {
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'x-organization-id': activeOrganization?.id || ''
+          'x-organization-id': activeOrganization.id
         },
         body: JSON.stringify({
           conversationId: conversation.id,
@@ -109,15 +116,21 @@ export function ChatThread({
         }),
       })
 
-      if (res.ok) {
-        setText('')
-        onMessageSent()
-        setTimeout(() => {
-          bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-        }, 100)
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        setSendError(data.error || "Erreur lors de l'envoi du message WhatsApp")
+        return
       }
-    } catch (err) {
+
+      setText('')
+      onMessageSent(data.message)
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    } catch (err: any) {
       console.error('Send failed:', err)
+      setSendError(err.message || "Erreur réseau lors de l'envoi")
     } finally {
       setSending(false)
     }
@@ -128,6 +141,7 @@ export function ChatThread({
     if (!file || !activeOrganization) return
 
     setUploading(true)
+    setSendError(null)
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -140,9 +154,12 @@ export function ChatThread({
         body: formData
       })
       
-      if (!uploadRes.ok) throw new Error('Upload failed')
+      const uploadData = await uploadRes.json().catch(() => ({}))
+      if (!uploadRes.ok) {
+        throw new Error(uploadData.error || 'Échec du téléchargement du média')
+      }
       
-      const { mediaId } = await uploadRes.json()
+      const { mediaId } = uploadData
       
       let type = 'document'
       if (file.type.startsWith('image/')) type = 'image'
@@ -164,15 +181,19 @@ export function ChatThread({
         }),
       })
 
-      if (res.ok) {
-        setText('')
-        onMessageSent()
-        setTimeout(() => {
-          bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-        }, 100)
+      const sendData = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(sendData.error || "Échec de l'envoi du fichier via WhatsApp")
       }
-    } catch (err) {
-      console.error('File send failed:', err)
+
+      setText('')
+      onMessageSent(sendData.message)
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    } catch (err: any) {
+      console.error('Upload/Send failed:', err)
+      setSendError(err.message || "Erreur lors de l'envoi du média")
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -360,6 +381,18 @@ export function ChatThread({
 
       {/* Message composer */}
       <div className="border-t border-border bg-background p-4">
+        {sendError && (
+          <div className="mx-auto max-w-2xl mb-2 flex items-center justify-between rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+            <span>{sendError}</span>
+            <button
+              type="button"
+              onClick={() => setSendError(null)}
+              className="ml-2 hover:opacity-75"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
         <form
           onSubmit={handleSend}
           className="mx-auto flex max-w-2xl items-center gap-3"
@@ -383,7 +416,10 @@ export function ChatThread({
           <input
             type="text"
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value)
+              if (sendError) setSendError(null)
+            }}
             placeholder="Écrire un message..."
             className="flex-1 rounded-xl border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
           />

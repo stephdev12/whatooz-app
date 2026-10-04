@@ -15,7 +15,8 @@ import {
   Palette,
   Image as ImageIcon,
   Type,
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react'
 import { MetaEmbeddedSignupButton } from '@/components/whatsapp/meta-embedded-signup-button'
 import { useOrganization } from '@/hooks/use-organization'
@@ -52,6 +53,7 @@ export default function SettingsPage() {
 
   const [savingMiniSite, setSavingMiniSite] = useState(false)
   const [miniSiteSuccess, setMiniSiteSuccess] = useState('')
+  const [resyncing, setResyncing] = useState(false)
 
   const searchParams = useSearchParams()
 
@@ -145,6 +147,34 @@ export default function SettingsPage() {
       setError('Erreur réseau')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleResyncWebhooks() {
+    if (!activeOrganization) return
+    setResyncing(true)
+    setError('')
+    setSuccess('')
+    try {
+      const res = await fetch('/api/whatsapp/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-organization-id': activeOrganization.id,
+        },
+        body: JSON.stringify({ action: 'resync' }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error || 'Échec de synchronisation des webhooks')
+      } else {
+        setSuccess(data.message || 'Webhooks WhatsApp vérifiés et réactivés avec succès !')
+        await loadConfig()
+      }
+    } catch {
+      setError('Erreur réseau lors de la synchronisation')
+    } finally {
+      setResyncing(false)
     }
   }
 
@@ -281,17 +311,29 @@ export default function SettingsPage() {
 
       {/* WHATSAPP CONFIGURATION */}
       {config?.connected && (
-        <div className="flex items-start gap-3 rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-5 backdrop-blur-md">
-          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
-          <div>
-            <p className="text-sm font-bold text-foreground">
-              WhatsApp Business Officiel Connecté
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Numéro actif : <span className="font-mono text-foreground font-semibold">{config.display_phone_number}</span>
-              {config.verified_name && ` • Nom vérifié : ${config.verified_name}`}
-            </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-5 backdrop-blur-md">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+            <div>
+              <p className="text-sm font-bold text-foreground">
+                WhatsApp Business Officiel Connecté
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Numéro actif : <span className="font-mono text-foreground font-semibold">{config.display_phone_number}</span>
+                {config.verified_name && ` • Nom vérifié : ${config.verified_name}`}
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={handleResyncWebhooks}
+            disabled={resyncing}
+            className="flex items-center gap-1.5 self-start sm:self-center rounded-full border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 transition-colors disabled:opacity-50"
+            title="S'assure que Meta transfère bien tous les messages entrants et accusés de réception"
+          >
+            {resyncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            {resyncing ? 'Vérification...' : 'Synchroniser Webhooks'}
+          </button>
         </div>
       )}
 
