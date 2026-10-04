@@ -143,10 +143,18 @@ export async function POST(request: NextRequest) {
       console.log(`[Webhook POST] Dispatching inbound event to users: ${targetOrganizationIds.join(', ')}`)
 
       // 1. Process Inbound Messages and Echoes
-      const messages = value.messages ?? value.smb_message_echoes ?? []
+      const messages = value.messages ?? value.smb_message_echoes ?? value.message_echoes ?? []
       for (const msg of messages) {
-        // For incoming messages, 'from' is the customer. For echoes, customer might be in 'to' or 'from'.
-        const customerPhone = isEcho ? (msg.to || msg.from) : msg.from
+        console.log('[Webhook POST] Processing message object:', JSON.stringify(msg))
+        // Some echoes come in as field='messages' with a boolean flag inside the msg object
+        const isActuallyEcho = isEcho || msg.message_echoes === true
+        
+        // For incoming messages, 'from' is the customer. For echoes, customer might be in 'to', or we might need to fallback.
+        const customerPhone = isActuallyEcho ? (msg.to || value.metadata?.display_phone_number || msg.from) : msg.from
+        // Note: For echoes, the recipient (customer) is often missing if not explicitly in `to`. We need to be careful.
+        // If it's an echo, it might be safer to find the conversation by matching the other party.
+        const otherPartyPhone = isActuallyEcho ? (msg.to || msg.from) : msg.from
+        
         const messageId = msg.id
         const timestamp = msg.timestamp
           ? new Date(parseInt(msg.timestamp) * 1000).toISOString()
@@ -159,8 +167,8 @@ export async function POST(request: NextRequest) {
         let flowToken: string | null = null
 
         const customerProfileName =
-          value.contacts?.find((c: { wa_id: string }) => c.wa_id === customerPhone)
-            ?.profile?.name || customerPhone
+          value.contacts?.find((c: { wa_id: string }) => c.wa_id === otherPartyPhone)
+            ?.profile?.name || otherPartyPhone
 
         switch (msg.type) {
           case 'text':
