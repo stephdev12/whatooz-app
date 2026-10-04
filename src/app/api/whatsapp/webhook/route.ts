@@ -876,10 +876,18 @@ export async function POST(request: NextRequest) {
       const statuses = value.statuses ?? []
       for (const status of statuses) {
         if (status.id && status.status) {
-          await supabaseAdmin
+          console.log(`[Webhook POST] Status update received: WAMID=${status.id}, STATUS=${status.status}, RECIPIENT=${status.recipient_id}`);
+          if (status.errors) {
+            console.error(`[Webhook POST] Status update contains errors:`, JSON.stringify(status.errors));
+          }
+          const { error: updateErr } = await supabaseAdmin
             .from('messages')
             .update({ status: status.status })
             .eq('wamid', status.id)
+            
+          if (updateErr) {
+            console.error(`[Webhook POST] Failed to update status for WAMID ${status.id}:`, updateErr);
+          }
         }
       }
     }
