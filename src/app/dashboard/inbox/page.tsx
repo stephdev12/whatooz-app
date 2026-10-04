@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useOrganization } from '@/hooks/use-organization'
 import { ConversationList } from '@/components/inbox/conversation-list'
 import { ChatThread } from '@/components/inbox/chat-thread'
-import { MessageSquare, Inbox, User as UserIcon, HelpCircle, CheckCircle2 } from 'lucide-react'
+import { MessageSquare, Inbox, User as UserIcon, HelpCircle, CheckCircle2, PanelRightOpen, PanelRightClose } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ContactSidebar } from '@/components/inbox/contact-sidebar'
 
@@ -56,6 +56,7 @@ export default function InboxPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'mine' | 'unassigned' | 'closed'>('all')
+  const [showSidebar, setShowSidebar] = useState(false)
   const supabase = useMemo(() => createClient(), [])
 
   const loadConversations = useCallback(async () => {
@@ -355,17 +356,30 @@ export default function InboxPage() {
         )}
       >
         {selectedConvo ? (
-          <div className="flex h-full w-full">
-            <div className="flex-1 min-w-0">
+          <div className="flex h-full w-full relative">
+            <div className="flex-1 min-w-0 flex flex-col">
               <ChatThread
                 conversation={selectedConvo}
                 messages={messages}
                 onMessageSent={handleMessageSent}
-                onBack={() => setSelectedConvoId(null)}
+                onBack={() => { setSelectedConvoId(null); setShowSidebar(false) }}
               />
             </div>
+            
+            {/* Sidebar toggle button */}
             {selectedConvo.contact && (
-              <div className="hidden lg:block w-72 shrink-0 border-l border-border bg-card">
+              <button
+                onClick={() => setShowSidebar(!showSidebar)}
+                className="absolute top-3 right-3 z-10 hidden lg:flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors"
+                title={showSidebar ? 'Masquer le panneau contact' : 'Afficher le panneau contact'}
+              >
+                {showSidebar ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+              </button>
+            )}
+            
+            {/* Contact sidebar - slides in */}
+            {showSidebar && selectedConvo.contact && (
+              <div className="hidden lg:block w-72 shrink-0 border-l border-border bg-card animate-in slide-in-from-right-5 duration-200">
                 <ContactSidebar contact={selectedConvo.contact} />
               </div>
             )}

@@ -649,7 +649,11 @@ export async function subscribeWabaToApp(args: {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
     },
+    // Explicitly subscribe to smb_message_echoes so messages sent from
+    // the native WhatsApp Business app are echoed back to our webhook.
+    body: 'subscribed_fields=messages,smb_message_echoes',
   })
   if (!response.ok) {
     await throwMetaError(response, `Souscription de la WABA ${wabaId} aux webhooks a échoué: ${response.status}`)
