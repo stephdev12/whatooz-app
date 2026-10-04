@@ -149,11 +149,9 @@ export async function POST(request: NextRequest) {
         // Some echoes come in as field='messages' with a boolean flag inside the msg object
         const isActuallyEcho = isEcho || msg.message_echoes === true
         
-        // For incoming messages, 'from' is the customer. For echoes, customer might be in 'to', or we might need to fallback.
-        const customerPhone = isActuallyEcho ? (msg.to || value.metadata?.display_phone_number || msg.from) : msg.from
-        // Note: For echoes, the recipient (customer) is often missing if not explicitly in `to`. We need to be careful.
-        // If it's an echo, it might be safer to find the conversation by matching the other party.
-        const otherPartyPhone = isActuallyEcho ? (msg.to || msg.from) : msg.from
+        // For incoming messages, 'from' is the customer. For echoes, customer is 'to'.
+        // If 'to' is missing on an echo, fallback to 'from' just in case.
+        const customerPhone = isActuallyEcho ? (msg.to || msg.from) : msg.from
         
         const messageId = msg.id
         const timestamp = msg.timestamp
@@ -167,8 +165,8 @@ export async function POST(request: NextRequest) {
         let flowToken: string | null = null
 
         const customerProfileName =
-          value.contacts?.find((c: { wa_id: string }) => c.wa_id === otherPartyPhone)
-            ?.profile?.name || otherPartyPhone
+          value.contacts?.find((c: { wa_id: string }) => c.wa_id === customerPhone)
+            ?.profile?.name || customerPhone
 
         switch (msg.type) {
           case 'text':
@@ -254,12 +252,15 @@ export async function POST(request: NextRequest) {
         for (const organizationId of targetOrganizationIds) {
           // Find or create Contact
           let contactId: string | null = null
-          const { data: existingContact } = await supabaseAdmin
+          const { data: existingContacts } = await supabaseAdmin
             .from('contacts')
             .select('id, name')
             .eq('organization_id', organizationId)
             .eq('phone', customerPhone)
-            .maybeSingle()
+            .order('created_at', { ascending: false })
+            .limit(1)
+            
+          const existingContact = existingContacts?.[0]
 
           if (existingContact) {
             contactId = existingContact.id
@@ -285,12 +286,15 @@ export async function POST(request: NextRequest) {
 
           // Find or create Conversation
           let conversationId: string | null = null
-          const { data: existingConvo } = await supabaseAdmin
+          const { data: existingConvos } = await supabaseAdmin
             .from('conversations')
             .select('id, unread_count, contact_name, status')
             .eq('organization_id', organizationId)
             .eq('contact_phone', customerPhone)
-            .maybeSingle()
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            
+          const existingConvo = existingConvos?.[0]
 
           if (existingConvo) {
             conversationId = existingConvo.id
