@@ -13,6 +13,8 @@ import {
   Pencil,
   X,
   Paperclip,
+  PanelRightOpen,
+  PanelRightClose
 } from 'lucide-react'
 import type { Conversation, Message } from '@/app/dashboard/inbox/page'
 import { useOrganization } from '@/hooks/use-organization'
@@ -22,6 +24,8 @@ interface ChatThreadProps {
   messages: Message[]
   onMessageSent: (newMsg?: Message) => void
   onBack?: () => void
+  showSidebar?: boolean
+  onToggleSidebar?: () => void
 }
 
 export function ChatThread({
@@ -29,6 +33,8 @@ export function ChatThread({
   messages,
   onMessageSent,
   onBack,
+  showSidebar,
+  onToggleSidebar
 }: ChatThreadProps) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
@@ -291,6 +297,26 @@ export function ChatThread({
               <option key={m.member_id} value={m.user_id}>{m.full_name}</option>
             ))}
           </select>
+
+          {onToggleSidebar && (
+            <button
+              onClick={onToggleSidebar}
+              className="ml-1 hidden md:flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              title={showSidebar ? 'Masquer le panneau contact' : 'Afficher le panneau contact'}
+            >
+              {showSidebar ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+            </button>
+          )}
+          {/* Mobile version of toggle button */}
+          {onToggleSidebar && (
+            <button
+              onClick={onToggleSidebar}
+              className="md:hidden flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              title={showSidebar ? 'Masquer le profil' : 'Afficher le profil'}
+            >
+              <UserIcon className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
 

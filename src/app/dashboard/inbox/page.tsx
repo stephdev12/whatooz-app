@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useOrganization } from '@/hooks/use-organization'
 import { ConversationList } from '@/components/inbox/conversation-list'
 import { ChatThread } from '@/components/inbox/chat-thread'
-import { MessageSquare, Inbox, User as UserIcon, HelpCircle, CheckCircle2, PanelRightOpen, PanelRightClose } from 'lucide-react'
+import { MessageSquare, Inbox, User as UserIcon, HelpCircle, CheckCircle2, PanelRightOpen, PanelRightClose, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ContactSidebar } from '@/components/inbox/contact-sidebar'
 
@@ -363,25 +363,31 @@ export default function InboxPage() {
                 messages={messages}
                 onMessageSent={handleMessageSent}
                 onBack={() => { setSelectedConvoId(null); setShowSidebar(false) }}
+                showSidebar={showSidebar}
+                onToggleSidebar={() => setShowSidebar(!showSidebar)}
               />
             </div>
             
-            {/* Sidebar toggle button */}
-            {selectedConvo.contact && (
-              <button
-                onClick={() => setShowSidebar(!showSidebar)}
-                className="absolute top-3 right-3 z-10 hidden lg:flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:bg-secondary/80 hover:text-foreground transition-colors"
-                title={showSidebar ? 'Masquer le panneau contact' : 'Afficher le panneau contact'}
-              >
-                {showSidebar ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-              </button>
-            )}
-            
             {/* Contact sidebar - slides in */}
             {showSidebar && selectedConvo.contact && (
-              <div className="hidden lg:block w-72 shrink-0 border-l border-border bg-card animate-in slide-in-from-right-5 duration-200">
-                <ContactSidebar contact={selectedConvo.contact} />
-              </div>
+              <>
+                {/* Mobile backdrop */}
+                <div 
+                  className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
+                  onClick={() => setShowSidebar(false)}
+                />
+                <div className="fixed inset-y-0 right-0 z-50 w-[85vw] max-w-sm lg:static lg:w-72 lg:z-auto shrink-0 border-l border-border bg-card lg:bg-transparent shadow-2xl lg:shadow-none animate-in slide-in-from-right duration-200">
+                  <div className="flex h-14 items-center justify-between border-b px-4 lg:hidden">
+                    <span className="font-semibold text-sm">Profil du contact</span>
+                    <button onClick={() => setShowSidebar(false)} className="p-2 -mr-2 text-muted-foreground hover:text-foreground">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="h-[calc(100vh-3.5rem)] lg:h-full overflow-y-auto">
+                    <ContactSidebar contact={selectedConvo.contact} />
+                  </div>
+                </div>
+              </>
             )}
           </div>
         ) : (
