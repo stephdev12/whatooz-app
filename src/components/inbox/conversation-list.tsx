@@ -161,10 +161,25 @@ export function ConversationList({
               {/* Content */}
               <div className="flex-1 overflow-hidden">
                 <div className="flex items-center justify-between">
-                  <span className="truncate text-sm font-medium text-foreground">
-                    {convo.contact_name || convo.contact_phone}
-                  </span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
+                  <div className="flex flex-col overflow-hidden">
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {convo.contact_name || convo.contact_phone}
+                    </span>
+                    {convo.contact?.tags && convo.contact.tags.length > 0 && (
+                      <div className="flex gap-1 mt-1 overflow-x-auto no-scrollbar">
+                        {convo.contact.tags.map(tag => (
+                          <span 
+                            key={tag.id}
+                            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                            style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+                          >
+                            {tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <span className="shrink-0 text-xs text-muted-foreground ml-2">
                     {convo.last_message_at
                       ? formatRelativeTime(convo.last_message_at)
                       : ''}

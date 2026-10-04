@@ -107,8 +107,9 @@ export async function POST(request: NextRequest) {
   for (const entry of entries) {
     const changes = entry.changes ?? []
     for (const change of changes) {
-      if (change.field !== 'messages') continue
+      if (change.field !== 'messages' && change.field !== 'smb_message_echoes') continue
 
+      const isEcho = change.field === 'smb_message_echoes'
       const value = change.value
       const phoneNumberId = value.metadata?.phone_number_id
       if (!phoneNumberId) continue
@@ -141,10 +142,11 @@ export async function POST(request: NextRequest) {
 
       console.log(`[Webhook POST] Dispatching inbound event to users: ${targetOrganizationIds.join(', ')}`)
 
-      // 1. Process Inbound Messages
-      const messages = value.messages ?? []
+      // 1. Process Inbound Messages and Echoes
+      const messages = value.messages ?? value.smb_message_echoes ?? []
       for (const msg of messages) {
-        const senderPhone = msg.from
+        // For incoming messages, 'from' is the customer. For echoes, customer might be in 'to' or 'from'.
+        const customerPhone = isEcho ? (msg.to || msg.from) : msg.from
         const messageId = msg.id
         const timestamp = msg.timestamp
           ? new Date(parseInt(msg.timestamp) * 1000).toISOString()
@@ -156,9 +158,9 @@ export async function POST(request: NextRequest) {
         let flowResponseData: Record<string, unknown> | null = null
         let flowToken: string | null = null
 
-        const senderProfileName =
-          value.contacts?.find((c: { wa_id: string }) => c.wa_id === senderPhone)
-            ?.profile?.name || senderPhone
+        const customerProfileName =
+          value.contacts?.find((c: { wa_id: string }) => c.wa_id === customerPhone)
+            ?.profile?.name || customerPhone
 
         switch (msg.type) {
           case 'text':
@@ -189,8 +191,8 @@ export async function POST(request: NextRequest) {
               for (const orgId of targetOrganizationIds) {
                 await supabaseAdmin.from('flow_responses').insert({
                   organization_id: orgId,
-                  contact_phone: senderPhone,
-                  contact_name: senderProfileName,
+                  contact_phone: customerPhone,
+                  contact_name: customerProfileName,
                   response_data: responseData,
                 })
               }
@@ -248,15 +250,15 @@ export async function POST(request: NextRequest) {
             .from('contacts')
             .select('id, name')
             .eq('organization_id', organizationId)
-            .eq('phone', senderPhone)
+            .eq('phone', customerPhone)
             .maybeSingle()
 
           if (existingContact) {
             contactId = existingContact.id
-            if (senderProfileName && senderProfileName !== senderPhone && (!existingContact.name || existingContact.name === senderPhone)) {
+            if (customerProfileName && customerProfileName !== customerPhone && (!existingContact.name || existingContact.name === customerPhone)) {
               await supabaseAdmin
                 .from('contacts')
-                .update({ name: senderProfileName })
+                .update({ name: customerProfileName })
                 .eq('id', contactId)
             }
           } else {
@@ -264,8 +266,8 @@ export async function POST(request: NextRequest) {
               .from('contacts')
               .insert({
                 organization_id: organizationId,
-                phone: senderPhone,
-                name: senderProfileName,
+                phone: customerPhone,
+                name: customerProfileName,
               })
               .select('id')
               .maybeSingle()
@@ -277,9 +279,9 @@ export async function POST(request: NextRequest) {
           let conversationId: string | null = null
           const { data: existingConvo } = await supabaseAdmin
             .from('conversations')
-            .select('id, unread_count, contact_name')
+            .select('id, unread_count, contact_name, status')
             .eq('organization_id', organizationId)
-            .eq('contact_phone', senderPhone)
+            .eq('contact_phone', customerPhone)
             .maybeSingle()
 
           if (existingConvo) {
@@ -288,13 +290,17 @@ export async function POST(request: NextRequest) {
             const updatePayload: any = {
               last_message_text: contentText,
               last_message_at: timestamp,
-              unread_count: (existingConvo.unread_count || 0) + 1,
-              status: 'open',
+              status: isEcho ? existingConvo.status : 'open',
               updated_at: new Date().toISOString(),
             }
 
-            if (senderProfileName && senderProfileName !== senderPhone && (!existingConvo.contact_name || existingConvo.contact_name === senderPhone)) {
-              updatePayload.contact_name = senderProfileName
+            // Only increment unread count if it's an inbound message
+            if (!isEcho) {
+              updatePayload.unread_count = (existingConvo.unread_count || 0) + 1;
+            }
+
+            if (customerProfileName && customerProfileName !== customerPhone && (!existingConvo.contact_name || existingConvo.contact_name === customerPhone)) {
+              updatePayload.contact_name = customerProfileName
             }
 
             await supabaseAdmin
@@ -307,12 +313,12 @@ export async function POST(request: NextRequest) {
               .insert({
                 organization_id: organizationId,
                 contact_id: contactId,
-                contact_phone: senderPhone,
-                contact_name: senderProfileName,
+                contact_phone: customerPhone,
+                contact_name: customerProfileName,
                 status: 'open',
                 last_message_text: contentText,
                 last_message_at: timestamp,
-                unread_count: 1,
+                unread_count: isEcho ? 0 : 1,
               })
               .select('id')
               .maybeSingle()
@@ -330,12 +336,12 @@ export async function POST(request: NextRequest) {
             await supabaseAdmin.from('messages').insert({
               conversation_id: conversationId,
               organization_id: organizationId,
-              direction: 'inbound',
+              direction: isEcho ? 'outbound' : 'inbound',
               message_type: messageType,
               content_text: contentText,
               media_url: mediaUrl,
               wamid: messageId,
-              status: 'delivered',
+              status: isEcho ? 'sent' : 'delivered',
               created_at: timestamp,
             })
           }
@@ -392,7 +398,7 @@ export async function POST(request: NextRequest) {
 
         const conversationId = primaryConversationId
         const organizationId = primaryOrganizationId
-        if (!conversationId) continue
+        if (!conversationId || isEcho) continue // We don't trigger auto-replies or automations on our own echoed messages
 
         // -------------------------------------------------------------
         // 2.bis Auto-Reply with Payment Link for E-Commerce / Orders Flows
@@ -422,7 +428,7 @@ export async function POST(request: NextRequest) {
 
               if (userConfig?.access_token_encrypted) {
                 const accessToken = decrypt(userConfig.access_token_encrypted)
-                const clientName = nfmData.nom_client || senderProfileName || 'cher client'
+                const clientName = nfmData.nom_client || customerProfileName || 'cher client'
 
                 let modelName = 'TechWave TW14 Pro (256 Go)'
                 let priceText = '325 000 FCFA (500€)'
@@ -463,7 +469,7 @@ export async function POST(request: NextRequest) {
                 const sendRes = await sendTextMessage({
                   phoneNumberId,
                   accessToken,
-                  to: senderPhone,
+                  to: customerPhone,
                   text: paymentMsg,
                 })
 
@@ -553,8 +559,8 @@ export async function POST(request: NextRequest) {
                         const key = trimmedPath.replace('flow.response.', '');
                         return String(flowResponseData[key] || '');
                       }
-                      if (trimmedPath === 'contact.name') return senderProfileName;
-                      if (trimmedPath === 'contact.phone') return senderPhone;
+                      if (trimmedPath === 'contact.name') return customerProfileName;
+                      if (trimmedPath === 'contact.phone') return customerPhone;
                       return match;
                     });
                   };
@@ -726,7 +732,7 @@ export async function POST(request: NextRequest) {
                       const sendRes = await sendTemplateMessage({
                         phoneNumberId,
                         accessToken,
-                        to: senderPhone,
+                        to: customerPhone,
                         templateName,
                         languageCode,
                         components: resolvedComponents.length > 0 ? resolvedComponents : undefined,
@@ -768,7 +774,7 @@ export async function POST(request: NextRequest) {
                     const sendRes = await sendFlowMessage({
                       phoneNumberId,
                       accessToken,
-                      to: senderPhone,
+                      to: customerPhone,
                       flowId: targetMetaFlowId,
                       flowToken: `${targetMetaFlowId}_${Date.now()}`,
                       flowCta: replaceVariables(payload.flow_cta || 'Ouvrir le formulaire'),
@@ -793,7 +799,7 @@ export async function POST(request: NextRequest) {
                     const sendRes = await sendTextMessage({
                       phoneNumberId,
                       accessToken,
-                      to: senderPhone,
+                      to: customerPhone,
                       text: finalMsg,
                     })
 

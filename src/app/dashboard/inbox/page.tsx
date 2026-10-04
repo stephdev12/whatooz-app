@@ -8,6 +8,20 @@ import { ConversationList } from '@/components/inbox/conversation-list'
 import { ChatThread } from '@/components/inbox/chat-thread'
 import { MessageSquare, Inbox, User as UserIcon, HelpCircle, CheckCircle2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ContactSidebar } from '@/components/inbox/contact-sidebar'
+
+export interface Tag {
+  id: string
+  name: string
+  color: string
+}
+
+export interface Contact {
+  id: string
+  name: string | null
+  phone: string
+  tags?: Tag[]
+}
 
 export interface Conversation {
   id: string
@@ -18,6 +32,8 @@ export interface Conversation {
   status: string
   unread_count: number
   assigned_user_id?: string | null
+  contact_id?: string | null
+  contact?: Contact | null
 }
 
 export interface Message {
@@ -46,11 +62,27 @@ export default function InboxPage() {
     if (!activeOrganization) return
     const { data } = await supabase
       .from('conversations')
-      .select('*')
+      .select('*, contact:contacts(id, name, phone, contact_tags(tags(*)))')
       .eq('organization_id', activeOrganization.id)
       .order('last_message_at', { ascending: false })
 
-    setConversations(data ?? [])
+    const normalized = (data ?? []).map((raw: any) => {
+      const contactRaw = Array.isArray(raw.contact) ? raw.contact[0] : raw.contact;
+      if (!contactRaw) return raw;
+      
+      const { contact_tags, ...restContact } = contactRaw;
+      return {
+        ...raw,
+        contact: {
+          ...restContact,
+          tags: (contact_tags ?? [])
+            .map((ct: any) => ct.tags)
+            .filter(Boolean)
+        }
+      }
+    })
+
+    setConversations(normalized)
     setLoading(false)
   }, [activeOrganization, supabase])
 
@@ -126,8 +158,15 @@ export default function InboxPage() {
       )
       .subscribe()
 
+    // Add event listener for tags updates from the sidebar
+    const handleTagsUpdated = () => {
+      loadConversations()
+    }
+    window.addEventListener('contact-tags-updated', handleTagsUpdated)
+
     return () => {
       supabase.removeChannel(channel)
+      window.removeEventListener('contact-tags-updated', handleTagsUpdated)
     }
   }, [activeOrganization, selectedConvoId, supabase, loadConversations])
 
@@ -316,12 +355,21 @@ export default function InboxPage() {
         )}
       >
         {selectedConvo ? (
-          <ChatThread
-            conversation={selectedConvo}
-            messages={messages}
-            onMessageSent={handleMessageSent}
-            onBack={() => setSelectedConvoId(null)}
-          />
+          <div className="flex h-full w-full">
+            <div className="flex-1 min-w-0">
+              <ChatThread
+                conversation={selectedConvo}
+                messages={messages}
+                onMessageSent={handleMessageSent}
+                onBack={() => setSelectedConvoId(null)}
+              />
+            </div>
+            {selectedConvo.contact && (
+              <div className="hidden lg:block w-72 shrink-0 border-l border-border bg-card">
+                <ContactSidebar contact={selectedConvo.contact} />
+              </div>
+            )}
+          </div>
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground p-6 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#fe5105]/10 text-[#fe5105]">
