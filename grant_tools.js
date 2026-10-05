@@ -8,7 +8,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const defaultTools = [
   'search_products', 'get_product', 'calculate_negotiated_price',
   'create_order', 'create_payment', 'list_available_automations', 'run_automation',
-  'send_interactive_product', 'send_interactive_catalog'
+  'send_interactive_product', 'send_interactive_catalog', 'send_interactive_product_list'
 ];
 
 async function main() {

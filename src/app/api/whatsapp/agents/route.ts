@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     const defaultTools = [
       'search_products', 'get_product', 'calculate_negotiated_price',
       'create_order', 'create_payment', 'list_available_automations', 'run_automation',
-      'send_interactive_product', 'send_interactive_catalog'
+      'send_interactive_product', 'send_interactive_catalog', 'send_interactive_product_list'
     ]
 
     const permissions = defaultTools.map(tool => ({

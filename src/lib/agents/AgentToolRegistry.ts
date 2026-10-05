@@ -1,4 +1,4 @@
-import { searchProductsTool, getProductTool, calculateNegotiatedPriceTool, sendProductToUserTool, sendCatalogToUserTool } from './tools/productTools';
+import { searchProductsTool, getProductTool, calculateNegotiatedPriceTool, sendProductToUserTool, sendCatalogToUserTool, sendProductListToUserTool } from './tools/productTools';
 import { listAvailableAutomationsTool, runAutomationTool } from './tools/automationTools';
 import { createOrderTool, createPaymentTool } from './tools/commerceTools';
 
@@ -61,6 +61,7 @@ toolRegistry.register(getProductTool);
 toolRegistry.register(calculateNegotiatedPriceTool);
 toolRegistry.register(sendProductToUserTool);
 toolRegistry.register(sendCatalogToUserTool);
+toolRegistry.register(sendProductListToUserTool);
 
 // Phase 3: Automation Tools
 toolRegistry.register(listAvailableAutomationsTool);
