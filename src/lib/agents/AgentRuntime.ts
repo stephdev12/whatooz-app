@@ -27,16 +27,24 @@ const agentRouterFetch = async (url: RequestInfo | URL, options?: RequestInit) =
   headers.set('X-Stainless-Runtime', 'node');
   headers.set('X-Stainless-Runtime-Version', 'v20.18.0');
 
-  const response = await fetch(url, { ...options, headers });
-  const contentType = response.headers.get('content-type') || '';
+  let response = await fetch(url, { ...options, headers });
+  let contentType = response.headers.get('content-type') || '';
 
-  // Guard against HTML error pages (e.g. if baseURL lacks /v1 or proxy returns HTML 200/404)
+  // If Aliyun WAF captcha or HTML is returned, transparently retry via the ps.air-outer.com API mirror
+  if (contentType.includes('text/html') && url.toString().includes('agentrouter.org')) {
+    const mirrorUrl = url.toString().replace('agentrouter.org', 'ps.air-outer.com');
+    console.log(`[AgentRouter] WAF/HTML detected from ${url.toString()}, retrying via mirror ${mirrorUrl}`);
+    response = await fetch(mirrorUrl, { ...options, headers });
+    contentType = response.headers.get('content-type') || '';
+  }
+
+  // Guard against any remaining HTML error pages (e.g. if invalid path or proxy error returns HTML 200/404)
   if (contentType.includes('text/html')) {
     const status = response.status >= 400 ? response.status : 502;
     return new Response(
       JSON.stringify({
         error: {
-          message: `AgentRouter returned HTML instead of JSON (Status ${response.status}). URL called: ${url.toString()}. Ensure AGENTROUTER_BASE_URL ends with '/v1'.`,
+          message: `AgentRouter returned HTML instead of JSON (Status ${response.status}). URL called: ${url.toString()}. Ensure AGENTROUTER_BASE_URL is 'https://ps.air-outer.com/v1'.`,
           type: 'invalid_response_format',
         }
       }),
@@ -82,9 +90,10 @@ export class AgentRuntime {
     const addAgentRouterCandidates = (selectedModel?: string) => {
       if (!process.env.AGENTROUTER_API_KEY) return;
 
-      // Auto-normalize baseURL: strip trailing slash, fix domain, and guarantee /v1 suffix
-      let rawBaseUrl = (process.env.AGENTROUTER_BASE_URL || 'https://agentrouter.org/v1').trim();
-      rawBaseUrl = rawBaseUrl.replace('co.agentrouter.org', 'agentrouter.org');
+      // Auto-normalize baseURL: use the direct API gateway mirror ps.air-outer.com to bypass Aliyun WAF captcha
+      let rawBaseUrl = (process.env.AGENTROUTER_BASE_URL || 'https://ps.air-outer.com/v1').trim();
+      rawBaseUrl = rawBaseUrl.replace('co.agentrouter.org', 'ps.air-outer.com');
+      rawBaseUrl = rawBaseUrl.replace('agentrouter.org', 'ps.air-outer.com');
       rawBaseUrl = rawBaseUrl.replace(/\/+$/, '');
       if (!rawBaseUrl.endsWith('/v1')) {
         rawBaseUrl = `${rawBaseUrl}/v1`;
