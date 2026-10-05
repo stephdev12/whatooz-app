@@ -103,14 +103,15 @@ export class SasPayService {
       const data = await response.json()
       
       if (!response.ok) {
-        throw new Error(data.message || 'Failed to create SasPay checkout session')
+        const errorDetail = data.error?.detail || data.message || JSON.stringify(data)
+        throw new Error(`SasPay Error (${response.status}): ${errorDetail}`)
       }
 
       const providerTransactionId = data.id
       const paymentLink = data.checkout_url
 
       if (!providerTransactionId || !paymentLink) {
-         throw new Error('Invalid response from SasPay API')
+         throw new Error(`Invalid response from SasPay API. Received: ${JSON.stringify(data)}`)
       }
 
       // Update transaction with provider ID and payment link
