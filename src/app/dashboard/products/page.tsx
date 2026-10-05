@@ -89,21 +89,21 @@ export default function ProductsPage() {
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Catalogue WhatsApp</h1>
           <p className="text-sm text-muted-foreground mt-1">Gérez les produits synchronisés depuis votre compte Meta.</p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row w-full sm:w-auto items-stretch sm:items-center gap-3">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <input 
               type="text"
               placeholder="Rechercher un produit..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-4 py-2 border border-border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-card"
+              className="w-full pl-9 pr-4 py-2 border border-border rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm bg-card"
             />
           </div>
           <button 
             onClick={handleSync}
             disabled={isSyncing}
-            className="flex items-center px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            className="flex items-center justify-center w-full sm:w-auto px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isSyncing ? 'animate-spin' : ''}`} />
             {isSyncing ? 'Synchronisation...' : 'Synchroniser Meta'}
