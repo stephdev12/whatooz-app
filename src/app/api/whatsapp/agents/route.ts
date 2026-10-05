@@ -37,7 +37,7 @@ export async function POST(req: Request) {
         name,
         description,
         status: 'ACTIVE',
-        is_global: false,
+        is_global: true,
         agent_config: {
           model: model || 'FAST',
           provider: provider || 'openai',
