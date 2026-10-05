@@ -26,26 +26,20 @@ export interface PaymentTransactionResult {
 }
 
 export class SasPayService {
-  /**
-   * Fetch SasPay credentials for a given organization.
-   */
-  static async getConfig(organizationId: string): Promise<SasPayConfig> {
-    const { data, error } = await supabaseAdmin
-      .from('saspay_credentials')
-      .select('api_key, secret_key, merchant_id')
-      .eq('organization_id', organizationId)
-      .eq('is_active', true)
-      .maybeSingle()
+  static getConfig(): SasPayConfig {
+    const apiKey = process.env.SASPAY_API_KEY
+    const secretKey = process.env.SASPAY_SECRET_KEY
+    const merchantId = process.env.SASPAY_MERCHANT_ID
 
-    if (error || !data) {
-      throw new Error(`SasPay credentials not found or inactive for organization: ${organizationId}`)
+    if (!apiKey) {
+      console.warn('Missing SasPay credentials in environment variables.')
     }
 
     return {
-      organizationId,
-      apiKey: data.api_key,
-      secretKey: data.secret_key,
-      merchantId: data.merchant_id
+      organizationId: 'SYSTEM',
+      apiKey: apiKey || 'mock_api_key',
+      secretKey: secretKey || 'mock_secret_key',
+      merchantId: merchantId || 'mock_merchant_id'
     }
   }
 
@@ -53,7 +47,7 @@ export class SasPayService {
    * Create a new payment session on SasPay and register the transaction in Whatooz.
    */
   static async createPayment(params: CreatePaymentParams): Promise<PaymentTransactionResult> {
-    const config = await this.getConfig(params.organizationId)
+    const config = this.getConfig()
     
     // Create the transaction in Whatooz DB first as 'pending'
     const { data: tx, error: txError } = await supabaseAdmin
@@ -142,7 +136,7 @@ export class SasPayService {
       throw new Error(`Transaction ${transactionId} not found or missing provider ID`)
     }
 
-    const config = await this.getConfig(tx.organization_id)
+    const config = this.getConfig()
 
     // Call SasPay API to check status
     // MOCK
@@ -155,5 +149,23 @@ export class SasPayService {
       .eq('id', transactionId)
 
     return mockStatus
+  }
+
+  /**
+   * Payout / Transfer money via SasPay (for withdrawals)
+   */
+  static async payout(amount: number, phone: string, network: string, referenceId: string): Promise<{ success: boolean, transactionId?: string, error?: string }> {
+    const config = this.getConfig()
+    
+    // MOCK: SasPay Payout API
+    console.log(`[SasPayService] Executing payout: ${amount} XOF to ${phone} via ${network}. Ref: ${referenceId}`)
+    
+    // Simulate a successful payout with a mock ID
+    const mockProviderTransactionId = `PO-${Math.floor(Math.random() * 100000000)}`
+    
+    return {
+      success: true,
+      transactionId: mockProviderTransactionId
+    }
   }
 }

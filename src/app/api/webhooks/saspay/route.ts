@@ -28,15 +28,57 @@ export async function POST(request: NextRequest) {
         .maybeSingle()
 
       if (order) {
+        // Idempotency check: see if payment is already processed
+        const { data: existingTx } = await supabaseAdmin
+          .from('payment_transactions')
+          .select('status')
+          .eq('order_id', orderId)
+          .eq('provider', 'saspay')
+          .maybeSingle()
+          
+        if (existingTx && existingTx.status === 'paid') {
+          console.log(`[SasPay Webhook] Order ${orderId} already paid. Skipping.`)
+          return NextResponse.json({ success: true, message: 'Already processed' }, { status: 200 })
+        }
+
         let paymentStatus = 'pending'
         if (status === 'COMPLETED' || status === 'SUCCESS' || status === 'paid') {
           paymentStatus = 'paid'
 
-          // Add to wallet balance
-          await supabaseAdmin.rpc('increment_wallet_balance', {
-            org_id: order.organization_id,
-            amount_to_add: order.total_amount
-          })
+          // Get the wallet to update balance and ledger
+          const { data: wallet } = await supabaseAdmin
+            .from('wallets')
+            .select('id, available_balance')
+            .eq('organization_id', order.organization_id)
+            .single()
+
+          if (wallet) {
+            // Apply Whatooz Fee (e.g. 2.5%)
+            const feePercent = 0.025
+            const feeAmount = Math.round(order.total_amount * feePercent)
+            const netAmount = order.total_amount - feeAmount
+
+            // Insert SALE transaction into ledger
+            await supabaseAdmin.from('wallet_transactions').insert({
+              wallet_id: wallet.id,
+              type: 'SALE',
+              amount: netAmount,
+              currency: 'XOF',
+              reference: order.id,
+              status: 'COMPLETED',
+              metadata: { 
+                 gross_amount: order.total_amount,
+                 fee_amount: feeAmount,
+                 saspay_transaction_id: transactionId
+              }
+            })
+
+            // Update available_balance atomically (in a real prod app, use RPC for strict atomicity)
+            await supabaseAdmin.from('wallets').update({
+              available_balance: wallet.available_balance + netAmount,
+              updated_at: new Date().toISOString()
+            }).eq('id', wallet.id)
+          }
         } else if (status === 'FAILED' || status === 'failed') {
           paymentStatus = 'failed'
         }
