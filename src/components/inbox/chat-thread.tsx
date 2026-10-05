@@ -276,7 +276,11 @@ export function ChatThread({
       case 'read':
         return <CheckCheck className="h-3 w-3 text-blue-400" />
       case 'failed':
-        return <XCircle className="h-3 w-3 text-destructive" title={errorMessage || "Échec de l'envoi"} />
+        return (
+          <span title={errorMessage || "Échec de l'envoi"}>
+            <XCircle className="h-3 w-3 text-destructive" />
+          </span>
+        )
       default:
         return null
     }
