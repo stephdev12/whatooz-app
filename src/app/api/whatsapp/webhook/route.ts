@@ -952,6 +952,59 @@ export async function POST(request: NextRequest) {
                       console.error('[Webhook Automations] Error sending product list:', err)
                       outboundText = `[Erreur d'envoi de la liste de produits: ${err.message}]`
                     }
+                  } else if (auto.action_type === 'send_product_carousel') {
+                    console.log(`[Webhook Automations] Executing send_product_carousel...`, payload)
+                    try {
+                      const productRetailerIds = (payload.productRetailerIds || '').split(',').map((id: string) => id.trim()).filter(Boolean);
+                      const cards = productRetailerIds.map((id: string, index: number) => ({
+                        card_index: index,
+                        type: 'product',
+                        action: {
+                          catalog_id: payload.catalogId,
+                          product_retailer_id: id
+                        }
+                      }))
+
+                      const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${accessToken}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          messaging_product: 'whatsapp',
+                          recipient_type: 'individual',
+                          to: customerPhone,
+                          type: 'interactive',
+                          interactive: {
+                            type: 'carousel',
+                            body: {
+                              text: payload.text ? replaceVariables(payload.text) : 'Faites défiler pour découvrir nos produits :'
+                            },
+                            action: {
+                              cards
+                            }
+                          }
+                        })
+                      })
+                      const resData = await sendRes.json()
+                      console.log('[Webhook Automations] send_product_carousel API response:', resData)
+                      if (!sendRes.ok) throw new Error(resData.error?.message || 'Failed to send product carousel')
+
+                      outboundText = `[Carousel de produits envoyé]`
+                      await supabaseAdmin.from('messages').insert({
+                        conversation_id: conversationId,
+                        organization_id: organizationId,
+                        direction: 'outbound',
+                        message_type: 'interactive',
+                        content_text: outboundText,
+                        wamid: resData.messages?.[0]?.id || `failed_${Date.now()}`,
+                        status: 'sent',
+                      })
+                    } catch (err: any) {
+                      console.error('[Webhook Automations] Error sending product carousel:', err)
+                      outboundText = `[Erreur d'envoi du carousel: ${err.message}]`
+                    }
                   } else if (auto.action_type === 'send_catalog') {
                     console.log(`[Webhook Automations] Executing send_catalog...`, payload)
                     try {

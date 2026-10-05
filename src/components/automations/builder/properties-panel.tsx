@@ -260,6 +260,7 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
                 <option value="send_flow">Envoyer un Flow</option>
                 <option value="send_product">Envoyer un Produit</option>
                 <option value="send_product_list">Envoyer une Liste de Produits</option>
+                <option value="send_product_carousel">Envoyer un Carousel de Produits</option>
                 <option value="send_catalog">Envoyer le Catalogue</option>
                 <option value="create_saspay_payment">Demande de Paiement SasPay</option>
                 <option value="http_request">Requête HTTP (Webhook / API)</option>
@@ -566,6 +567,67 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
                     </label>
                   )
                 })}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* SEND PRODUCT CAROUSEL PROPERTIES */}
+        {selectedNode.type === 'actionNode' && selectedNode.data.actionType === 'send_product_carousel' && (
+          <>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground">Message d'accompagnement</label>
+              <textarea
+                rows={2}
+                placeholder="Faites défiler pour découvrir nos produits :"
+                className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
+                value={(selectedNode.data.actionPayload as any)?.text || ''}
+                onChange={(e) => handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), text: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1 mt-4">
+              <label className="text-xs font-medium text-foreground">Catalogue</label>
+              <select
+                className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
+                value={(selectedNode.data.actionPayload as any)?.catalogId || ''}
+                onChange={(e) => handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), catalogId: e.target.value })}
+              >
+                <option value="">Sélectionner un catalogue...</option>
+                {catalogs.map(c => (
+                  <option key={c.meta_catalog_id} value={c.meta_catalog_id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1 mt-4">
+              <label className="text-xs font-medium text-foreground">Produits (Cochez de 2 à 10 pour le carousel)</label>
+              <div className="max-h-40 overflow-y-auto border border-border rounded-md p-2 space-y-2 bg-background">
+                {products.length === 0 ? (
+                  <p className="text-xs text-slate-500">Aucun produit dans ce catalogue.</p>
+                ) : (
+                  products.map(p => {
+                    const selectedIds = ((selectedNode.data.actionPayload as any)?.productRetailerIds || '').split(',').filter(Boolean)
+                    const isSelected = selectedIds.includes(p.product_retailer_id)
+                    return (
+                      <div key={p.id} className="flex items-center space-x-2">
+                        <input 
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            let newIds = [...selectedIds]
+                            if (e.target.checked) {
+                              if (newIds.length < 10) newIds.push(p.product_retailer_id)
+                            } else {
+                              newIds = newIds.filter(id => id !== p.product_retailer_id)
+                            }
+                            handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), productRetailerIds: newIds.join(',') })
+                          }}
+                          className="h-3 w-3 rounded border-gray-300"
+                        />
+                        <span className="text-xs">{p.name} ({p.product_retailer_id})</span>
+                      </div>
+                    )
+                  })
+                )}
               </div>
             </div>
           </>

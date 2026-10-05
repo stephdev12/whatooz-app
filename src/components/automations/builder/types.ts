@@ -15,7 +15,7 @@ export interface TriggerNodeData extends BaseNodeData {
 }
 
 export interface ActionNodeData extends BaseNodeData {
-  actionType: 'send_message' | 'send_template' | 'send_flow' | 'send_product' | 'send_product_list' | 'send_catalog' | 'create_saspay_payment' | 'http_request'
+  actionType: 'send_message' | 'send_template' | 'send_flow' | 'send_product' | 'send_product_list' | 'send_product_carousel' | 'send_catalog' | 'create_saspay_payment' | 'http_request'
   actionPayload?: {
     text?: string
     templateName?: string
