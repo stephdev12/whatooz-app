@@ -41,7 +41,7 @@ export class AgentRuntime {
     throw new Error("No available AI providers configured.");
   }
 
-  static async handleMessage(organizationId: string, agentId: string, conversationId: string, contactId: string, userMessage: string) {
+  static async handleMessage(organizationId: string, agentId: string, conversationId: string, contactId: string, userMessage: string, customerPhone?: string) {
     console.log(`[AgentRuntime] Starting run for agent ${agentId} on conv ${conversationId}`);
     
     // 1. Load agent
@@ -82,7 +82,7 @@ export class AgentRuntime {
           let result: any;
           let status: 'SUCCESS' | 'ERROR' = 'SUCCESS';
           try {
-            result = await t.execute(args, { agentId, organizationId, conversationId, contactId });
+            result = await t.execute(args, { agentId, organizationId, conversationId, contactId, customerPhone });
           } catch (err: any) {
              result = { error: err.message };
              status = 'ERROR';

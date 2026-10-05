@@ -1,4 +1,4 @@
-import { searchProductsTool, getProductTool, calculateNegotiatedPriceTool } from './tools/productTools';
+import { searchProductsTool, getProductTool, calculateNegotiatedPriceTool, sendProductToUserTool, sendCatalogToUserTool } from './tools/productTools';
 import { listAvailableAutomationsTool, runAutomationTool } from './tools/automationTools';
 import { createOrderTool, createPaymentTool } from './tools/commerceTools';
 
@@ -14,7 +14,7 @@ export interface AgentContext {
   organizationId: string;
   conversationId: string;
   contactId?: string;
-  // Other context that might be required by tools
+  customerPhone?: string;
 }
 
 export class AgentToolRegistry {
@@ -59,6 +59,8 @@ export const toolRegistry = new AgentToolRegistry();
 toolRegistry.register(searchProductsTool);
 toolRegistry.register(getProductTool);
 toolRegistry.register(calculateNegotiatedPriceTool);
+toolRegistry.register(sendProductToUserTool);
+toolRegistry.register(sendCatalogToUserTool);
 
 // Phase 3: Automation Tools
 toolRegistry.register(listAvailableAutomationsTool);

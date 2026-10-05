@@ -460,7 +460,7 @@ export async function POST(request: NextRequest) {
           const assignedAgentId = await AgentAssignmentResolver.resolveAgentForConversation(organizationId, contactId, conversationId);
           if (assignedAgentId) {
             console.log(`[Webhook POST] Conversation ${conversationId} is assigned to AI Agent ${assignedAgentId}`);
-            const aiResponseText = await AgentRuntime.handleMessage(organizationId, assignedAgentId, conversationId, contactId, contentText);
+            const aiResponseText = await AgentRuntime.handleMessage(organizationId, assignedAgentId, conversationId, contactId, contentText, customerPhone);
             
             if (aiResponseText && aiResponseText.trim() !== '') {
               const { data: userConfig } = await supabaseAdmin
