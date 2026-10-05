@@ -601,17 +601,17 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
             <div className="space-y-1 mt-4">
               <label className="text-xs font-medium text-foreground">Produits (Cochez de 2 à 10 pour le carousel)</label>
               <div className="max-h-40 overflow-y-auto border border-border rounded-md p-2 space-y-2 bg-background">
-                {products.length === 0 ? (
+                {products.filter(p => !((selectedNode.data.actionPayload as any)?.catalogId) || catalogs.find(c => c.meta_catalog_id === (selectedNode.data.actionPayload as any)?.catalogId)?.id === p.catalog_id).length === 0 ? (
                   <p className="text-xs text-slate-500">Aucun produit dans ce catalogue.</p>
                 ) : (
-                  products.map(p => {
+                  products.filter(p => !((selectedNode.data.actionPayload as any)?.catalogId) || catalogs.find(c => c.meta_catalog_id === (selectedNode.data.actionPayload as any)?.catalogId)?.id === p.catalog_id).map(p => {
                     const selectedIds = ((selectedNode.data.actionPayload as any)?.productRetailerIds || '')
                       .split(',')
                       .map((id: string) => id.trim())
                       .filter(Boolean)
                     const isSelected = selectedIds.includes(p.retailer_id)
                     return (
-                      <div key={p.id} className="flex items-center space-x-2">
+                      <label key={p.retailer_id} className="flex items-center space-x-2 text-xs cursor-pointer">
                         <input 
                           type="checkbox"
                           checked={isSelected}
@@ -626,8 +626,8 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
                           }}
                           className="h-3 w-3 rounded border-gray-300"
                         />
-                        <span className="text-xs">{p.name} ({p.retailer_id})</span>
-                      </div>
+                        <span>{p.name} <span className="text-muted-foreground">({p.retailer_id})</span></span>
+                      </label>
                     )
                   })
                 )}
