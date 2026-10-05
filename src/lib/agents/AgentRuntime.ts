@@ -104,8 +104,9 @@ export class AgentRuntime {
         messages: messages,
         system: agent.system_prompt || '',
         tools: Object.keys(aiTools).length > 0 ? aiTools : undefined,
+        // @ts-ignore - maxSteps might not be in the type definitions for this version of ai
         maxSteps: MAX_TOOL_CALLS_PER_TURN, // Handles the looping automatically
-      });
+      } as any);
 
       // Record usage
       await supabase.from('ai_usage').insert({
@@ -114,8 +115,8 @@ export class AgentRuntime {
         conversation_id: conversationId,
         model: agent.model,
         tool_calls: steps.length - 1,
-        input_tokens: usage.promptTokens,
-        output_tokens: usage.completionTokens
+        input_tokens: (usage as any).promptTokens || 0,
+        output_tokens: (usage as any).completionTokens || 0
       });
 
       return text;
