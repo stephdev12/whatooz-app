@@ -253,10 +253,11 @@ export const sendProductListToUserTool: AgentTool = {
         accessToken,
         to: context.customerPhone,
         catalogId: product.catalog_id,
+        headerText: "Sélection",
         sections: [
           {
-            title: args.title || "Notre Sélection",
-            productRetailerIds: args.retailer_ids.slice(0, 30) // Max 30
+            title: (args.title || "Notre Sélection").substring(0, 24),
+            product_items: args.retailer_ids.slice(0, 30).map((id: string) => ({ product_retailer_id: id }))
           }
         ],
         bodyText: args.body_text || "Voici une sélection de produits qui pourraient vous intéresser :"
