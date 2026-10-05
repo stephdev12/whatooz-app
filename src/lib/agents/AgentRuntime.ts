@@ -4,7 +4,7 @@ import { toolRegistry } from "./AgentToolRegistry";
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 // Vercel AI SDK
-import { generateText, tool as aiTool, jsonSchema } from 'ai';
+import { generateText, tool as aiTool, jsonSchema, stepCountIs } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
@@ -104,9 +104,11 @@ export class AgentRuntime {
         messages: messages,
         system: (agent.agent_config as any)?.system_prompt || agent.system_prompt || '',
         tools: Object.keys(aiTools).length > 0 ? aiTools : undefined,
-        // @ts-ignore - maxSteps might not be in the type definitions for this version of ai
-        maxSteps: MAX_TOOL_CALLS_PER_TURN, // Handles the looping automatically
-      } as any);
+        stopWhen: stepCountIs(MAX_TOOL_CALLS_PER_TURN),
+        onStepFinish: (event: any) => {
+          console.log(`[AgentRuntime] Step finished. Text: "${event.text?.substring(0, 100) || '(none)'}". Tool calls: ${event.toolCalls?.length || 0}. Finish reason: ${event.finishReason}`);
+        },
+      });
 
       // Record usage
       await supabase.from('ai_usage').insert({
