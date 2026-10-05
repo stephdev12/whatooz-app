@@ -972,7 +972,7 @@ export async function POST(request: NextRequest) {
                               text: payload.message ? replaceVariables(payload.message) : 'Découvrez notre catalogue :'
                             },
                             action: {
-                              name: 'catalog_link'
+                              name: 'catalog_message'
                             }
                           }
                         })
