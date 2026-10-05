@@ -76,7 +76,7 @@ export class AgentRuntime {
       aiTools[t.name] = aiTool({
         description: t.description,
         parameters: jsonSchema(t.parameters as any), // Use jsonSchema wrapper
-        execute: async (args) => {
+        execute: async (args: any) => {
           console.log(`[AgentRuntime] Executing tool ${t.name}`, args);
           const startTime = Date.now();
           let result: any;
@@ -91,7 +91,7 @@ export class AgentRuntime {
           await AgentConversationService.logToolCall(agentId, conversationId, t.name, args, result, status, duration);
           return result;
         }
-      });
+      } as any);
     }
 
     // 4. Initialize model
