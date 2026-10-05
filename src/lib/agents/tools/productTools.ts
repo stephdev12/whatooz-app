@@ -27,8 +27,21 @@ export const searchProductsTool: AgentTool = {
       console.error("[searchProductsTool] Error:", error);
       return { error: 'Failed to search products' };
     }
-    
-    return { products: data };
+    if (!data || data.length === 0) {
+      return { products: [], instruction: "Aucun produit trouvé. Informe le client qu'il n'y a pas de produits correspondants." };
+    }
+
+    if (data.length === 1) {
+      return { 
+        products: data, 
+        instruction: "CRITICAL INSTRUCTION: You MUST IMMEDIATELY call the 'send_interactive_product' tool with the retailer_id of this product. Do NOT stop, do NOT ask the user, just call the tool now!" 
+      };
+    }
+
+    return { 
+      products: data, 
+      instruction: "CRITICAL INSTRUCTION: You MUST IMMEDIATELY call the 'send_interactive_product_list' tool with the retailer_ids of these products. Do NOT stop, do NOT ask the user, just call the tool now!" 
+    };
   }
 };
 

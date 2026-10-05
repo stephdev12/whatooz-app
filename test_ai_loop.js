@@ -1,21 +1,75 @@
 require('dotenv').config({ path: '.env.local' });
-const { createClient } = require('@supabase/supabase-js');
-const { generateText, tool: aiTool } = require('ai');
-const { createOpenAI } = require('@ai-sdk/openai');
+const { generateText, tool: aiTool, jsonSchema } = require('ai');
+const { createGoogleGenerativeAI } = require('@ai-sdk/google');
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
+const model = google('gemini-2.5-flash');
 
-async function main() {
-  const agentId = 'a852828f-9609-45ef-b5cd-fa39e076deaf'; // The agent from logs
+async function testAI() {
+  console.log("Starting test...");
+  
+  const aiTools = {
+    search_products: aiTool({
+      description: 'Search for products in the catalog by name or description.',
+      parameters: jsonSchema({
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'The search query' }
+        },
+        required: ['query']
+      }),
+      execute: async (args) => {
+        console.log("Executing search_products:", args);
+        return {
+          products: [{
+            id: "f81005b2-6216-420d-bf02-c516f603c963",
+            name: "casque gaming",
+            price: 200,
+            currency: "USD",
+            description: "casque pro for gaming",
+            retailer_id: "jt4zd4o4mc",
+            availability: "in stock"
+          }]
+        };
+      }
+    }),
+    send_interactive_product: aiTool({
+      description: 'Sends an interactive product message to the user',
+      parameters: jsonSchema({
+        type: 'object',
+        properties: {
+          product_retailer_id: { type: 'string' }
+        },
+        required: ['product_retailer_id']
+      }),
+      execute: async (args) => {
+        console.log("Executing send_interactive_product:", args);
+        return { success: true, message: "Sent product" };
+      }
+    })
+  };
 
-  const { data: agent } = await supabase.from('ai_agents').select('*').eq('id', agentId).single();
-  console.log("Agent:", agent.name, "| Model:", agent.model_provider, agent.model_name);
-  console.log("System Prompt:", agent.system_prompt);
-
-  const { data: perms } = await supabase.from('agent_tool_permissions').select('*').eq('agent_id', agentId);
-  console.log("Granted tools:", perms.map(p => p.tool_name));
+  try {
+    const { text, steps } = await generateText({
+      model: model,
+      messages: [{ role: 'user', content: 'Je veux voir le casque' }],
+      system: `Tu es le vendeur de la boutique.
+1. Si le client demande TOUS les produits ou le catalogue global, utilise 'send_interactive_catalog'.
+2. Si le client demande un produit ou une catégorie précise (ex: "casque", "souris"), utilise TOUJOURS 'search_products' avec le paramètre 'query' pour chercher ce terme spécifique.
+3. Après la recherche :
+   - Si tu as trouvé PLUSIEURS produits (ex: plusieurs casques), utilise 'send_interactive_product_list' avec les retailer_ids trouvés pour lui envoyer le carousel.
+   - Si tu as trouvé UN SEUL produit, utilise 'send_interactive_product' avec son retailer_id exact.
+   - Si tu ne trouves rien, dis-le lui gentiment.
+Ne réponds jamais avec une simple liste texte, utilise toujours ces outils interactifs. NE T'ARRETE PAS après la recherche, enchaîne directement avec l'envoi du produit/carousel.`,
+      tools: aiTools,
+      maxSteps: 8
+    });
+    
+    console.log("Final text:", text);
+    console.log("Steps:", JSON.stringify(steps, null, 2));
+  } catch (err) {
+    console.error("Error:", err);
+  }
 }
 
-main().catch(console.error);
+testAI();
