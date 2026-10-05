@@ -74,51 +74,67 @@ export class SasPayService {
     // Note: The following is a mock of the actual SasPay API call based on standard gateway patterns.
     // Replace with the exact SasPay API URL and payload schema.
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.whatooz.com'
-    const webhookUrl = params.webhookUrl || `${baseUrl}/api/webhooks/saspay`
     const successUrl = params.successUrl || `${baseUrl}/payment/success`
-    const failUrl = params.failUrl || `${baseUrl}/payment/fail`
 
     const payload = {
-      amount: params.amount,
-      currency: params.currency,
+      amount: params.amount.toString(),
+      currency: params.currency || 'XOF',
       description: params.description || `Commande Whatooz ${params.orderId}`,
-      customer_msisdn: params.customerPhone,
-      transaction_id: localTransactionId, // Send our internal UUID as reference
-      merchant_id: config.merchantId,
+      customer_email: 'client@whatooz.com', // Required by SasPay API
+      customer_name: params.customerPhone || 'Client Whatooz', // Required by SasPay API
+      customer_phone: params.customerPhone,
       return_url: successUrl,
-      cancel_url: failUrl,
-      notify_url: webhookUrl
+      metadata: {
+        transaction_id: localTransactionId,
+        order_id: params.orderId
+      }
     }
 
-    // MOCK: In a real implementation, you will send a POST request to SasPay endpoint.
-    // const response = await fetch('https://api.saspay.com/v1/checkout', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Authorization': `Bearer ${config.apiKey}`,
-    //     'Content-Type': 'application/json'
-    //   },
-    //   body: JSON.stringify(payload)
-    // })
-    // const data = await response.json()
-    // if (!response.ok) throw new Error(data.message)
-
-    // Mocking successful response
-    const mockProviderTransactionId = `SP-${Math.floor(Math.random() * 100000000)}`
-    const mockPaymentLink = `https://checkout.saspay.com/pay/${mockProviderTransactionId}`
-
-    // Update transaction with provider ID and payment link
-    await supabaseAdmin
-      .from('payment_transactions')
-      .update({
-        provider_transaction_id: mockProviderTransactionId,
-        payment_link: mockPaymentLink
+    try {
+      const response = await fetch('https://api.saspay.me/api/v1/checkout-sessions/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
       })
-      .eq('id', localTransactionId)
 
-    return {
-      transactionId: localTransactionId,
-      paymentLink: mockPaymentLink,
-      status: 'pending'
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to create SasPay checkout session')
+      }
+
+      const providerTransactionId = data.id
+      const paymentLink = data.checkout_url
+
+      if (!providerTransactionId || !paymentLink) {
+         throw new Error('Invalid response from SasPay API')
+      }
+
+      // Update transaction with provider ID and payment link
+      await supabaseAdmin
+        .from('payment_transactions')
+        .update({
+          provider_transaction_id: providerTransactionId,
+          payment_link: paymentLink
+        })
+        .eq('id', localTransactionId)
+
+      return {
+        transactionId: localTransactionId,
+        paymentLink: paymentLink,
+        status: 'pending'
+      }
+    } catch (error: any) {
+      // Mark local transaction as failed if the API call fails
+      await supabaseAdmin
+        .from('payment_transactions')
+        .update({ status: 'failed' })
+        .eq('id', localTransactionId)
+
+      throw new Error(`SasPay integration error: ${error.message}`)
     }
   }
 
@@ -138,17 +154,39 @@ export class SasPayService {
 
     const config = this.getConfig()
 
-    // Call SasPay API to check status
-    // MOCK
-    const mockStatus = 'paid' // 'pending', 'paid', 'failed'
+    try {
+      const response = await fetch(`https://api.saspay.me/api/v1/checkout-sessions/${tx.provider_transaction_id}/`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.apiKey}`
+        }
+      })
 
-    // Update local status if changed
-    await supabaseAdmin
-      .from('payment_transactions')
-      .update({ status: mockStatus })
-      .eq('id', transactionId)
+      if (!response.ok) {
+        throw new Error('Failed to fetch checkout session status')
+      }
 
-    return mockStatus
+      const data = await response.json()
+      const saspayStatus = data.status?.toUpperCase()
+
+      let internalStatus = 'pending'
+      if (saspayStatus === 'SUCCESS' || saspayStatus === 'COMPLETED' || saspayStatus === 'PAID') {
+        internalStatus = 'paid'
+      } else if (saspayStatus === 'FAILED' || saspayStatus === 'CANCELLED') {
+        internalStatus = 'failed'
+      }
+
+      // Update local status if changed
+      await supabaseAdmin
+        .from('payment_transactions')
+        .update({ status: internalStatus })
+        .eq('id', transactionId)
+
+      return internalStatus
+    } catch (error: any) {
+      console.error(`[SasPayService] Error checking status: ${error.message}`)
+      return 'pending' // Default to pending on error
+    }
   }
 
   /**

@@ -31,20 +31,18 @@ export async function POST(req: Request) {
         'Authorization': `Bearer ${process.env.SASPAY_API_KEY || ''}`
       },
       body: JSON.stringify({
-        amount: plan.price_fcfa,
+        amount: plan.price_fcfa.toString(),
         currency: 'XOF',
         description: `Abonnement Whatooz - Plan ${plan.name}`,
-        customer: {
-          email: user.email,
-        },
+        customer_email: user.email || 'client@whatooz.com',
+        customer_name: user.user_metadata?.full_name || 'Client',
         // Meta data used by the webhook to identify what the payment was for
         metadata: {
           type: 'subscription',
           organization_id: organization_id,
           plan_id: planId
         },
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/settings/billing?status=success`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/settings/billing?status=cancel`,
+        return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/dashboard/settings/billing?status=success`
       })
     })
 
