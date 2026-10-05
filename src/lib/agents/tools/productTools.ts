@@ -154,7 +154,7 @@ export const sendProductToUserTool: AgentTool = {
         to: context.customerPhone,
         catalogId: product.catalog_id,
         productRetailerId: args.retailer_id,
-        bodyText: args.body_text
+        bodyText: args.body_text || "Voici le produit demandé :"
       });
       return { success: true, message: "Produit envoyé avec succès" };
     } catch (e: any) {
@@ -192,7 +192,7 @@ export const sendCatalogToUserTool: AgentTool = {
         phoneNumberId: userConfig.phone_number_id,
         accessToken,
         to: context.customerPhone,
-        bodyText: args.body_text
+        bodyText: args.body_text || "Voici notre catalogue complet :"
       });
       return { success: true, message: "Catalogue envoyé avec succès" };
     } catch (e: any) {
