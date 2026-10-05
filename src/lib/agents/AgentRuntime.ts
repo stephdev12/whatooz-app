@@ -102,7 +102,7 @@ export class AgentRuntime {
       const { text, usage, steps } = await generateText({
         model: model,
         messages: messages,
-        system: agent.system_prompt || '',
+        system: agent.agent_config?.system_prompt || agent.system_prompt || '',
         tools: Object.keys(aiTools).length > 0 ? aiTools : undefined,
         // @ts-ignore - maxSteps might not be in the type definitions for this version of ai
         maxSteps: MAX_TOOL_CALLS_PER_TURN, // Handles the looping automatically
