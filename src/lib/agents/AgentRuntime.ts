@@ -12,30 +12,44 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 const MAX_TOOL_CALLS_PER_TURN = 8;
 
 export class AgentRuntime {
-  static getModelProvider(modelString: string) {
-    // Map Agent Model to actual provider models
-    // E.g. 'Advanced' -> Claude 3.5 Sonnet, 'Balanced' -> GPT-4o-mini, 'Fast' -> Gemini 2.5 Flash
-    // We can allow rotation by picking the active one based on env variables or config
-    
-    if (modelString === 'Advanced' && process.env.ANTHROPIC_API_KEY) {
-      const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      return anthropic('claude-3-5-sonnet-latest');
-    }
-    
-    if (modelString === 'Advanced' && process.env.OPENAI_API_KEY) {
+  static getModelProvider(modelString: string, preferredProvider?: string) {
+    const isAdvanced = (modelString || '').toUpperCase() === 'ADVANCED';
+    const provider = (preferredProvider || '').toLowerCase();
+
+    // 1. If preferred provider is OpenAI and key exists
+    if (provider === 'openai' && process.env.OPENAI_API_KEY) {
       const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      return openai('gpt-4o');
+      return openai(isAdvanced ? 'gpt-4o' : 'gpt-4o-mini');
     }
 
-    if (process.env.GEMINI_API_KEY) {
-      const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
-      return google(modelString === 'Advanced' ? 'gemini-2.5-pro' : 'gemini-2.5-flash');
+    // 2. If preferred provider is Anthropic and key exists
+    if (provider === 'anthropic' && process.env.ANTHROPIC_API_KEY) {
+      const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      return anthropic(isAdvanced ? 'claude-3-5-sonnet-latest' : 'claude-3-5-haiku-latest');
     }
 
-    // Fallback to OpenAI if Gemini is not present but OpenAI is
+    // 3. If preferred provider is Google and key exists
+    if (provider === 'google' && (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY)) {
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      const google = createGoogleGenerativeAI({ apiKey });
+      return google(isAdvanced ? 'gemini-3.8-pro' : 'gemini-3.8-flash');
+    }
+
+    // Fallbacks if preferred provider is not configured with an API key:
+    if (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      const google = createGoogleGenerativeAI({ apiKey });
+      return google(isAdvanced ? 'gemini-3.8-pro' : 'gemini-3.8-flash');
+    }
+
     if (process.env.OPENAI_API_KEY) {
       const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      return openai('gpt-4o-mini');
+      return openai(isAdvanced ? 'gpt-4o' : 'gpt-4o-mini');
+    }
+
+    if (process.env.ANTHROPIC_API_KEY) {
+      const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+      return anthropic(isAdvanced ? 'claude-3-5-sonnet-latest' : 'claude-3-5-haiku-latest');
     }
 
     throw new Error("No available AI providers configured.");
@@ -95,7 +109,9 @@ export class AgentRuntime {
     }
 
     // 4. Initialize model
-    const model = this.getModelProvider(agent.model);
+    const preferredProvider = (agent.agent_config as any)?.provider;
+    const modelLevel = (agent.agent_config as any)?.model || agent.model;
+    const model = this.getModelProvider(modelLevel, preferredProvider);
 
     // 5. Generate Text with Tools
     try {

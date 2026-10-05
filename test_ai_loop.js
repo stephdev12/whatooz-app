@@ -3,7 +3,7 @@ const { generateText, tool: aiTool, jsonSchema } = require('ai');
 const { createGoogleGenerativeAI } = require('@ai-sdk/google');
 
 const google = createGoogleGenerativeAI({ apiKey: process.env.GEMINI_API_KEY });
-const model = google('gemini-2.5-flash');
+const model = google('gemini-3.8-flash');
 
 async function testAI() {
   console.log("Starting test...");
