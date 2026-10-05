@@ -17,6 +17,18 @@ export interface ModelCandidate {
   model: any;
 }
 
+const agentRouterFetch = (url: RequestInfo | URL, options?: RequestInit) => {
+  const headers = new Headers(options?.headers || {});
+  headers.set('User-Agent', 'claude-cli/0.2.29 (external, cli)');
+  headers.set('X-Stainless-Lang', 'js');
+  headers.set('X-Stainless-Package-Version', '0.38.0');
+  headers.set('X-Stainless-OS', 'Linux');
+  headers.set('X-Stainless-Arch', 'x64');
+  headers.set('X-Stainless-Runtime', 'node');
+  headers.set('X-Stainless-Runtime-Version', 'v20.18.0');
+  return fetch(url, { ...options, headers });
+};
+
 export class AgentRuntime {
   static AGENTROUTER_DEFAULT_MODELS = [
     'claude-opus-4-8',
@@ -35,8 +47,9 @@ export class AgentRuntime {
     const addAgentRouterCandidates = (selectedModel?: string) => {
       if (!process.env.AGENTROUTER_API_KEY) return;
       const agentRouter = createOpenAI({
-        baseURL: process.env.AGENTROUTER_BASE_URL || 'https://co.agentrouter.org/v1',
+        baseURL: process.env.AGENTROUTER_BASE_URL || 'https://agentrouter.org/v1',
         apiKey: process.env.AGENTROUTER_API_KEY,
+        fetch: agentRouterFetch,
       });
 
       let primary = selectedModel;
@@ -54,7 +67,7 @@ export class AgentRuntime {
       candidates.push({
         provider: 'agentrouter',
         modelName: primary,
-        model: agentRouter(primary)
+        model: agentRouter.chat(primary)
       });
 
       // Add remaining AgentRouter models as sequential fallbacks
@@ -63,7 +76,7 @@ export class AgentRuntime {
           candidates.push({
             provider: 'agentrouter',
             modelName: fallbackModel,
-            model: agentRouter(fallbackModel)
+            model: agentRouter.chat(fallbackModel)
           });
         }
       }
