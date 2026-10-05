@@ -112,7 +112,7 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
 
       // Populate default data based on type
       if (type === 'triggerNode') {
-        newNode.data = { ...newNode.data, triggerType: 'keyword', triggerValue: '' }
+        newNode.data = { ...newNode.data, triggerType: subtype || 'keyword', triggerValue: '' }
       } else if (type === 'actionNode') {
         newNode.data = { 
           ...newNode.data, 

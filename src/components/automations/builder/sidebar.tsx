@@ -118,6 +118,39 @@ export function Sidebar() {
           
           <div
             className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg cursor-grab hover:border-emerald-400 hover:shadow-sm transition-all"
+            onDragStart={(e) => onDragStart(e, 'triggerNode', 'Commande créée', 'order_created')}
+            draggable
+          >
+            <div className="p-1.5 bg-emerald-500/20 text-emerald-600 rounded-md">
+              <ShoppingCart className="w-4 h-4" />
+            </div>
+            <span className="text-sm font-medium text-foreground">Commande créée</span>
+          </div>
+
+          <div
+            className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg cursor-grab hover:border-teal-400 hover:shadow-sm transition-all"
+            onDragStart={(e) => onDragStart(e, 'triggerNode', 'Paiement Confirmé', 'payment_confirmed')}
+            draggable
+          >
+            <div className="p-1.5 bg-teal-500/20 text-teal-600 rounded-md">
+              <CreditCard className="w-4 h-4" />
+            </div>
+            <span className="text-sm font-medium text-foreground">Paiement Confirmé</span>
+          </div>
+
+          <div
+            className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg cursor-grab hover:border-red-400 hover:shadow-sm transition-all"
+            onDragStart={(e) => onDragStart(e, 'triggerNode', 'Paiement Échoué', 'payment_failed')}
+            draggable
+          >
+            <div className="p-1.5 bg-red-500/20 text-red-600 rounded-md">
+              <CreditCard className="w-4 h-4" />
+            </div>
+            <span className="text-sm font-medium text-foreground">Paiement Échoué</span>
+          </div>
+
+          <div
+            className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg cursor-grab hover:border-emerald-400 hover:shadow-sm transition-all"
             onDragStart={(e) => onDragStart(e, 'actionNode', 'Envoyer le Catalogue', 'send_catalog')}
             draggable
           >
@@ -136,6 +169,28 @@ export function Sidebar() {
               <ShoppingCart className="w-4 h-4" />
             </div>
             <span className="text-sm font-medium text-foreground">Envoyer un Produit</span>
+          </div>
+
+          <div
+            className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg cursor-grab hover:border-orange-400 hover:shadow-sm transition-all"
+            onDragStart={(e) => onDragStart(e, 'actionNode', 'Liste de Produits', 'send_product_list')}
+            draggable
+          >
+            <div className="p-1.5 bg-orange-500/20 text-orange-600 rounded-md">
+              <ShoppingCart className="w-4 h-4" />
+            </div>
+            <span className="text-sm font-medium text-foreground">Liste de Produits</span>
+          </div>
+
+          <div
+            className="flex items-center gap-3 p-3 bg-card border border-border rounded-lg cursor-grab hover:border-orange-400 hover:shadow-sm transition-all"
+            onDragStart={(e) => onDragStart(e, 'actionNode', 'Carousel de Produits', 'send_product_carousel')}
+            draggable
+          >
+            <div className="p-1.5 bg-orange-500/20 text-orange-600 rounded-md">
+              <ShoppingCart className="w-4 h-4" />
+            </div>
+            <span className="text-sm font-medium text-foreground">Carousel de Produits</span>
           </div>
 
           <div

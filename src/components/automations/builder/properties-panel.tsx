@@ -675,8 +675,8 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
                 rows={3}
                 placeholder="Veuillez régler votre commande via SasPay :"
                 className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
-                value={(selectedNode.data.paymentMessage as string) || ''}
-                onChange={(e) => handleChange('paymentMessage', e.target.value)}
+                value={((selectedNode.data.actionPayload as any)?.paymentMessage as string) || ''}
+                onChange={(e) => handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), paymentMessage: e.target.value })}
               />
             </div>
             <div className="space-y-1 mt-4">
@@ -685,8 +685,8 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
                 type="number"
                 placeholder="Laisser vide pour montant dynamique"
                 className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
-                value={(selectedNode.data.paymentAmount as string) || ''}
-                onChange={(e) => handleChange('paymentAmount', e.target.value)}
+                value={((selectedNode.data.actionPayload as any)?.paymentAmount as string) || ''}
+                onChange={(e) => handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), paymentAmount: e.target.value })}
               />
             </div>
             <p className="text-[10px] text-slate-500 mt-1">Génère un lien de paiement SasPay dynamique basé sur le panier.</p>
