@@ -8,6 +8,7 @@ import {
   sendFlowMessage,
   listTemplates,
 } from '@/lib/whatsapp/meta-api'
+import { SasPayService } from '@/lib/payments/saspay'
 
 export const dynamic = 'force-dynamic'
 
@@ -163,6 +164,7 @@ export async function POST(request: NextRequest) {
         let mediaUrl = null
         let flowResponseData: Record<string, unknown> | null = null
         let flowToken: string | null = null
+        let currentOrderId: string | undefined = undefined
 
         const customerProfileName =
           value.contacts?.find((c: { wa_id: string }) => c.wa_id === customerPhone)
@@ -416,6 +418,10 @@ export async function POST(request: NextRequest) {
                 currency,
                 metadata: { note: orderData.text }
               }).select('id').maybeSingle()
+
+              if (newOrder) {
+                currentOrderId = newOrder.id
+              }
 
               if (newOrder && items.length > 0) {
                 const orderItems = items.map((i: any) => ({
@@ -1080,6 +1086,74 @@ export async function POST(request: NextRequest) {
                     } catch (err: any) {
                       console.error('[Webhook Automations] Error sending catalog:', err)
                       outboundText = `[Erreur d'envoi du catalogue: ${err.message}]`
+                    }
+                  } else if (auto.action_type === 'create_saspay_payment') {
+                    console.log(`[Webhook Automations] Executing create_saspay_payment...`, payload)
+                    try {
+                      // amount can be explicitly given or extracted from the current order if available
+                      let amountToCharge = parseFloat(payload.amount);
+                      
+                      // If amount is not set explicitly, try to recalculate from msg.order
+                      if (isNaN(amountToCharge) || amountToCharge <= 0) {
+                        if (msg.type === 'order' && msg.order?.product_items) {
+                          let orderTotal = 0;
+                          msg.order.product_items.forEach((item: any) => {
+                            orderTotal += (parseInt(item.quantity) || 1) * (parseFloat(item.item_price) || 0);
+                          });
+                          amountToCharge = orderTotal;
+                        }
+                      }
+
+                      if (!amountToCharge || amountToCharge <= 0) {
+                        throw new Error("Montant du paiement invalide ou introuvable dans le panier.");
+                      }
+
+                      const orderIdRef = currentOrderId || `mock-order-${Date.now()}`;
+                      const currency = msg.order?.product_items?.[0]?.currency || 'XOF';
+
+                      const paymentRes = await SasPayService.createPayment({
+                        organizationId,
+                        orderId: orderIdRef,
+                        amount: amountToCharge,
+                        currency: currency,
+                        customerPhone: customerPhone,
+                        description: payload.message ? replaceVariables(payload.message) : `Commande WhatsApp ${orderIdRef}`
+                      });
+
+                      const msgText = (payload.message ? replaceVariables(payload.message) + '\n\n' : '') +
+                        `Veuillez régler votre commande via notre lien sécurisé SasPay:\n${paymentRes.paymentLink}`;
+
+                      const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${accessToken}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          messaging_product: 'whatsapp',
+                          recipient_type: 'individual',
+                          to: customerPhone,
+                          type: 'text',
+                          text: { body: msgText }
+                        })
+                      })
+                      const resData = await sendRes.json()
+                      console.log('[Webhook Automations] create_saspay_payment API response:', resData)
+                      if (!sendRes.ok) throw new Error(resData.error?.message || 'Failed to send payment link')
+
+                      outboundText = `[Lien de paiement généré et envoyé: ${paymentRes.paymentLink}]`
+                      await supabaseAdmin.from('messages').insert({
+                        conversation_id: conversationId,
+                        organization_id: organizationId,
+                        direction: 'outbound',
+                        message_type: 'text',
+                        content_text: outboundText,
+                        wamid: resData.messages?.[0]?.id || `failed_${Date.now()}`,
+                        status: 'sent',
+                      })
+                    } catch (err: any) {
+                      console.error('[Webhook Automations] Error generating payment link:', err)
+                      outboundText = `[Erreur de génération de lien de paiement: ${err.message}]`
                     }
                   } else if (auto.action_type === 'http_request' && payload.url) {
                     const method = payload.method || 'POST'
