@@ -4,7 +4,7 @@ import { toolRegistry } from "./AgentToolRegistry";
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 // Vercel AI SDK
-import { generateText, tool as aiTool, CoreMessage, jsonSchema } from 'ai';
+import { generateText, tool as aiTool, jsonSchema } from 'ai';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createAnthropic } from '@ai-sdk/anthropic';
