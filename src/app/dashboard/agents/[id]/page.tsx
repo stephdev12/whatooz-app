@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useOrganization } from '@/hooks/use-organization'
-import { ArrowLeft, Loader2, Save, Wrench, FileText, Settings, Key, Store, Zap } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Wrench, FileText, Settings, Key, Store, Zap, Bot } from 'lucide-react'
 
 export default function EditAgentPage() {
   const router = useRouter()
