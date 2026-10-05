@@ -55,7 +55,7 @@ export class AgentRuntime {
     const state = await AgentConversationService.getState(conversationId, agentId);
     
     // We would normally fetch recent messages here
-    const messages: CoreMessage[] = [
+    const messages: any[] = [
       { role: "user", content: userMessage }
     ];
 
