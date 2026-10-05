@@ -10,7 +10,7 @@ export const searchProductsTool: AgentTool = {
       query: { type: 'string', description: 'The search query (e.g., "chaussures noires")' },
       max_results: { type: 'number', description: 'Maximum number of results to return (default: 5)' }
     },
-    required: []
+    required: ['query']
   },
   execute: async (args, context) => {
     const supabase = supabaseAdmin;
