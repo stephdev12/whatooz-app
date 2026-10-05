@@ -1243,7 +1243,7 @@ export async function sendCatalogMessage(args: {
     type: 'catalog_message',
     body: { text: bodyText },
     action: {
-      name: 'catalog_link',
+      name: 'catalog_message',
     },
   }
   if (thumbnailProductRetailerId) {
