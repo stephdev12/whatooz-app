@@ -51,6 +51,19 @@ export async function POST(req: Request) {
 
     if (error) throw error
 
+    const defaultTools = [
+      'search_products', 'get_product', 'calculate_negotiated_price',
+      'create_order', 'create_payment', 'list_available_automations', 'run_automation'
+    ]
+
+    const permissions = defaultTools.map(tool => ({
+      agent_id: data.id,
+      tool_name: tool,
+      can_execute: true
+    }))
+
+    await supabaseAdmin.from('agent_tool_permissions').insert(permissions)
+
     return NextResponse.json({ agent: data })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })
