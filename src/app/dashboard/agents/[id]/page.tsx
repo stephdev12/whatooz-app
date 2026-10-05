@@ -206,12 +206,12 @@ export default function EditAgentPage() {
                   <span className="text-[10px] bg-purple-500/20 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-full font-medium">Clé Unique</span>
                 </div>
                 <p className="text-muted-foreground leading-relaxed text-[11px]">
-                  Un seul endpoint compatible OpenAI (<code className="text-foreground">https://co.agentrouter.org/v1</code>) pour exécuter Claude 3.5, GPT-4o, DeepSeek V3/R1 et plus.
+                  Un seul endpoint compatible OpenAI (<code className="text-foreground">https://co.agentrouter.org/v1</code>) avec <strong>secours automatique (fallback)</strong> : si un modèle ne répond pas, Whatooz bascule instantanément sur le suivant.
                 </p>
                 <div>
-                  <label className="block font-medium mb-1 text-foreground">Modèle Spécifique (Optionnel)</label>
+                  <label className="block font-medium mb-1 text-foreground">Modèle Principal</label>
                   <select
-                    value={['', 'claude-3-5-sonnet', 'claude-3-7-sonnet', 'gpt-4o', 'gpt-4o-mini', 'deepseek-chat', 'deepseek-reasoner'].includes(customModel) ? customModel : (customModel ? 'custom' : '')}
+                    value={['', 'claude-opus-4-8', 'claude-opus-5', 'gpt-6-astra', 'deepseek-v4-flash'].includes(customModel) ? customModel : (customModel ? 'custom' : '')}
                     onChange={e => {
                       if (e.target.value === 'custom') {
                         setCustomModel('custom-model-id')
@@ -221,24 +221,25 @@ export default function EditAgentPage() {
                     }}
                     className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary mb-1.5"
                   >
-                    <option value="">Automatique selon le niveau ci-dessous</option>
-                    <option value="claude-3-5-sonnet">Claude 3.5 Sonnet (Recommandé - Excellent en Tool Calling)</option>
-                    <option value="claude-3-7-sonnet">Claude 3.7 Sonnet (Raisonnement hybride)</option>
-                    <option value="gpt-4o">OpenAI GPT-4o (Polyvalent)</option>
-                    <option value="gpt-4o-mini">OpenAI GPT-4o Mini (Ultra-rapide & Économique)</option>
-                    <option value="deepseek-chat">DeepSeek V3 (Performant & Très économique)</option>
-                    <option value="deepseek-reasoner">DeepSeek R1 (Raisonnement avancé)</option>
-                    <option value="custom">Autre modèle personnalisé (ID manuel)...</option>
+                    <option value="">Automatique selon le niveau (avec fallback)</option>
+                    <option value="claude-opus-4-8">Claude Opus 4.8 (Recommandé - Équilibré & Précis)</option>
+                    <option value="claude-opus-5">Claude Opus 5 (Avancé & Raisonnement)</option>
+                    <option value="gpt-6-astra">OpenAI GPT-6 Astra (Haute performance)</option>
+                    <option value="deepseek-v4-flash">DeepSeek V4 Flash (Ultra-rapide & Économique)</option>
+                    <option value="custom">Autre modèle (ID manuel)...</option>
                   </select>
-                  {((!['', 'claude-3-5-sonnet', 'claude-3-7-sonnet', 'gpt-4o', 'gpt-4o-mini', 'deepseek-chat', 'deepseek-reasoner'].includes(customModel)) || customModel === 'custom-model-id') && (
+                  {((!['', 'claude-opus-4-8', 'claude-opus-5', 'gpt-6-astra', 'deepseek-v4-flash'].includes(customModel)) || customModel === 'custom-model-id') && (
                     <input
                       type="text"
                       value={customModel === 'custom-model-id' ? '' : customModel}
                       onChange={e => setCustomModel(e.target.value)}
-                      placeholder="Ex: claude-opus-4-8, gpt-5-6-sol, deepseek-v4-flash..."
+                      placeholder="Ex: claude-opus-4-8, gpt-6-astra..."
                       className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
                     />
                   )}
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    Chaîne de fallback : {customModel || 'Par défaut'} ➔ claude-opus-4-8 ➔ claude-opus-5 ➔ gpt-6-astra ➔ deepseek-v4-flash
+                  </p>
                 </div>
               </div>
             )}
@@ -250,9 +251,9 @@ export default function EditAgentPage() {
                 onChange={e => setModel(e.target.value)}
                 className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
               >
-                <option value="FAST">Rapide (Ex: GPT-4o-mini, Haiku, DeepSeek Chat)</option>
-                <option value="BALANCED">Équilibré (Ex: GPT-4o, Sonnet, DeepSeek V3)</option>
-                <option value="ADVANCED">Avancé (Ex: Claude 3.5 Sonnet, Opus, O1)</option>
+                <option value="FAST">Rapide (Ex: DeepSeek V4 Flash, GPT-4o-mini)</option>
+                <option value="BALANCED">Équilibré (Ex: Claude Opus 4.8, GPT-4o)</option>
+                <option value="ADVANCED">Avancé (Ex: Claude Opus 5, GPT-6 Astra)</option>
               </select>
             </div>
 

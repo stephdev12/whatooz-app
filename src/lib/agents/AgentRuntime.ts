@@ -11,78 +11,150 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 
 const MAX_TOOL_CALLS_PER_TURN = 8;
 
+export interface ModelCandidate {
+  provider: string;
+  modelName: string;
+  model: any;
+}
+
 export class AgentRuntime {
-  static getModelProvider(modelString: string, preferredProvider?: string) {
+  static AGENTROUTER_DEFAULT_MODELS = [
+    'claude-opus-4-8',
+    'claude-opus-5',
+    'gpt-6-astra',
+    'deepseek-v4-flash'
+  ];
+
+  static getModelCandidates(modelString: string, preferredProvider?: string): ModelCandidate[] {
     const isAdvanced = (modelString || '').toUpperCase() === 'ADVANCED';
     const isFast = (modelString || '').toUpperCase() === 'FAST';
     const provider = (preferredProvider || '').toLowerCase();
+    const candidates: ModelCandidate[] = [];
 
-    // 0. If preferred provider is AgentRouter (https://agentrouter.org) and key exists
-    if (provider === 'agentrouter' && process.env.AGENTROUTER_API_KEY) {
+    // Helper: AgentRouter candidates with internal model fallback
+    const addAgentRouterCandidates = (selectedModel?: string) => {
+      if (!process.env.AGENTROUTER_API_KEY) return;
       const agentRouter = createOpenAI({
         baseURL: process.env.AGENTROUTER_BASE_URL || 'https://co.agentrouter.org/v1',
         apiKey: process.env.AGENTROUTER_API_KEY,
       });
 
-      // If a specific model name was provided (e.g. 'claude-3-5-sonnet', 'deepseek-chat', 'gpt-4o', etc.)
-      const isNamedModel = modelString && !['FAST', 'BALANCED', 'ADVANCED'].includes(modelString.toUpperCase());
-      if (isNamedModel) {
-        return agentRouter(modelString);
+      let primary = selectedModel;
+      if (!primary || ['FAST', 'BALANCED', 'ADVANCED'].includes(primary.toUpperCase())) {
+        if (isAdvanced) {
+          primary = process.env.AGENTROUTER_MODEL_ADVANCED || 'claude-opus-5';
+        } else if (isFast) {
+          primary = process.env.AGENTROUTER_MODEL_FAST || 'deepseek-v4-flash';
+        } else {
+          primary = process.env.AGENTROUTER_MODEL_BALANCED || 'claude-opus-4-8';
+        }
       }
 
+      // Add primary model first
+      candidates.push({
+        provider: 'agentrouter',
+        modelName: primary,
+        model: agentRouter(primary)
+      });
+
+      // Add remaining AgentRouter models as sequential fallbacks
+      for (const fallbackModel of this.AGENTROUTER_DEFAULT_MODELS) {
+        if (fallbackModel !== primary) {
+          candidates.push({
+            provider: 'agentrouter',
+            modelName: fallbackModel,
+            model: agentRouter(fallbackModel)
+          });
+        }
+      }
+    };
+
+    // Helper: OpenAI candidates
+    const addOpenAICandidates = () => {
+      if (!process.env.OPENAI_API_KEY) return;
+      const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
+      const primary = isAdvanced ? 'gpt-4o' : 'gpt-4o-mini';
+      candidates.push({
+        provider: 'openai',
+        modelName: primary,
+        model: openai(primary)
+      });
       if (isAdvanced) {
-        return agentRouter(process.env.AGENTROUTER_MODEL_ADVANCED || 'claude-3-5-sonnet');
-      } else if (isFast) {
-        return agentRouter(process.env.AGENTROUTER_MODEL_FAST || 'gpt-4o-mini');
-      } else {
-        return agentRouter(process.env.AGENTROUTER_MODEL_BALANCED || 'gpt-4o');
+        candidates.push({
+          provider: 'openai',
+          modelName: 'gpt-4o-mini',
+          model: openai('gpt-4o-mini')
+        });
       }
-    }
+    };
 
-    // 1. If preferred provider is OpenAI and key exists
-    if (provider === 'openai' && process.env.OPENAI_API_KEY) {
-      const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      return openai(isAdvanced ? 'gpt-4o' : 'gpt-4o-mini');
-    }
-
-    // 2. If preferred provider is Anthropic and key exists
-    if (provider === 'anthropic' && process.env.ANTHROPIC_API_KEY) {
-      const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      return anthropic(isAdvanced ? 'claude-3-5-sonnet-latest' : 'claude-3-5-haiku-latest');
-    }
-
-    // 3. If preferred provider is Google and key exists
-    if (provider === 'google' && (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY)) {
+    // Helper: Google Gemini candidates
+    const addGoogleCandidates = () => {
       const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      if (!apiKey) return;
       const google = createGoogleGenerativeAI({ apiKey });
-      return google(isAdvanced ? 'gemini-3.8-pro' : 'gemini-3.8-flash');
-    }
-
-    // Fallbacks if preferred provider is not configured with an API key:
-    if (process.env.AGENTROUTER_API_KEY) {
-      const agentRouter = createOpenAI({
-        baseURL: process.env.AGENTROUTER_BASE_URL || 'https://co.agentrouter.org/v1',
-        apiKey: process.env.AGENTROUTER_API_KEY,
+      const primary = isAdvanced ? 'gemini-3.8-pro' : 'gemini-3.8-flash';
+      candidates.push({
+        provider: 'google',
+        modelName: primary,
+        model: google(primary)
       });
-      return agentRouter(isAdvanced ? (process.env.AGENTROUTER_MODEL_ADVANCED || 'claude-3-5-sonnet') : (process.env.AGENTROUTER_MODEL_FAST || 'gpt-4o-mini'));
-    }
+      if (isAdvanced) {
+        candidates.push({
+          provider: 'google',
+          modelName: 'gemini-3.8-flash',
+          model: google('gemini-3.8-flash')
+        });
+      }
+    };
 
-    if (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
-      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-      const google = createGoogleGenerativeAI({ apiKey });
-      return google(isAdvanced ? 'gemini-3.8-pro' : 'gemini-3.8-flash');
-    }
-
-    if (process.env.OPENAI_API_KEY) {
-      const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      return openai(isAdvanced ? 'gpt-4o' : 'gpt-4o-mini');
-    }
-
-    if (process.env.ANTHROPIC_API_KEY) {
+    // Helper: Anthropic candidates
+    const addAnthropicCandidates = () => {
+      if (!process.env.ANTHROPIC_API_KEY) return;
       const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-      return anthropic(isAdvanced ? 'claude-3-5-sonnet-latest' : 'claude-3-5-haiku-latest');
+      const primary = isAdvanced ? 'claude-3-5-sonnet-latest' : 'claude-3-5-haiku-latest';
+      candidates.push({
+        provider: 'anthropic',
+        modelName: primary,
+        model: anthropic(primary)
+      });
+    };
+
+    // Build the prioritized candidate fallback chain
+    if (provider === 'agentrouter') {
+      addAgentRouterCandidates(modelString);
+      addGoogleCandidates();
+      addOpenAICandidates();
+      addAnthropicCandidates();
+    } else if (provider === 'openai') {
+      addOpenAICandidates();
+      addAgentRouterCandidates();
+      addGoogleCandidates();
+      addAnthropicCandidates();
+    } else if (provider === 'anthropic') {
+      addAnthropicCandidates();
+      addAgentRouterCandidates();
+      addOpenAICandidates();
+      addGoogleCandidates();
+    } else if (provider === 'google') {
+      addGoogleCandidates();
+      addAgentRouterCandidates();
+      addOpenAICandidates();
+      addAnthropicCandidates();
+    } else {
+      // Default: AgentRouter first if key present, else Google / OpenAI
+      addAgentRouterCandidates(modelString);
+      addGoogleCandidates();
+      addOpenAICandidates();
+      addAnthropicCandidates();
     }
 
+    return candidates;
+  }
+
+  static getModelProvider(modelString: string, preferredProvider?: string) {
+    const candidates = this.getModelCandidates(modelString, preferredProvider);
+    if (candidates.length > 0) return candidates[0].model;
     throw new Error("No available AI providers configured.");
   }
 
@@ -139,40 +211,54 @@ export class AgentRuntime {
       } as any);
     }
 
-    // 4. Initialize model
+    // 4. Initialize candidate models with fallback
     const preferredProvider = (agent.agent_config as any)?.provider;
     const customModel = (agent.agent_config as any)?.custom_model;
     const modelLevel = customModel || (agent.agent_config as any)?.model || agent.model;
-    const model = this.getModelProvider(modelLevel, preferredProvider);
+    const candidates = this.getModelCandidates(modelLevel, preferredProvider);
 
-    // 5. Generate Text with Tools
-    try {
-      const { text, usage, steps } = await generateText({
-        model: model,
-        messages: messages,
-        system: (agent.agent_config as any)?.system_prompt || agent.system_prompt || '',
-        tools: Object.keys(aiTools).length > 0 ? aiTools : undefined,
-        stopWhen: stepCountIs(MAX_TOOL_CALLS_PER_TURN),
-        onStepFinish: (event: any) => {
-          console.log(`[AgentRuntime] Step finished. Text: "${event.text?.substring(0, 100) || '(none)'}". Tool calls: ${event.toolCalls?.length || 0}. Finish reason: ${event.finishReason}`);
-        },
-      });
-
-      // Record usage
-      await supabase.from('ai_usage').insert({
-        organization_id: organizationId,
-        agent_id: agentId,
-        conversation_id: conversationId,
-        model: agent.model,
-        tool_calls: steps.length - 1,
-        input_tokens: (usage as any).promptTokens || 0,
-        output_tokens: (usage as any).completionTokens || 0
-      });
-
-      return text;
-    } catch (err) {
-      console.error("[AgentRuntime] Error during model execution:", err);
+    if (candidates.length === 0) {
+      console.error("[AgentRuntime] No available AI model providers configured.");
       return null;
     }
+
+    // 5. Try candidate models in sequence with automatic fallback
+    let lastError: any = null;
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i];
+      console.log(`[AgentRuntime] Attempting execution with candidate [${candidate.provider}:${candidate.modelName}] (${i + 1}/${candidates.length})`);
+
+      try {
+        const { text, usage, steps } = await generateText({
+          model: candidate.model,
+          messages: messages,
+          system: (agent.agent_config as any)?.system_prompt || agent.system_prompt || '',
+          tools: Object.keys(aiTools).length > 0 ? aiTools : undefined,
+          stopWhen: stepCountIs(MAX_TOOL_CALLS_PER_TURN),
+          onStepFinish: (event: any) => {
+            console.log(`[AgentRuntime] Step finished (${candidate.modelName}). Text: "${event.text?.substring(0, 100) || '(none)'}". Tool calls: ${event.toolCalls?.length || 0}. Finish reason: ${event.finishReason}`);
+          },
+        });
+
+        // Record usage
+        await supabase.from('ai_usage').insert({
+          organization_id: organizationId,
+          agent_id: agentId,
+          conversation_id: conversationId,
+          model: `${candidate.provider}:${candidate.modelName}`,
+          tool_calls: steps.length - 1,
+          input_tokens: (usage as any).promptTokens || 0,
+          output_tokens: (usage as any).completionTokens || 0
+        });
+
+        return text;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`[AgentRuntime] Candidate [${candidate.provider}:${candidate.modelName}] failed: ${err.message}. Trying next fallback candidate...`);
+      }
+    }
+
+    console.error("[AgentRuntime] All model candidates failed. Last error:", lastError);
+    return null;
   }
 }
