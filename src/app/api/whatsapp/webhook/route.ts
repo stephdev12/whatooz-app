@@ -9,6 +9,8 @@ import {
   listTemplates,
 } from '@/lib/whatsapp/meta-api'
 import { SasPayService } from '@/lib/payments/saspay'
+import { AgentAssignmentResolver } from '@/lib/agents/AgentAssignmentResolver'
+import { AgentRuntime } from '@/lib/agents/AgentRuntime'
 
 export const dynamic = 'force-dynamic'
 
@@ -447,6 +449,60 @@ export async function POST(request: NextRequest) {
         const conversationId = primaryConversationId
         const organizationId = primaryOrganizationId
         if (!conversationId || isEcho) continue // We don't trigger auto-replies or automations on our own echoed messages
+
+        // -------------------------------------------------------------
+        // NEW: AI Agents integration
+        // -------------------------------------------------------------
+        try {
+          const assignedAgentId = await AgentAssignmentResolver.resolveAgentForConversation(organizationId, contactId, conversationId);
+          if (assignedAgentId) {
+            console.log(`[Webhook POST] Conversation ${conversationId} is assigned to AI Agent ${assignedAgentId}`);
+            const aiResponseText = await AgentRuntime.handleMessage(organizationId, assignedAgentId, conversationId, contactId, contentText);
+            
+            if (aiResponseText && aiResponseText.trim() !== '') {
+              const { data: userConfig } = await supabaseAdmin
+                .from('whatsapp_config')
+                .select('access_token_encrypted, phone_number_id')
+                .eq('organization_id', organizationId)
+                .maybeSingle();
+
+              if (userConfig?.access_token_encrypted) {
+                const accessToken = decrypt(userConfig.access_token_encrypted);
+                const sendRes = await sendTextMessage({
+                  phoneNumberId: userConfig.phone_number_id || phoneNumberId,
+                  accessToken,
+                  to: customerPhone,
+                  text: aiResponseText,
+                });
+
+                await supabaseAdmin.from('messages').insert({
+                  conversation_id: conversationId,
+                  organization_id: organizationId,
+                  direction: 'outbound',
+                  message_type: 'text',
+                  content_text: aiResponseText,
+                  wamid: sendRes.messageId,
+                  status: 'sent',
+                  created_at: new Date().toISOString(),
+                });
+
+                await supabaseAdmin.from('conversations')
+                  .update({
+                    last_message_text: aiResponseText,
+                    last_message_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', conversationId);
+              }
+            }
+            
+            // Skip legacy automations if handled by an agent
+            continue;
+          }
+        } catch (agentErr) {
+          console.error('[Webhook POST] Error executing AI Agent:', agentErr);
+          // Fallback to legacy automations on error
+        }
 
         // -------------------------------------------------------------
         // 2.bis Auto-Reply with Payment Link for E-Commerce / Orders Flows

@@ -22,6 +22,7 @@ import {
   ChevronDown,
   LogOut,
   Workflow,
+  Bot,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react'
@@ -31,6 +32,11 @@ import { useUnreadCount } from '@/hooks/use-unread-count'
 export const navItems = [
   { label: 'Accueil', href: '/dashboard', exact: true, icon: LayoutDashboard },
   { label: 'Inbox', href: '/dashboard/inbox', icon: MessageSquare },
+  {
+    label: 'Agents IA',
+    href: '/dashboard/agents',
+    icon: Bot,
+  },
   {
     label: 'Automatisations',
     href: '/dashboard/automations',
