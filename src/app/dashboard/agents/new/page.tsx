@@ -11,6 +11,7 @@ export default function NewAgentPage() {
   
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [provider, setProvider] = useState('openai')
   const [loading, setLoading] = useState(false)
 
   async function handleCreate(e: React.FormEvent) {
@@ -27,7 +28,7 @@ export default function NewAgentPage() {
           name,
           description,
           model: 'FAST', // Default
-          provider: 'openai'
+          provider
         })
       })
 
@@ -81,6 +82,25 @@ export default function NewAgentPage() {
             placeholder="Ex: Gère les questions sur les produits et propose des paiements."
             className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/20 transition-all h-24 resize-none"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Fournisseur d'IA</label>
+          <select
+            value={provider}
+            onChange={e => setProvider(e.target.value)}
+            className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/20 appearance-none text-sm"
+          >
+            <option value="openai">OpenAI (Standard)</option>
+            <option value="agentrouter">AgentRouter (Multi-modèles unifié : Claude, GPT, DeepSeek...)</option>
+            <option value="anthropic">Anthropic Claude</option>
+            <option value="google">Google Gemini</option>
+          </select>
+          <p className="text-xs text-muted-foreground mt-1">
+            {provider === 'agentrouter' 
+              ? 'AgentRouter vous permet d\'accéder à Claude 3.5, GPT-4o, DeepSeek avec une clé unique.' 
+              : 'Vous pourrez affiner les modèles et instructions à l\'étape suivante.'}
+          </p>
         </div>
 
         <div className="pt-4 flex justify-end">

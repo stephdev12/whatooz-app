@@ -19,6 +19,7 @@ export default function EditAgentPage() {
   const [description, setDescription] = useState('')
   const [model, setModel] = useState('FAST')
   const [provider, setProvider] = useState('openai')
+  const [customModel, setCustomModel] = useState('')
   const [systemPrompt, setSystemPrompt] = useState('')
   const [temperature, setTemperature] = useState(0.7)
   const [selectedTools, setSelectedTools] = useState<string[]>([])
@@ -52,6 +53,7 @@ export default function EditAgentPage() {
         setDescription(data.agent.description || '')
         setModel(data.agent.agent_config?.model || 'FAST')
         setProvider(data.agent.agent_config?.provider || 'openai')
+        setCustomModel(data.agent.agent_config?.custom_model || '')
         setSystemPrompt(data.agent.agent_config?.system_prompt || '')
         setTemperature(data.agent.agent_config?.temperature || 0.7)
         setSelectedTools(data.tools || [])
@@ -81,6 +83,7 @@ export default function EditAgentPage() {
           agent_config: {
             model,
             provider,
+            custom_model: customModel.trim() || undefined,
             system_prompt: systemPrompt,
             temperature,
             max_tokens: 1000
@@ -189,11 +192,56 @@ export default function EditAgentPage() {
                 onChange={e => setProvider(e.target.value)}
                 className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
               >
-                <option value="openai">OpenAI (Recommandé)</option>
+                <option value="openai">OpenAI (Standard)</option>
+                <option value="agentrouter">AgentRouter (Multi-modèles unifié : Claude, GPT, DeepSeek...)</option>
                 <option value="anthropic">Anthropic Claude</option>
                 <option value="google">Google Gemini</option>
               </select>
             </div>
+
+            {provider === 'agentrouter' && (
+              <div className="p-3.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-purple-600 dark:text-purple-400">🌐 Passerelle AgentRouter</span>
+                  <span className="text-[10px] bg-purple-500/20 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-full font-medium">Clé Unique</span>
+                </div>
+                <p className="text-muted-foreground leading-relaxed text-[11px]">
+                  Un seul endpoint compatible OpenAI (<code className="text-foreground">https://co.agentrouter.org/v1</code>) pour exécuter Claude 3.5, GPT-4o, DeepSeek V3/R1 et plus.
+                </p>
+                <div>
+                  <label className="block font-medium mb-1 text-foreground">Modèle Spécifique (Optionnel)</label>
+                  <select
+                    value={['', 'claude-3-5-sonnet', 'claude-3-7-sonnet', 'gpt-4o', 'gpt-4o-mini', 'deepseek-chat', 'deepseek-reasoner'].includes(customModel) ? customModel : (customModel ? 'custom' : '')}
+                    onChange={e => {
+                      if (e.target.value === 'custom') {
+                        setCustomModel('custom-model-id')
+                      } else {
+                        setCustomModel(e.target.value)
+                      }
+                    }}
+                    className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary mb-1.5"
+                  >
+                    <option value="">Automatique selon le niveau ci-dessous</option>
+                    <option value="claude-3-5-sonnet">Claude 3.5 Sonnet (Recommandé - Excellent en Tool Calling)</option>
+                    <option value="claude-3-7-sonnet">Claude 3.7 Sonnet (Raisonnement hybride)</option>
+                    <option value="gpt-4o">OpenAI GPT-4o (Polyvalent)</option>
+                    <option value="gpt-4o-mini">OpenAI GPT-4o Mini (Ultra-rapide & Économique)</option>
+                    <option value="deepseek-chat">DeepSeek V3 (Performant & Très économique)</option>
+                    <option value="deepseek-reasoner">DeepSeek R1 (Raisonnement avancé)</option>
+                    <option value="custom">Autre modèle personnalisé (ID manuel)...</option>
+                  </select>
+                  {((!['', 'claude-3-5-sonnet', 'claude-3-7-sonnet', 'gpt-4o', 'gpt-4o-mini', 'deepseek-chat', 'deepseek-reasoner'].includes(customModel)) || customModel === 'custom-model-id') && (
+                    <input
+                      type="text"
+                      value={customModel === 'custom-model-id' ? '' : customModel}
+                      onChange={e => setCustomModel(e.target.value)}
+                      placeholder="Ex: claude-opus-4-8, gpt-5-6-sol, deepseek-v4-flash..."
+                      className="w-full bg-secondary border border-border rounded-lg px-2.5 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  )}
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium mb-1">Modèle (Niveau)</label>
@@ -202,9 +250,9 @@ export default function EditAgentPage() {
                 onChange={e => setModel(e.target.value)}
                 className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
               >
-                <option value="FAST">Rapide (Ex: GPT-4o-mini, Haiku)</option>
-                <option value="BALANCED">Équilibré (Ex: GPT-4o, Sonnet)</option>
-                <option value="ADVANCED">Avancé (Ex: Opus, O1)</option>
+                <option value="FAST">Rapide (Ex: GPT-4o-mini, Haiku, DeepSeek Chat)</option>
+                <option value="BALANCED">Équilibré (Ex: GPT-4o, Sonnet, DeepSeek V3)</option>
+                <option value="ADVANCED">Avancé (Ex: Claude 3.5 Sonnet, Opus, O1)</option>
               </select>
             </div>
 

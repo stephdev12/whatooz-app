@@ -14,7 +14,30 @@ const MAX_TOOL_CALLS_PER_TURN = 8;
 export class AgentRuntime {
   static getModelProvider(modelString: string, preferredProvider?: string) {
     const isAdvanced = (modelString || '').toUpperCase() === 'ADVANCED';
+    const isFast = (modelString || '').toUpperCase() === 'FAST';
     const provider = (preferredProvider || '').toLowerCase();
+
+    // 0. If preferred provider is AgentRouter (https://agentrouter.org) and key exists
+    if (provider === 'agentrouter' && process.env.AGENTROUTER_API_KEY) {
+      const agentRouter = createOpenAI({
+        baseURL: process.env.AGENTROUTER_BASE_URL || 'https://co.agentrouter.org/v1',
+        apiKey: process.env.AGENTROUTER_API_KEY,
+      });
+
+      // If a specific model name was provided (e.g. 'claude-3-5-sonnet', 'deepseek-chat', 'gpt-4o', etc.)
+      const isNamedModel = modelString && !['FAST', 'BALANCED', 'ADVANCED'].includes(modelString.toUpperCase());
+      if (isNamedModel) {
+        return agentRouter(modelString);
+      }
+
+      if (isAdvanced) {
+        return agentRouter(process.env.AGENTROUTER_MODEL_ADVANCED || 'claude-3-5-sonnet');
+      } else if (isFast) {
+        return agentRouter(process.env.AGENTROUTER_MODEL_FAST || 'gpt-4o-mini');
+      } else {
+        return agentRouter(process.env.AGENTROUTER_MODEL_BALANCED || 'gpt-4o');
+      }
+    }
 
     // 1. If preferred provider is OpenAI and key exists
     if (provider === 'openai' && process.env.OPENAI_API_KEY) {
@@ -36,6 +59,14 @@ export class AgentRuntime {
     }
 
     // Fallbacks if preferred provider is not configured with an API key:
+    if (process.env.AGENTROUTER_API_KEY) {
+      const agentRouter = createOpenAI({
+        baseURL: process.env.AGENTROUTER_BASE_URL || 'https://co.agentrouter.org/v1',
+        apiKey: process.env.AGENTROUTER_API_KEY,
+      });
+      return agentRouter(isAdvanced ? (process.env.AGENTROUTER_MODEL_ADVANCED || 'claude-3-5-sonnet') : (process.env.AGENTROUTER_MODEL_FAST || 'gpt-4o-mini'));
+    }
+
     if (process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
       const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
       const google = createGoogleGenerativeAI({ apiKey });
@@ -110,7 +141,8 @@ export class AgentRuntime {
 
     // 4. Initialize model
     const preferredProvider = (agent.agent_config as any)?.provider;
-    const modelLevel = (agent.agent_config as any)?.model || agent.model;
+    const customModel = (agent.agent_config as any)?.custom_model;
+    const modelLevel = customModel || (agent.agent_config as any)?.model || agent.model;
     const model = this.getModelProvider(modelLevel, preferredProvider);
 
     // 5. Generate Text with Tools
