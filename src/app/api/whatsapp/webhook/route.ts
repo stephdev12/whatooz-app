@@ -453,59 +453,7 @@ export async function POST(request: NextRequest) {
         const contactId = primaryContactId
         if (!conversationId || !contactId || isEcho) continue // We don't trigger auto-replies or automations on our own echoed messages
 
-        // -------------------------------------------------------------
-        // NEW: AI Agents integration
-        // -------------------------------------------------------------
-        try {
-          const assignedAgentId = await AgentAssignmentResolver.resolveAgentForConversation(organizationId, contactId, conversationId);
-          if (assignedAgentId) {
-            console.log(`[Webhook POST] Conversation ${conversationId} is assigned to AI Agent ${assignedAgentId}`);
-            const aiResponseText = await AgentRuntime.handleMessage(organizationId, assignedAgentId, conversationId, contactId, contentText, customerPhone);
-            
-            if (aiResponseText && aiResponseText.trim() !== '') {
-              const { data: userConfig } = await supabaseAdmin
-                .from('whatsapp_config')
-                .select('access_token_encrypted, phone_number_id')
-                .eq('organization_id', organizationId)
-                .maybeSingle();
-
-              if (userConfig?.access_token_encrypted) {
-                const accessToken = decrypt(userConfig.access_token_encrypted);
-                const sendRes = await sendTextMessage({
-                  phoneNumberId: userConfig.phone_number_id || phoneNumberId,
-                  accessToken,
-                  to: customerPhone,
-                  text: aiResponseText,
-                });
-
-                await supabaseAdmin.from('messages').insert({
-                  conversation_id: conversationId,
-                  organization_id: organizationId,
-                  direction: 'outbound',
-                  message_type: 'text',
-                  content_text: aiResponseText,
-                  wamid: sendRes.messageId,
-                  status: 'sent',
-                  created_at: new Date().toISOString(),
-                });
-
-                await supabaseAdmin.from('conversations')
-                  .update({
-                    last_message_text: aiResponseText,
-                    last_message_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq('id', conversationId);
-              }
-            }
-            
-            // Skip legacy automations if handled by an agent
-            continue;
-          }
-        } catch (agentErr) {
-          console.error('[Webhook POST] Error executing AI Agent:', agentErr);
-          // Fallback to legacy automations on error
-        }
+                let automationTriggered = false;
 
         // -------------------------------------------------------------
         // 2.bis Auto-Reply with Payment Link for E-Commerce / Orders Flows
@@ -1268,6 +1216,7 @@ export async function POST(request: NextRequest) {
                       .eq('id', auto.id)
 
                     // Stop after matching first priority rule
+                    automationTriggered = true;
                     break
                   }
                 }
@@ -1276,6 +1225,65 @@ export async function POST(request: NextRequest) {
           }
         } catch (autoErr) {
           console.error('[Webhook Automations] Error processing automation rule:', autoErr)
+        }
+
+        if (automationTriggered) {
+          console.log('[Webhook] Automation triggered, skipping AI agent.');
+          continue;
+        }
+
+        // -------------------------------------------------------------
+        // NEW: AI Agents integration
+        // -------------------------------------------------------------
+        try {
+          const assignedAgentId = await AgentAssignmentResolver.resolveAgentForConversation(organizationId, contactId, conversationId);
+          if (assignedAgentId) {
+            console.log(`[Webhook POST] Conversation ${conversationId} is assigned to AI Agent ${assignedAgentId}`);
+            const aiResponseText = await AgentRuntime.handleMessage(organizationId, assignedAgentId, conversationId, contactId, contentText, customerPhone);
+            
+            if (aiResponseText && aiResponseText.trim() !== '') {
+              const { data: userConfig } = await supabaseAdmin
+                .from('whatsapp_config')
+                .select('access_token_encrypted, phone_number_id')
+                .eq('organization_id', organizationId)
+                .maybeSingle();
+
+              if (userConfig?.access_token_encrypted) {
+                const accessToken = decrypt(userConfig.access_token_encrypted);
+                const sendRes = await sendTextMessage({
+                  phoneNumberId: userConfig.phone_number_id || phoneNumberId,
+                  accessToken,
+                  to: customerPhone,
+                  text: aiResponseText,
+                });
+
+                await supabaseAdmin.from('messages').insert({
+                  conversation_id: conversationId,
+                  organization_id: organizationId,
+                  direction: 'outbound',
+                  message_type: 'text',
+                  content_text: aiResponseText,
+                  wamid: sendRes.messageId,
+                  status: 'sent',
+                  created_at: new Date().toISOString(),
+                });
+
+                await supabaseAdmin.from('conversations')
+                  .update({
+                    last_message_text: aiResponseText,
+                    last_message_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq('id', conversationId);
+              }
+            }
+            
+            // Done handling with AI agent
+            continue;
+          }
+        } catch (agentErr) {
+          console.error('[Webhook POST] Error executing AI Agent:', agentErr);
+          // Fallback to legacy automations on error
         }
       }
 
