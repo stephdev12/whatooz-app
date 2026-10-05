@@ -901,7 +901,15 @@ export async function POST(request: NextRequest) {
                   } else if (auto.action_type === 'send_product_list') {
                     console.log(`[Webhook Automations] Executing send_product_list...`, payload)
                     try {
+                      if (!payload.catalogId) {
+                        throw new Error('Catalogue non défini. Veuillez configurer le noeud.')
+                      }
+
                       const productRetailerIds = (payload.productRetailerIds || '').split(',').map((id: string) => id.trim()).filter(Boolean);
+                      if (productRetailerIds.length === 0) {
+                        throw new Error('Aucun produit sélectionné pour la liste.')
+                      }
+
                       const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
                         method: 'POST',
                         headers: {
@@ -927,7 +935,7 @@ export async function POST(request: NextRequest) {
                               sections: [
                                 {
                                   title: 'Sélection',
-                                  product_items: productRetailerIds.map((id: string) => ({ product_retailer_id: id }))
+                                  product_items: productRetailerIds.slice(0, 30).map((id: string) => ({ product_retailer_id: id }))
                                 }
                               ]
                             }
@@ -955,15 +963,48 @@ export async function POST(request: NextRequest) {
                   } else if (auto.action_type === 'send_product_carousel') {
                     console.log(`[Webhook Automations] Executing send_product_carousel...`, payload)
                     try {
+                      if (!payload.catalogId) {
+                        throw new Error('Catalogue non défini. Veuillez configurer le noeud.')
+                      }
+                      
                       const productRetailerIds = (payload.productRetailerIds || '').split(',').map((id: string) => id.trim()).filter(Boolean);
-                      const cards = productRetailerIds.map((id: string, index: number) => ({
-                        card_index: index,
-                        type: 'product',
-                        action: {
-                          catalog_id: payload.catalogId,
-                          product_retailer_id: id
+                      if (productRetailerIds.length === 0) {
+                        throw new Error('Aucun produit sélectionné pour le carousel.')
+                      }
+
+                      let interactivePayload: any = {}
+
+                      if (productRetailerIds.length === 1) {
+                        interactivePayload = {
+                          type: 'product',
+                          body: {
+                            text: payload.text ? replaceVariables(payload.text) : 'Découvrez notre produit :'
+                          },
+                          action: {
+                            catalog_id: payload.catalogId,
+                            product_retailer_id: productRetailerIds[0]
+                          }
                         }
-                      }))
+                      } else {
+                        const cards = productRetailerIds.slice(0, 10).map((id: string, index: number) => ({
+                          card_index: index,
+                          type: 'product',
+                          action: {
+                            catalog_id: payload.catalogId,
+                            product_retailer_id: id
+                          }
+                        }))
+                        
+                        interactivePayload = {
+                          type: 'carousel',
+                          body: {
+                            text: payload.text ? replaceVariables(payload.text) : 'Faites défiler pour découvrir nos produits :'
+                          },
+                          action: {
+                            cards
+                          }
+                        }
+                      }
 
                       const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
                         method: 'POST',
@@ -976,15 +1017,7 @@ export async function POST(request: NextRequest) {
                           recipient_type: 'individual',
                           to: customerPhone,
                           type: 'interactive',
-                          interactive: {
-                            type: 'carousel',
-                            body: {
-                              text: payload.text ? replaceVariables(payload.text) : 'Faites défiler pour découvrir nos produits :'
-                            },
-                            action: {
-                              cards
-                            }
-                          }
+                          interactive: interactivePayload
                         })
                       })
                       const resData = await sendRes.json()
