@@ -258,6 +258,7 @@ export async function POST(request: NextRequest) {
 
         // Broadcast inbound message to each target user's conversation thread
         let primaryConversationId: string | null = null
+        let primaryContactId: string | null = null
         let primaryOrganizationId: string = targetOrganizationIds[0]
 
         for (const organizationId of targetOrganizationIds) {
@@ -352,6 +353,7 @@ export async function POST(request: NextRequest) {
           if (conversationId) {
             if (!primaryConversationId) {
               primaryConversationId = conversationId
+              primaryContactId = contactId
               primaryOrganizationId = organizationId
             }
 
@@ -448,7 +450,8 @@ export async function POST(request: NextRequest) {
 
         const conversationId = primaryConversationId
         const organizationId = primaryOrganizationId
-        if (!conversationId || isEcho) continue // We don't trigger auto-replies or automations on our own echoed messages
+        const contactId = primaryContactId
+        if (!conversationId || !contactId || isEcho) continue // We don't trigger auto-replies or automations on our own echoed messages
 
         // -------------------------------------------------------------
         // NEW: AI Agents integration
