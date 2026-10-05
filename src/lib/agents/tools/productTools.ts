@@ -10,7 +10,7 @@ export const searchProductsTool: AgentTool = {
       query: { type: 'string', description: 'The search query (e.g., "chaussures noires")' },
       max_results: { type: 'number', description: 'Maximum number of results to return (default: 5)' }
     },
-    required: ['query']
+    required: []
   },
   execute: async (args, context) => {
     const supabase = supabaseAdmin;
@@ -20,7 +20,7 @@ export const searchProductsTool: AgentTool = {
       .from('meta_catalog_products')
       .select('id, retailer_id, name, description, price, currency, availability')
       .eq('organization_id', context.organizationId)
-      .ilike('name', `%${args.query}%`)
+      .ilike('name', `%${args.query || ''}%`)
       .limit(limit);
 
     if (error) {
