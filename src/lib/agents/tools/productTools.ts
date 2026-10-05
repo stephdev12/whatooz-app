@@ -154,12 +154,13 @@ export const sendProductToUserTool: AgentTool = {
 
     const { data: product } = await supabase
       .from('meta_catalog_products')
-      .select('catalog_id')
+      .select('catalog_id, meta_catalogs!inner(meta_catalog_id)')
       .eq('organization_id', context.organizationId)
       .eq('retailer_id', args.retailer_id)
       .single();
 
-    if (!product || !product.catalog_id) return { error: "Produit non trouvé dans le catalogue" };
+    if (!product || !(product as any).meta_catalogs?.meta_catalog_id) return { error: "Produit non trouvé dans le catalogue" };
+    const metaCatalogId = (product as any).meta_catalogs.meta_catalog_id;
 
     const accessToken = decrypt(userConfig.access_token_encrypted);
 
@@ -168,7 +169,7 @@ export const sendProductToUserTool: AgentTool = {
         phoneNumberId: userConfig.phone_number_id,
         accessToken,
         to: context.customerPhone,
-        catalogId: product.catalog_id,
+        catalogId: metaCatalogId,
         productRetailerId: args.retailer_id,
         bodyText: args.body_text || "Voici le produit demandé :"
       });
@@ -251,12 +252,13 @@ export const sendProductListToUserTool: AgentTool = {
     // Find the catalog ID from the first product
     const { data: product } = await supabase
       .from('meta_catalog_products')
-      .select('catalog_id')
+      .select('catalog_id, meta_catalogs!inner(meta_catalog_id)')
       .eq('organization_id', context.organizationId)
       .eq('retailer_id', args.retailer_ids[0])
       .single();
 
-    if (!product || !product.catalog_id) return { error: "Produits non trouvés dans le catalogue" };
+    if (!product || !(product as any).meta_catalogs?.meta_catalog_id) return { error: "Produits non trouvés dans le catalogue" };
+    const metaCatalogId = (product as any).meta_catalogs.meta_catalog_id;
 
     const accessToken = decrypt(userConfig.access_token_encrypted);
 
@@ -265,7 +267,7 @@ export const sendProductListToUserTool: AgentTool = {
         phoneNumberId: userConfig.phone_number_id,
         accessToken,
         to: context.customerPhone,
-        catalogId: product.catalog_id,
+        catalogId: metaCatalogId,
         headerText: "Sélection",
         sections: [
           {
