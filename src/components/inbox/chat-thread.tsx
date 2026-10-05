@@ -70,6 +70,7 @@ export function ChatThread({
         })
     }
   }, [showProductPicker, activeOrganization, supabase])
+  useEffect(() => {
     setIsEditingName(false)
     setEditName(conversation.contact_name || '')
   }, [conversation.id, conversation.contact_name])

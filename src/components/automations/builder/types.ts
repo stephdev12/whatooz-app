@@ -7,7 +7,7 @@ export interface BaseNodeData extends Record<string, unknown> {
 }
 
 export interface TriggerNodeData extends BaseNodeData {
-  triggerType: 'keyword' | 'new_contact' | 'menu_click' | 'order_created' | 'payment_confirmed' | 'payment_failed' | 'api_request'
+  triggerType: 'keyword' | 'new_contact' | 'menu_click' | 'order_created' | 'payment_confirmed' | 'payment_failed' | 'api_request' | 'flow_completed'
   triggerValue?: string
   webhookConfig?: {
     expectedFields?: string[] // e.g. ['phone', 'code_2fa']
@@ -15,7 +15,7 @@ export interface TriggerNodeData extends BaseNodeData {
 }
 
 export interface ActionNodeData extends BaseNodeData {
-  actionType: 'send_message' | 'send_template' | 'send_flow' | 'send_product' | 'send_product_list' | 'send_catalog' | 'create_saspay_payment'
+  actionType: 'send_message' | 'send_template' | 'send_flow' | 'send_product' | 'send_product_list' | 'send_catalog' | 'create_saspay_payment' | 'http_request'
   actionPayload?: {
     text?: string
     templateName?: string
