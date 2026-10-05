@@ -120,6 +120,7 @@ export default function AutomationBuilderPage() {
         } else if (actionNode.data.actionType === 'send_product') {
           action_type = 'send_product'
           action_payload = { 
+            text: (actionNode.data.actionPayload as any)?.text || '',
             catalogId: (actionNode.data.actionPayload as any)?.catalogId || '',
             productRetailerId: (actionNode.data.actionPayload as any)?.productRetailerId || ''
           }
@@ -133,7 +134,8 @@ export default function AutomationBuilderPage() {
         } else if (actionNode.data.actionType === 'send_catalog') {
           action_type = 'send_catalog'
           action_payload = {
-            message: (actionNode.data as any).catalogMessage || ''
+            message: (actionNode.data as any).catalogMessage || '',
+            catalogId: (actionNode.data.actionPayload as any)?.catalogId || ''
           }
         } else if (actionNode.data.actionType === 'create_saspay_payment') {
           action_type = 'create_saspay_payment'

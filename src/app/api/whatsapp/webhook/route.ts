@@ -855,6 +855,115 @@ export async function POST(request: NextRequest) {
                       wamid: sendRes.messageId,
                       status: 'sent',
                     })
+                  } else if (auto.action_type === 'send_product') {
+                    const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        messaging_product: 'whatsapp',
+                        recipient_type: 'individual',
+                        to: customerPhone,
+                        type: 'interactive',
+                        interactive: {
+                          type: 'product',
+                          body: payload.text ? { text: replaceVariables(payload.text) } : undefined,
+                          action: {
+                            catalog_id: payload.catalogId,
+                            product_retailer_id: payload.productRetailerId,
+                          }
+                        }
+                      })
+                    }).then(res => res.json())
+                    outboundText = `[Produit envoyé: ${payload.productRetailerId}]`
+                    await supabaseAdmin.from('messages').insert({
+                      conversation_id: conversationId,
+                      organization_id: organizationId,
+                      direction: 'outbound',
+                      message_type: 'interactive',
+                      content_text: outboundText,
+                      wamid: sendRes.messages?.[0]?.id || `failed_${Date.now()}`,
+                      status: sendRes.error ? 'failed' : 'sent',
+                    })
+                  } else if (auto.action_type === 'send_product_list') {
+                    const productRetailerIds = (payload.productRetailerIds || '').split(',').map((id: string) => id.trim()).filter(Boolean);
+                    const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        messaging_product: 'whatsapp',
+                        recipient_type: 'individual',
+                        to: customerPhone,
+                        type: 'interactive',
+                        interactive: {
+                          type: 'product_list',
+                          header: {
+                            type: 'text',
+                            text: 'Nos Produits'
+                          },
+                          body: {
+                            text: payload.text ? replaceVariables(payload.text) : 'Voici notre sélection :'
+                          },
+                          action: {
+                            catalog_id: payload.catalogId,
+                            sections: [
+                              {
+                                title: 'Sélection',
+                                product_items: productRetailerIds.map((id: string) => ({ product_retailer_id: id }))
+                              }
+                            ]
+                          }
+                        }
+                      })
+                    }).then(res => res.json())
+                    outboundText = `[Liste de produits envoyée]`
+                    await supabaseAdmin.from('messages').insert({
+                      conversation_id: conversationId,
+                      organization_id: organizationId,
+                      direction: 'outbound',
+                      message_type: 'interactive',
+                      content_text: outboundText,
+                      wamid: sendRes.messages?.[0]?.id || `failed_${Date.now()}`,
+                      status: sendRes.error ? 'failed' : 'sent',
+                    })
+                  } else if (auto.action_type === 'send_catalog') {
+                    const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify({
+                        messaging_product: 'whatsapp',
+                        recipient_type: 'individual',
+                        to: customerPhone,
+                        type: 'interactive',
+                        interactive: {
+                          type: 'catalog_message',
+                          body: {
+                            text: payload.message ? replaceVariables(payload.message) : 'Découvrez notre catalogue :'
+                          },
+                          action: {
+                            name: 'catalog_link'
+                          }
+                        }
+                      })
+                    }).then(res => res.json())
+                    outboundText = `[Catalogue envoyé]`
+                    await supabaseAdmin.from('messages').insert({
+                      conversation_id: conversationId,
+                      organization_id: organizationId,
+                      direction: 'outbound',
+                      message_type: 'interactive',
+                      content_text: outboundText,
+                      wamid: sendRes.messages?.[0]?.id || `failed_${Date.now()}`,
+                      status: sendRes.error ? 'failed' : 'sent',
+                    })
                   } else if (auto.action_type === 'http_request' && payload.url) {
                     const method = payload.method || 'POST'
                     const url = replaceVariables(payload.url)

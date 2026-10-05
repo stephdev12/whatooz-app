@@ -573,17 +573,32 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
 
         {/* SEND CATALOG PROPERTIES */}
         {selectedNode.type === 'actionNode' && selectedNode.data.actionType === 'send_catalog' && (
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-foreground">Message d'accompagnement</label>
-            <textarea
-              rows={3}
-              placeholder="Voici notre catalogue de produits :"
-              className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
-              value={(selectedNode.data.catalogMessage as string) || ''}
-              onChange={(e) => handleChange('catalogMessage', e.target.value)}
-            />
-            <p className="text-[10px] text-slate-500 mt-1">Le catalogue complet ou le mini-site sera envoyé automatiquement au client.</p>
-          </div>
+          <>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground">Message d'accompagnement</label>
+              <textarea
+                rows={3}
+                placeholder="Voici notre catalogue de produits :"
+                className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
+                value={(selectedNode.data.catalogMessage as string) || ''}
+                onChange={(e) => handleChange('catalogMessage', e.target.value)}
+              />
+              <p className="text-[10px] text-slate-500 mt-1">Le catalogue complet ou le mini-site sera envoyé automatiquement au client.</p>
+            </div>
+            <div className="space-y-1 mt-4">
+              <label className="text-xs font-medium text-foreground">Catalogue</label>
+              <select
+                className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
+                value={(selectedNode.data.actionPayload as any)?.catalogId || ''}
+                onChange={(e) => handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), catalogId: e.target.value })}
+              >
+                <option value="">Sélectionner un catalogue...</option>
+                {catalogs.map(c => (
+                  <option key={c.meta_catalog_id} value={c.meta_catalog_id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          </>
         )}
 
         {/* REQUEST PAYMENT PROPERTIES */}
