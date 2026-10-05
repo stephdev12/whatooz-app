@@ -16,6 +16,8 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
   const { activeOrganization } = useOrganization()
   const [flows, setFlows] = useState<any[]>([])
   const [templates, setTemplates] = useState<any[]>([])
+  const [catalogs, setCatalogs] = useState<any[]>([])
+  const [products, setProducts] = useState<any[]>([])
 
   useEffect(() => {
     if (!activeOrganization) return;
@@ -36,6 +38,13 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
           const { flows } = await resFlows.json()
           if (flows) setFlows(flows.filter((f: any) => f.status === 'PUBLISHED'))
         }
+
+        const supabase = createClient()
+        const { data: catData } = await supabase.from('meta_catalogs').select('*').eq('organization_id', activeOrganization.id)
+        if (catData) setCatalogs(catData)
+
+        const { data: prodData } = await supabase.from('meta_catalog_products').select('*').eq('organization_id', activeOrganization.id)
+        if (prodData) setProducts(prodData)
       } catch (e) {
         console.error(e)
       }
@@ -463,6 +472,101 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
                 value={(selectedNode.data.buttonText as string) || ''}
                 onChange={(e) => handleChange('buttonText', e.target.value)}
               />
+            </div>
+          </>
+        )}
+
+        {/* SEND PRODUCT PROPERTIES */}
+        {selectedNode.type === 'actionNode' && selectedNode.data.actionType === 'send_product' && (
+          <>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground">Message d'accompagnement</label>
+              <textarea
+                rows={2}
+                placeholder="Regardez ce produit :"
+                className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
+                value={(selectedNode.data.actionPayload as any)?.text || ''}
+                onChange={(e) => handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), text: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1 mt-4">
+              <label className="text-xs font-medium text-foreground">Catalogue</label>
+              <select
+                className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
+                value={(selectedNode.data.actionPayload as any)?.catalogId || ''}
+                onChange={(e) => handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), catalogId: e.target.value })}
+              >
+                <option value="">Sélectionner un catalogue...</option>
+                {catalogs.map(c => (
+                  <option key={c.meta_catalog_id} value={c.meta_catalog_id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1 mt-4">
+              <label className="text-xs font-medium text-foreground">Produit</label>
+              <select
+                className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
+                value={(selectedNode.data.actionPayload as any)?.productRetailerId || ''}
+                onChange={(e) => handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), productRetailerId: e.target.value })}
+              >
+                <option value="">Sélectionner un produit...</option>
+                {products.filter(p => !((selectedNode.data.actionPayload as any)?.catalogId) || catalogs.find(c => c.meta_catalog_id === (selectedNode.data.actionPayload as any)?.catalogId)?.id === p.catalog_id).map(p => (
+                  <option key={p.retailer_id} value={p.retailer_id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
+
+        {/* SEND PRODUCT LIST PROPERTIES */}
+        {selectedNode.type === 'actionNode' && selectedNode.data.actionType === 'send_product_list' && (
+          <>
+            <div className="space-y-1">
+              <label className="text-xs font-medium text-foreground">Message d'accompagnement (Corps)</label>
+              <textarea
+                rows={2}
+                placeholder="Voici notre sélection :"
+                className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
+                value={(selectedNode.data.actionPayload as any)?.text || ''}
+                onChange={(e) => handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), text: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1 mt-4">
+              <label className="text-xs font-medium text-foreground">Catalogue</label>
+              <select
+                className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-md text-sm"
+                value={(selectedNode.data.actionPayload as any)?.catalogId || ''}
+                onChange={(e) => handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), catalogId: e.target.value })}
+              >
+                <option value="">Sélectionner un catalogue...</option>
+                {catalogs.map(c => (
+                  <option key={c.meta_catalog_id} value={c.meta_catalog_id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1 mt-4">
+              <label className="text-xs font-medium text-foreground">Produits (Cochez pour ajouter)</label>
+              <div className="max-h-40 overflow-y-auto border border-border rounded-md p-2 space-y-2 bg-background">
+                {products.filter(p => !((selectedNode.data.actionPayload as any)?.catalogId) || catalogs.find(c => c.meta_catalog_id === (selectedNode.data.actionPayload as any)?.catalogId)?.id === p.catalog_id).map(p => {
+                  const currentIds = ((selectedNode.data.actionPayload as any)?.productRetailerIds || '').split(',').map((id: string) => id.trim()).filter(Boolean);
+                  const isChecked = currentIds.includes(p.retailer_id);
+                  return (
+                    <label key={p.retailer_id} className="flex items-center space-x-2 text-xs cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={isChecked}
+                        onChange={(e) => {
+                          const newIds = e.target.checked 
+                            ? [...currentIds, p.retailer_id]
+                            : currentIds.filter((id: string) => id !== p.retailer_id);
+                          handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), productRetailerIds: newIds.join(', ') });
+                        }}
+                      />
+                      <span>{p.name} <span className="text-muted-foreground">({p.retailer_id})</span></span>
+                    </label>
+                  )
+                })}
+              </div>
             </div>
           </>
         )}

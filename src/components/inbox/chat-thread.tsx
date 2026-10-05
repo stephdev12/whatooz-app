@@ -61,7 +61,7 @@ export function ChatThread({
       setLoadingProducts(true)
       supabase
         .from('meta_catalog_products')
-        .select('*')
+        .select('*, meta_catalogs(meta_catalog_id)')
         .eq('organization_id', activeOrganization.id)
         .order('name', { ascending: true })
         .then(({ data }) => {
@@ -244,7 +244,7 @@ export function ChatThread({
           conversationId: conversation.id,
           to: conversation.contact_phone,
           type: 'product',
-          catalogId: product.catalog_id,
+          catalogId: product.meta_catalogs?.meta_catalog_id || product.catalog_id,
           productRetailerId: product.retailer_id,
         }),
       })

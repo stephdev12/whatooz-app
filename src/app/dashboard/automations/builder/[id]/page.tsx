@@ -123,6 +123,13 @@ export default function AutomationBuilderPage() {
             catalogId: (actionNode.data.actionPayload as any)?.catalogId || '',
             productRetailerId: (actionNode.data.actionPayload as any)?.productRetailerId || ''
           }
+        } else if (actionNode.data.actionType === 'send_product_list') {
+          action_type = 'send_product_list'
+          action_payload = { 
+            text: (actionNode.data.actionPayload as any)?.text || '',
+            catalogId: (actionNode.data.actionPayload as any)?.catalogId || '',
+            productRetailerIds: (actionNode.data.actionPayload as any)?.productRetailerIds || ''
+          }
         } else if (actionNode.data.actionType === 'send_catalog') {
           action_type = 'send_catalog'
           action_payload = {
