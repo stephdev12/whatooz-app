@@ -125,15 +125,18 @@ export async function POST(req: Request) {
     }
 
     // Update order with payment reference
+    const saspayId = saspayData.data?.id || saspayData.id;
+    const saspayUrl = saspayData.data?.checkout_url || saspayData.checkout_url;
+
     await supabase
       .from('orders')
       .update({ 
-        payment_reference: saspayData.id,
-        saspay_checkout_url: saspayData.checkout_url 
+        payment_reference: saspayId,
+        saspay_checkout_url: saspayUrl 
       })
       .eq('id', order.id)
 
-    return NextResponse.json({ checkout_url: saspayData.checkout_url, order_id: order.id })
+    return NextResponse.json({ checkout_url: saspayUrl, order_id: order.id })
     
   } catch (error: any) {
     console.error('Checkout error:', error)

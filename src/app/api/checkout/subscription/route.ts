@@ -54,7 +54,8 @@ export async function POST(req: Request) {
     }
 
     // Return the checkout URL to redirect the user
-    return NextResponse.json({ checkout_url: saspayData.checkout_url })
+    const checkoutUrl = saspayData.data?.checkout_url || saspayData.checkout_url;
+    return NextResponse.json({ checkout_url: checkoutUrl })
 
   } catch (error: any) {
     console.error('Checkout error:', error)

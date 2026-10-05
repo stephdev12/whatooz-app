@@ -107,8 +107,8 @@ export class SasPayService {
         throw new Error(`SasPay Error (${response.status}): ${errorDetail}`)
       }
 
-      const providerTransactionId = data.id
-      const paymentLink = data.checkout_url
+      const providerTransactionId = data.data?.id || data.id
+      const paymentLink = data.data?.checkout_url || data.checkout_url
 
       if (!providerTransactionId || !paymentLink) {
          throw new Error(`Invalid response from SasPay API. Received: ${JSON.stringify(data)}`)
