@@ -7,6 +7,7 @@ import {
   sendTemplateMessage,
   sendMediaMessage,
   sendFlowMessage,
+  sendProductMessage,
   getWabaFlowDetails,
   type MediaKind,
 } from '@/lib/whatsapp/meta-api'
@@ -70,6 +71,8 @@ export async function POST(request: NextRequest) {
     mediaUrl,
     mediaId,
     caption,
+    catalogId,
+    productRetailerId,
   } = body
 
   if (!to || !type) {
@@ -289,6 +292,24 @@ export async function POST(request: NextRequest) {
           mediaUrl,
           mediaId,
           caption,
+        })
+        break
+
+      case 'product':
+        if (!catalogId || !productRetailerId) {
+          return NextResponse.json(
+            { error: 'catalogId and productRetailerId are required for product messages' },
+            { status: 400 }
+          )
+        }
+        result = await sendProductMessage({
+          phoneNumberId,
+          accessToken,
+          to,
+          catalogId,
+          productRetailerId,
+          bodyText,
+          footerText,
         })
         break
 

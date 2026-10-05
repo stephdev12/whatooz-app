@@ -14,6 +14,11 @@ export function TriggerNode({ data, selected }: TriggerNodeProps) {
       case 'keyword': return 'Mot-clé'
       case 'new_contact': return 'Nouveau contact'
       case 'menu_click': return 'Clic menu'
+      case 'order_created': return 'Commande créée'
+      case 'payment_confirmed': return 'Paiement SasPay'
+      case 'payment_failed': return 'Paiement échoué'
+      case 'api_request': return 'Requête API'
+      case 'flow_completed': return 'Flow complété'
       default: return 'Déclencheur'
     }
   }
@@ -51,7 +56,10 @@ export function TriggerNode({ data, selected }: TriggerNodeProps) {
           <div className="flex justify-between items-start text-[10px] gap-4">
             <span className="text-slate-500 font-medium uppercase tracking-wider flex-shrink-0">Valeur</span>
             <span className="text-slate-700 dark:text-slate-300 truncate text-right">
-              {data.triggerType === 'keyword' ? (data.triggerValue || 'Tous les messages') : '-'}
+              {data.triggerType === 'keyword' ? (data.triggerValue || 'Tous les messages') : 
+               data.triggerType === 'flow_completed' ? (data.triggerValue ? `Flow: ${data.triggerValue}` : 'Tous les flows') :
+               data.triggerType === 'api_request' ? 'Webhook' :
+               '-'}
             </span>
           </div>
         </div>

@@ -483,7 +483,7 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
         )}
 
         {/* REQUEST PAYMENT PROPERTIES */}
-        {selectedNode.type === 'actionNode' && selectedNode.data.actionType === 'request_payment' && (
+        {selectedNode.type === 'actionNode' && selectedNode.data.actionType === 'create_saspay_payment' && (
           <>
             <div className="space-y-1">
               <label className="text-xs font-medium text-foreground">Message de demande de paiement</label>

@@ -76,6 +76,9 @@ export default function AutomationBuilderPage() {
         } else if (triggerNode.data.triggerType === 'flow_completed') {
           trigger_type = 'flow_completed'
           trigger_value = triggerNode.data.triggerValue || null
+        } else {
+          trigger_type = triggerNode.data.triggerType as string
+          trigger_value = triggerNode.data.triggerValue || null
         }
       }
 
@@ -113,6 +116,23 @@ export default function AutomationBuilderPage() {
             method: p.method || 'POST',
             url: p.url || '',
             body: p.body || ''
+          }
+        } else if (actionNode.data.actionType === 'send_product') {
+          action_type = 'send_product'
+          action_payload = { 
+            catalogId: (actionNode.data.actionPayload as any)?.catalogId || '',
+            productRetailerId: (actionNode.data.actionPayload as any)?.productRetailerId || ''
+          }
+        } else if (actionNode.data.actionType === 'send_catalog') {
+          action_type = 'send_catalog'
+          action_payload = {
+            message: (actionNode.data as any).catalogMessage || ''
+          }
+        } else if (actionNode.data.actionType === 'create_saspay_payment') {
+          action_type = 'create_saspay_payment'
+          action_payload = {
+            message: (actionNode.data as any).paymentMessage || '',
+            amount: (actionNode.data as any).paymentAmount || null
           }
         }
       }

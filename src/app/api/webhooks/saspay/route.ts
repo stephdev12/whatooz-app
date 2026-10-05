@@ -28,35 +28,49 @@ export async function POST(request: NextRequest) {
         .maybeSingle()
 
       if (order) {
-        let paymentStatus = 'PENDING'
-        if (status === 'COMPLETED' || status === 'SUCCESS') {
-          paymentStatus = 'PAID'
+        let paymentStatus = 'pending'
+        if (status === 'COMPLETED' || status === 'SUCCESS' || status === 'paid') {
+          paymentStatus = 'paid'
 
           // Add to wallet balance
           await supabaseAdmin.rpc('increment_wallet_balance', {
             org_id: order.organization_id,
             amount_to_add: order.total_amount
           })
-        } else if (status === 'FAILED') {
-          paymentStatus = 'FAILED'
+        } else if (status === 'FAILED' || status === 'failed') {
+          paymentStatus = 'failed'
         }
 
+        // Update payment_transactions
+        await supabaseAdmin
+          .from('payment_transactions')
+          .update({
+            status: paymentStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq('order_id', orderId)
+          .eq('provider', 'saspay')
+
+        // Update orders
         await supabaseAdmin
           .from('orders')
           .update({
-            payment_status: paymentStatus,
+            payment_status: paymentStatus.toUpperCase(),
             payment_reference: transactionId,
             updated_at: new Date().toISOString()
           })
           .eq('id', orderId)
 
-        // Trigger Automation
-        // We simulate a webhook event for automations
-        const triggerType = paymentStatus === 'PAID' ? 'payment_confirmed' : (paymentStatus === 'FAILED' ? 'payment_failed' : null)
-        if (triggerType) {
-          // E.g. find automations listening to payment_confirmed and execute them
-          // Left as placeholder for automation engine
-          console.log(`[SasPay Webhook] Automation trigger: ${triggerType} for order ${orderId}`)
+        // Trigger Automation via Commerce Events
+        const eventType = paymentStatus === 'paid' ? 'PAYMENT_SUCCESS' : (paymentStatus === 'failed' ? 'PAYMENT_FAILED' : null)
+        if (eventType) {
+          await supabaseAdmin.from('commerce_events').insert({
+            organization_id: order.organization_id,
+            event_type: eventType,
+            order_id: orderId,
+            payload: body
+          })
+          console.log(`[SasPay Webhook] Automation trigger: ${eventType} for order ${orderId}`)
         }
       }
     }

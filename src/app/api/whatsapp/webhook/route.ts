@@ -245,6 +245,13 @@ export async function POST(request: NextRequest) {
             contentText = `[${msg.type}]`
         }
 
+        // Detect if customer replied to or asked about a specific product
+        if (msg.context?.referred_product?.product_retailer_id) {
+          // Event will be emitted after we identify the primary organization below
+          // We'll attach a flag to msg so it's handled below
+          msg._isProductInquiry = true
+        }
+
         // Broadcast inbound message to each target user's conversation thread
         let primaryConversationId: string | null = null
         let primaryOrganizationId: string = targetOrganizationIds[0]
@@ -357,6 +364,21 @@ export async function POST(request: NextRequest) {
               created_at: timestamp,
             })
           }
+
+          // Emit PRODUCT_SELECTED event if this is a product inquiry
+          if (msg._isProductInquiry && !isEcho) {
+            try {
+              await supabaseAdmin.from('commerce_events').insert({
+                organization_id: organizationId,
+                event_type: 'PRODUCT_SELECTED',
+                customer_phone: customerPhone,
+                product_retailer_id: msg.context.referred_product.product_retailer_id,
+                payload: msg
+              })
+            } catch (err) {
+              console.error('[Webhook POST] Failed to emit PRODUCT_SELECTED event:', err)
+            }
+          }
           
           // Process E-Commerce Order
           if (msg.type === 'order' && msg.order) {
@@ -401,6 +423,14 @@ export async function POST(request: NextRequest) {
                   ...i
                 }))
                 await supabaseAdmin.from('order_items').insert(orderItems)
+                
+                await supabaseAdmin.from('commerce_events').insert({
+                  organization_id: organizationId,
+                  event_type: 'ORDER_CREATED',
+                  customer_phone: customerPhone,
+                  order_id: newOrder.id,
+                  payload: msg
+                })
               }
             } catch (orderErr) {
               console.error('[Webhook POST] Failed to process order', orderErr)

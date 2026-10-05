@@ -1,6 +1,6 @@
 import React from 'react'
 import { Handle, Position } from '@xyflow/react'
-import { MessageSquare, LayoutTemplate, Layers, MoreHorizontal } from 'lucide-react'
+import { MessageSquare, LayoutTemplate, Layers, MoreHorizontal, ShoppingCart, CreditCard } from 'lucide-react'
 import { ActionNodeData } from '../types'
 
 interface ActionNodeProps {
@@ -14,6 +14,9 @@ export function ActionNode({ data, selected }: ActionNodeProps) {
       case 'send_message': return <MessageSquare className="w-4 h-4" />
       case 'send_template': return <LayoutTemplate className="w-4 h-4" />
       case 'send_flow': return <Layers className="w-4 h-4" />
+      case 'send_product': return <ShoppingCart className="w-4 h-4" />
+      case 'send_catalog': return <ShoppingCart className="w-4 h-4" />
+      case 'create_saspay_payment': return <CreditCard className="w-4 h-4" />
       default: return <MessageSquare className="w-4 h-4" />
     }
   }
@@ -23,6 +26,9 @@ export function ActionNode({ data, selected }: ActionNodeProps) {
       case 'send_message': return 'Envoyer un message'
       case 'send_template': return 'Envoyer un template'
       case 'send_flow': return 'Envoyer un Flow'
+      case 'send_product': return 'Envoyer un produit'
+      case 'send_catalog': return 'Envoyer le catalogue'
+      case 'create_saspay_payment': return 'Demande de paiement'
       default: return 'Action'
     }
   }
@@ -65,6 +71,9 @@ export function ActionNode({ data, selected }: ActionNodeProps) {
             {data.actionType === 'send_message' && ((data.actionPayload as any)?.text || 'Texte vide...')}
             {data.actionType === 'send_template' && (data.templateId || 'Non sélectionné')}
             {data.actionType === 'send_flow' && (data.flowId || 'Non sélectionné')}
+            {data.actionType === 'send_product' && ((data.actionPayload as any)?.productRetailerId || 'Aucun produit')}
+            {data.actionType === 'send_catalog' && 'Catalogue complet'}
+            {data.actionType === 'create_saspay_payment' && ((data.actionPayload as any)?.paymentAmount ? `Montant: ${(data.actionPayload as any)?.paymentAmount}` : 'Montant dynamique')}
           </span>
         </div>
       </div>

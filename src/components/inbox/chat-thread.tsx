@@ -14,10 +14,13 @@ import {
   X,
   Paperclip,
   PanelRightOpen,
-  PanelRightClose
+  PanelRightClose,
+  Package,
+  Search
 } from 'lucide-react'
 import type { Conversation, Message } from '@/app/dashboard/inbox/page'
 import { useOrganization } from '@/hooks/use-organization'
+import { createClient } from '@/lib/supabase/client'
 
 interface ChatThreadProps {
   conversation: Conversation
@@ -46,8 +49,27 @@ export function ChatThread({
   const [editName, setEditName] = useState(conversation.contact_name || '')
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  const [showProductPicker, setShowProductPicker] = useState(false)
+  const [products, setProducts] = useState<any[]>([])
+  const [loadingProducts, setLoadingProducts] = useState(false)
+  const [productSearch, setProductSearch] = useState('')
+  const supabase = createClient()
 
   useEffect(() => {
+    if (showProductPicker && activeOrganization) {
+      setLoadingProducts(true)
+      supabase
+        .from('meta_catalog_products')
+        .select('*')
+        .eq('organization_id', activeOrganization.id)
+        .order('name', { ascending: true })
+        .then(({ data }) => {
+          if (data) setProducts(data)
+          setLoadingProducts(false)
+        })
+    }
+  }, [showProductPicker, activeOrganization, supabase])
     setIsEditingName(false)
     setEditName(conversation.contact_name || '')
   }, [conversation.id, conversation.contact_name])
@@ -203,6 +225,43 @@ export function ChatThread({
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  async function handleSendProduct(product: any) {
+    if (!activeOrganization) return
+    setSending(true)
+    setShowProductPicker(false)
+    try {
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-organization-id': activeOrganization.id
+        },
+        body: JSON.stringify({
+          conversationId: conversation.id,
+          to: conversation.contact_phone,
+          type: 'product',
+          catalogId: product.catalog_id,
+          productRetailerId: product.retailer_id,
+        }),
+      })
+
+      const sendData = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        throw new Error(sendData.error || "Échec de l'envoi du produit")
+      }
+
+      onMessageSent(sendData.message)
+      setTimeout(() => {
+        bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    } catch (err: any) {
+      console.error('Send product failed:', err)
+      setSendError(err.message || "Erreur lors de l'envoi du produit")
+    } finally {
+      setSending(false)
     }
   }
 
@@ -439,6 +498,16 @@ export function ChatThread({
             {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
           </button>
           
+          <button
+            type="button"
+            onClick={() => setShowProductPicker(true)}
+            disabled={uploading || sending}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            title="Envoyer un produit"
+          >
+            <Package className="h-5 w-5" />
+          </button>
+          
           <input
             type="text"
             value={text}
@@ -462,6 +531,74 @@ export function ChatThread({
           </button>
         </form>
       </div>
+
+      {showProductPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-background rounded-xl shadow-xl w-full max-w-md flex flex-col max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Package className="w-5 h-5 text-indigo-500" />
+                Envoyer un produit
+              </h3>
+              <button onClick={() => setShowProductPicker(false)} className="text-muted-foreground hover:bg-muted p-1 rounded-md">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-3 border-b">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un produit..."
+                  className="w-full pl-9 pr-4 py-2 border rounded-lg text-sm outline-none focus:border-indigo-500"
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              {loadingProducts ? (
+                <div className="py-10 flex justify-center text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : products.length === 0 ? (
+                <div className="py-10 text-center text-sm text-muted-foreground">
+                  Aucun produit trouvé dans votre catalogue.
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase())).map(product => (
+                    <div 
+                      key={product.id} 
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted cursor-pointer transition-colors border border-transparent hover:border-border"
+                      onClick={() => handleSendProduct(product)}
+                    >
+                      <div className="w-12 h-12 rounded-md bg-secondary overflow-hidden shrink-0 flex items-center justify-center">
+                        {product.image_url ? (
+                          <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Package className="w-6 h-6 text-muted-foreground/50" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium truncate">{product.name}</h4>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                          <span className="font-semibold text-indigo-600">{product.price > 0 ? `${product.price} ${product.currency}` : 'Sur demande'}</span>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-xs text-indigo-600 font-medium px-2 py-1 rounded-md bg-indigo-50 group-hover:bg-indigo-100">
+                        Envoyer
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

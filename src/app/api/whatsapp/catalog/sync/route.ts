@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
             retailer_id: product.retailer_id,
             name: product.name,
             description: product.description,
-            price: product.price ? parseFloat(product.price) : 0,
+            price: product.price ? parseFloat(product.price.replace(/[^0-9.-]+/g, "")) : 0,
             currency: product.currency,
             image_url: product.image_url,
             availability: product.availability,
