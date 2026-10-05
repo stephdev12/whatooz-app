@@ -590,6 +590,7 @@ export async function POST(request: NextRequest) {
 
                 if (shouldTrigger) {
                   const payload = (auto.action_payload as Record<string, any>) || {}
+                  console.log(`[Webhook Automations] Triggered automation "${auto.name || auto.id}" (Type: ${auto.action_type}) with payload:`, JSON.stringify(payload))
                   let outboundText = ''
 
                   // Helper for variable substitution
@@ -856,114 +857,144 @@ export async function POST(request: NextRequest) {
                       status: 'sent',
                     })
                   } else if (auto.action_type === 'send_product') {
-                    const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        messaging_product: 'whatsapp',
-                        recipient_type: 'individual',
-                        to: customerPhone,
-                        type: 'interactive',
-                        interactive: {
-                          type: 'product',
-                          body: payload.text ? { text: replaceVariables(payload.text) } : undefined,
-                          action: {
-                            catalog_id: payload.catalogId,
-                            product_retailer_id: payload.productRetailerId,
+                    console.log(`[Webhook Automations] Executing send_product...`, payload)
+                    try {
+                      const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${accessToken}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          messaging_product: 'whatsapp',
+                          recipient_type: 'individual',
+                          to: customerPhone,
+                          type: 'interactive',
+                          interactive: {
+                            type: 'product',
+                            body: payload.text ? { text: replaceVariables(payload.text) } : undefined,
+                            action: {
+                              catalog_id: payload.catalogId,
+                              product_retailer_id: payload.productRetailerId,
+                            }
                           }
-                        }
+                        })
                       })
-                    }).then(res => res.json())
-                    outboundText = `[Produit envoyé: ${payload.productRetailerId}]`
-                    await supabaseAdmin.from('messages').insert({
-                      conversation_id: conversationId,
-                      organization_id: organizationId,
-                      direction: 'outbound',
-                      message_type: 'interactive',
-                      content_text: outboundText,
-                      wamid: sendRes.messages?.[0]?.id || `failed_${Date.now()}`,
-                      status: sendRes.error ? 'failed' : 'sent',
-                    })
+                      const resData = await sendRes.json()
+                      console.log('[Webhook Automations] send_product API response:', resData)
+                      if (!sendRes.ok) throw new Error(resData.error?.message || 'Failed to send product')
+
+                      outboundText = `[Produit envoyé: ${payload.productRetailerId}]`
+                      await supabaseAdmin.from('messages').insert({
+                        conversation_id: conversationId,
+                        organization_id: organizationId,
+                        direction: 'outbound',
+                        message_type: 'interactive',
+                        content_text: outboundText,
+                        wamid: resData.messages?.[0]?.id || `failed_${Date.now()}`,
+                        status: 'sent',
+                      })
+                    } catch (err: any) {
+                      console.error('[Webhook Automations] Error sending product:', err)
+                      outboundText = `[Erreur d'envoi du produit: ${err.message}]`
+                    }
                   } else if (auto.action_type === 'send_product_list') {
-                    const productRetailerIds = (payload.productRetailerIds || '').split(',').map((id: string) => id.trim()).filter(Boolean);
-                    const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        messaging_product: 'whatsapp',
-                        recipient_type: 'individual',
-                        to: customerPhone,
-                        type: 'interactive',
-                        interactive: {
-                          type: 'product_list',
-                          header: {
-                            type: 'text',
-                            text: 'Nos Produits'
-                          },
-                          body: {
-                            text: payload.text ? replaceVariables(payload.text) : 'Voici notre sélection :'
-                          },
-                          action: {
-                            catalog_id: payload.catalogId,
-                            sections: [
-                              {
-                                title: 'Sélection',
-                                product_items: productRetailerIds.map((id: string) => ({ product_retailer_id: id }))
-                              }
-                            ]
+                    console.log(`[Webhook Automations] Executing send_product_list...`, payload)
+                    try {
+                      const productRetailerIds = (payload.productRetailerIds || '').split(',').map((id: string) => id.trim()).filter(Boolean);
+                      const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${accessToken}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          messaging_product: 'whatsapp',
+                          recipient_type: 'individual',
+                          to: customerPhone,
+                          type: 'interactive',
+                          interactive: {
+                            type: 'product_list',
+                            header: {
+                              type: 'text',
+                              text: 'Nos Produits'
+                            },
+                            body: {
+                              text: payload.text ? replaceVariables(payload.text) : 'Voici notre sélection :'
+                            },
+                            action: {
+                              catalog_id: payload.catalogId,
+                              sections: [
+                                {
+                                  title: 'Sélection',
+                                  product_items: productRetailerIds.map((id: string) => ({ product_retailer_id: id }))
+                                }
+                              ]
+                            }
                           }
-                        }
+                        })
                       })
-                    }).then(res => res.json())
-                    outboundText = `[Liste de produits envoyée]`
-                    await supabaseAdmin.from('messages').insert({
-                      conversation_id: conversationId,
-                      organization_id: organizationId,
-                      direction: 'outbound',
-                      message_type: 'interactive',
-                      content_text: outboundText,
-                      wamid: sendRes.messages?.[0]?.id || `failed_${Date.now()}`,
-                      status: sendRes.error ? 'failed' : 'sent',
-                    })
+                      const resData = await sendRes.json()
+                      console.log('[Webhook Automations] send_product_list API response:', resData)
+                      if (!sendRes.ok) throw new Error(resData.error?.message || 'Failed to send product list')
+
+                      outboundText = `[Liste de produits envoyée]`
+                      await supabaseAdmin.from('messages').insert({
+                        conversation_id: conversationId,
+                        organization_id: organizationId,
+                        direction: 'outbound',
+                        message_type: 'interactive',
+                        content_text: outboundText,
+                        wamid: resData.messages?.[0]?.id || `failed_${Date.now()}`,
+                        status: 'sent',
+                      })
+                    } catch (err: any) {
+                      console.error('[Webhook Automations] Error sending product list:', err)
+                      outboundText = `[Erreur d'envoi de la liste de produits: ${err.message}]`
+                    }
                   } else if (auto.action_type === 'send_catalog') {
-                    const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify({
-                        messaging_product: 'whatsapp',
-                        recipient_type: 'individual',
-                        to: customerPhone,
-                        type: 'interactive',
-                        interactive: {
-                          type: 'catalog_message',
-                          body: {
-                            text: payload.message ? replaceVariables(payload.message) : 'Découvrez notre catalogue :'
-                          },
-                          action: {
-                            name: 'catalog_link'
+                    console.log(`[Webhook Automations] Executing send_catalog...`, payload)
+                    try {
+                      const sendRes = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${accessToken}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          messaging_product: 'whatsapp',
+                          recipient_type: 'individual',
+                          to: customerPhone,
+                          type: 'interactive',
+                          interactive: {
+                            type: 'catalog_message',
+                            body: {
+                              text: payload.message ? replaceVariables(payload.message) : 'Découvrez notre catalogue :'
+                            },
+                            action: {
+                              name: 'catalog_link'
+                            }
                           }
-                        }
+                        })
                       })
-                    }).then(res => res.json())
-                    outboundText = `[Catalogue envoyé]`
-                    await supabaseAdmin.from('messages').insert({
-                      conversation_id: conversationId,
-                      organization_id: organizationId,
-                      direction: 'outbound',
-                      message_type: 'interactive',
-                      content_text: outboundText,
-                      wamid: sendRes.messages?.[0]?.id || `failed_${Date.now()}`,
-                      status: sendRes.error ? 'failed' : 'sent',
-                    })
+                      const resData = await sendRes.json()
+                      console.log('[Webhook Automations] send_catalog API response:', resData)
+                      if (!sendRes.ok) throw new Error(resData.error?.message || 'Failed to send catalog')
+
+                      outboundText = `[Catalogue envoyé]`
+                      await supabaseAdmin.from('messages').insert({
+                        conversation_id: conversationId,
+                        organization_id: organizationId,
+                        direction: 'outbound',
+                        message_type: 'interactive',
+                        content_text: outboundText,
+                        wamid: resData.messages?.[0]?.id || `failed_${Date.now()}`,
+                        status: 'sent',
+                      })
+                    } catch (err: any) {
+                      console.error('[Webhook Automations] Error sending catalog:', err)
+                      outboundText = `[Erreur d'envoi du catalogue: ${err.message}]`
+                    }
                   } else if (auto.action_type === 'http_request' && payload.url) {
                     const method = payload.method || 'POST'
                     const url = replaceVariables(payload.url)

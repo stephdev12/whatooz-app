@@ -16,7 +16,8 @@ import {
   PanelRightOpen,
   PanelRightClose,
   Package,
-  Search
+  Search,
+  XCircle
 } from 'lucide-react'
 import type { Conversation, Message } from '@/app/dashboard/inbox/page'
 import { useOrganization } from '@/hooks/use-organization'
@@ -266,7 +267,7 @@ export function ChatThread({
     }
   }
 
-  function renderStatusIcon(status: string) {
+  function renderStatusIcon(status: string, errorMessage?: string) {
     switch (status) {
       case 'sent':
         return <Check className="h-3 w-3 text-muted-foreground" />
@@ -274,6 +275,8 @@ export function ChatThread({
         return <CheckCheck className="h-3 w-3 text-muted-foreground" />
       case 'read':
         return <CheckCheck className="h-3 w-3 text-blue-400" />
+      case 'failed':
+        return <XCircle className="h-3 w-3 text-destructive" title={errorMessage || "Échec de l'envoi"} />
       default:
         return null
     }
