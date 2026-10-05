@@ -17,7 +17,7 @@ export interface ModelCandidate {
   model: any;
 }
 
-const agentRouterFetch = (url: RequestInfo | URL, options?: RequestInit) => {
+const agentRouterFetch = async (url: RequestInfo | URL, options?: RequestInit) => {
   const headers = new Headers(options?.headers || {});
   headers.set('User-Agent', 'claude-cli/0.2.29 (external, cli)');
   headers.set('X-Stainless-Lang', 'js');
@@ -26,7 +26,42 @@ const agentRouterFetch = (url: RequestInfo | URL, options?: RequestInit) => {
   headers.set('X-Stainless-Arch', 'x64');
   headers.set('X-Stainless-Runtime', 'node');
   headers.set('X-Stainless-Runtime-Version', 'v20.18.0');
-  return fetch(url, { ...options, headers });
+
+  const response = await fetch(url, { ...options, headers });
+  const contentType = response.headers.get('content-type') || '';
+
+  // Guard against HTML error pages (e.g. if baseURL lacks /v1 or proxy returns HTML 200/404)
+  if (contentType.includes('text/html')) {
+    const status = response.status >= 400 ? response.status : 502;
+    return new Response(
+      JSON.stringify({
+        error: {
+          message: `AgentRouter returned HTML instead of JSON (Status ${response.status}). URL called: ${url.toString()}. Ensure AGENTROUTER_BASE_URL ends with '/v1'.`,
+          type: 'invalid_response_format',
+        }
+      }),
+      {
+        status,
+        statusText: 'Bad Gateway',
+        headers: { 'content-type': 'application/json; charset=utf-8' }
+      }
+    );
+  }
+
+  // Some AgentRouter endpoints return text/plain with JSON body; normalize to application/json
+  if (contentType.includes('text/plain')) {
+    const text = await response.text();
+    return new Response(text, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: {
+        ...Object.fromEntries(response.headers.entries()),
+        'content-type': 'application/json; charset=utf-8'
+      }
+    });
+  }
+
+  return response;
 };
 
 export class AgentRuntime {
@@ -46,8 +81,17 @@ export class AgentRuntime {
     // Helper: AgentRouter candidates with internal model fallback
     const addAgentRouterCandidates = (selectedModel?: string) => {
       if (!process.env.AGENTROUTER_API_KEY) return;
+
+      // Auto-normalize baseURL: strip trailing slash, fix domain, and guarantee /v1 suffix
+      let rawBaseUrl = (process.env.AGENTROUTER_BASE_URL || 'https://agentrouter.org/v1').trim();
+      rawBaseUrl = rawBaseUrl.replace('co.agentrouter.org', 'agentrouter.org');
+      rawBaseUrl = rawBaseUrl.replace(/\/+$/, '');
+      if (!rawBaseUrl.endsWith('/v1')) {
+        rawBaseUrl = `${rawBaseUrl}/v1`;
+      }
+
       const agentRouter = createOpenAI({
-        baseURL: process.env.AGENTROUTER_BASE_URL || 'https://agentrouter.org/v1',
+        baseURL: rawBaseUrl,
         apiKey: process.env.AGENTROUTER_API_KEY,
         fetch: agentRouterFetch,
       });

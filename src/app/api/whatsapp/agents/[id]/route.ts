@@ -51,7 +51,7 @@ export async function PATCH(req: Request, context: { params: Promise<{ id: strin
 
     if (tools && Array.isArray(tools)) {
       await supabaseAdmin.from('agent_tool_permissions').delete().eq('agent_id', id)
-      const perms = tools.map((t: string) => ({ agent_id: id, tool_name: t, is_allowed: true }))
+      const perms = tools.map((t: string) => ({ agent_id: id, tool_name: t, can_execute: true }))
       if (perms.length > 0) {
         await supabaseAdmin.from('agent_tool_permissions').insert(perms)
       }
