@@ -605,8 +605,11 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
                   <p className="text-xs text-slate-500">Aucun produit dans ce catalogue.</p>
                 ) : (
                   products.map(p => {
-                    const selectedIds = ((selectedNode.data.actionPayload as any)?.productRetailerIds || '').split(',').filter(Boolean)
-                    const isSelected = selectedIds.includes(p.product_retailer_id)
+                    const selectedIds = ((selectedNode.data.actionPayload as any)?.productRetailerIds || '')
+                      .split(',')
+                      .map((id: string) => id.trim())
+                      .filter(Boolean)
+                    const isSelected = selectedIds.includes(p.retailer_id)
                     return (
                       <div key={p.id} className="flex items-center space-x-2">
                         <input 
@@ -615,15 +618,15 @@ export function PropertiesPanel({ selectedNode, onUpdateNode, onClose }: Propert
                           onChange={(e) => {
                             let newIds = [...selectedIds]
                             if (e.target.checked) {
-                              if (newIds.length < 10) newIds.push(p.product_retailer_id)
+                              if (newIds.length < 10) newIds.push(p.retailer_id)
                             } else {
-                              newIds = newIds.filter(id => id !== p.product_retailer_id)
+                              newIds = newIds.filter(id => id !== p.retailer_id)
                             }
-                            handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), productRetailerIds: newIds.join(',') })
+                            handleChange('actionPayload', { ...((selectedNode.data.actionPayload as any) || {}), productRetailerIds: newIds.join(', ') })
                           }}
                           className="h-3 w-3 rounded border-gray-300"
                         />
-                        <span className="text-xs">{p.name} ({p.product_retailer_id})</span>
+                        <span className="text-xs">{p.name} ({p.retailer_id})</span>
                       </div>
                     )
                   })
