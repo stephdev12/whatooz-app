@@ -1,40 +1,21 @@
 require('dotenv').config({ path: '.env.local' });
-const { generateText, tool: aiTool, jsonSchema } = require('ai');
+const { createClient } = require('@supabase/supabase-js');
+const { generateText, tool: aiTool } = require('ai');
 const { createOpenAI } = require('@ai-sdk/openai');
-const { createAnthropic } = require('@ai-sdk/anthropic');
-const { createGoogleGenerativeAI } = require('@ai-sdk/google');
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function main() {
-  const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  
-  const aiTools = {
-    search_products: aiTool({
-      description: 'Search the catalog for products',
-      parameters: jsonSchema({
-        type: 'object',
-        properties: { query: { type: 'string' } },
-        required: ['query']
-      }),
-      execute: async (args) => {
-        console.log('Executing search_products', args);
-        return { products: [{ id: 1, name: 'souris beast gaming', price: 100 }] };
-      }
-    })
-  };
+  const agentId = 'a852828f-9609-45ef-b5cd-fa39e076deaf'; // The agent from logs
 
-  try {
-    const { text, steps } = await generateText({
-      model: openai('gpt-4o-mini'),
-      messages: [{ role: 'user', content: 'Puis je voir vos produits disponibles ?' }],
-      tools: aiTools,
-      maxSteps: 5
-    });
+  const { data: agent } = await supabase.from('ai_agents').select('*').eq('id', agentId).single();
+  console.log("Agent:", agent.name, "| Model:", agent.model_provider, agent.model_name);
+  console.log("System Prompt:", agent.system_prompt);
 
-    console.log('Final text:', text);
-    console.log('Steps count:', steps.length);
-  } catch (err) {
-    console.error('Error:', err);
-  }
+  const { data: perms } = await supabase.from('agent_tool_permissions').select('*').eq('agent_id', agentId);
+  console.log("Granted tools:", perms.map(p => p.tool_name));
 }
 
-main();
+main().catch(console.error);
