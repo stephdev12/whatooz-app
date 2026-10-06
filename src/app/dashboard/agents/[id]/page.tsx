@@ -193,20 +193,20 @@ export default function EditAgentPage() {
                 className="w-full bg-secondary border border-border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20 appearance-none"
               >
                 <option value="openai">OpenAI (Standard)</option>
-                <option value="agentrouter">AgentRouter (Multi-modèles unifié : Claude, GPT, DeepSeek...)</option>
+                <option value="openrouter">OpenRouter (Multi-modèles unifié : Claude, GPT, DeepSeek...)</option>
                 <option value="anthropic">Anthropic Claude</option>
                 <option value="google">Google Gemini</option>
               </select>
             </div>
 
-            {provider === 'agentrouter' && (
+            {provider === 'openrouter' && (
               <div className="p-3.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-purple-600 dark:text-purple-400">🌐 Passerelle AgentRouter</span>
+                  <span className="font-semibold text-purple-600 dark:text-purple-400">🌐 Passerelle OpenRouter</span>
                   <span className="text-[10px] bg-purple-500/20 text-purple-600 dark:text-purple-300 px-2 py-0.5 rounded-full font-medium">Clé Unique</span>
                 </div>
                 <p className="text-muted-foreground leading-relaxed text-[11px]">
-                  Un seul endpoint compatible OpenAI (<code className="text-foreground">https://co.agentrouter.org/v1</code>) avec <strong>secours automatique (fallback)</strong> : si un modèle ne répond pas, Whatooz bascule instantanément sur le suivant.
+                  Un seul endpoint compatible OpenAI (<code className="text-foreground">https://co.openrouter.org/v1</code>) avec <strong>secours automatique (fallback)</strong> : si un modèle ne répond pas, Whatooz bascule instantanément sur le suivant.
                 </p>
                 <div>
                   <label className="block font-medium mb-1 text-foreground">Modèle Principal</label>

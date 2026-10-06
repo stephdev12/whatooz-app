@@ -92,13 +92,13 @@ export default function NewAgentPage() {
             className="w-full bg-secondary border border-border rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/20 appearance-none text-sm"
           >
             <option value="openai">OpenAI (Standard)</option>
-            <option value="agentrouter">AgentRouter (Multi-modèles unifié : Claude, GPT, DeepSeek...)</option>
+            <option value="openrouter">OpenRouter (Multi-modèles unifié : Claude, GPT, DeepSeek...)</option>
             <option value="anthropic">Anthropic Claude</option>
             <option value="google">Google Gemini</option>
           </select>
           <p className="text-xs text-muted-foreground mt-1">
-            {provider === 'agentrouter' 
-              ? 'AgentRouter vous permet d\'accéder à Claude 3.5, GPT-4o, DeepSeek avec une clé unique.' 
+            {provider === 'openrouter' 
+              ? 'OpenRouter vous permet d\'accéder à Claude 3.5, GPT-4o, DeepSeek avec une clé unique.' 
               : 'Vous pourrez affiner les modèles et instructions à l\'étape suivante.'}
           </p>
         </div>

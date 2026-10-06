@@ -17,122 +17,38 @@ export interface ModelCandidate {
   model: any;
 }
 
-const agentRouterFetch = async (url: RequestInfo | URL, options?: RequestInit) => {
-  const headers = new Headers(options?.headers || {});
-  headers.set('User-Agent', 'claude-cli/0.2.29 (external, cli)');
-  headers.set('X-Stainless-Lang', 'js');
-  headers.set('X-Stainless-Package-Version', '0.38.0');
-  headers.set('X-Stainless-OS', 'Linux');
-  headers.set('X-Stainless-Arch', 'x64');
-  headers.set('X-Stainless-Runtime', 'node');
-  headers.set('X-Stainless-Runtime-Version', 'v20.18.0');
-
-  let response = await fetch(url, { ...options, headers });
-  let contentType = response.headers.get('content-type') || '';
-
-  // If Aliyun WAF captcha or HTML is returned, transparently retry via the ps.air-outer.com API mirror
-  if (contentType.includes('text/html') && url.toString().includes('agentrouter.org')) {
-    const mirrorUrl = url.toString().replace('agentrouter.org', 'ps.air-outer.com');
-    console.log(`[AgentRouter] WAF/HTML detected from ${url.toString()}, retrying via mirror ${mirrorUrl}`);
-    response = await fetch(mirrorUrl, { ...options, headers });
-    contentType = response.headers.get('content-type') || '';
-  }
-
-  // Guard against any remaining HTML error pages (e.g. if invalid path or proxy error returns HTML 200/404)
-  if (contentType.includes('text/html')) {
-    const status = response.status >= 400 ? response.status : 502;
-    return new Response(
-      JSON.stringify({
-        error: {
-          message: `AgentRouter returned HTML instead of JSON (Status ${response.status}). URL called: ${url.toString()}. Ensure AGENTROUTER_BASE_URL is 'https://ps.air-outer.com/v1'.`,
-          type: 'invalid_response_format',
-        }
-      }),
-      {
-        status,
-        statusText: 'Bad Gateway',
-        headers: { 'content-type': 'application/json; charset=utf-8' }
-      }
-    );
-  }
-
-  // Some AgentRouter endpoints return text/plain with JSON body; normalize to application/json
-  if (contentType.includes('text/plain')) {
-    const text = await response.text();
-    return new Response(text, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: {
-        ...Object.fromEntries(response.headers.entries()),
-        'content-type': 'application/json; charset=utf-8'
-      }
-    });
-  }
-
-  return response;
-};
-
 export class AgentRuntime {
-  static AGENTROUTER_DEFAULT_MODELS = [
-    'claude-opus-4-8',
-    'claude-opus-5',
-    'gpt-6-astra',
-    'deepseek-v4-flash'
-  ];
-
   static getModelCandidates(modelString: string, preferredProvider?: string): ModelCandidate[] {
     const isAdvanced = (modelString || '').toUpperCase() === 'ADVANCED';
     const isFast = (modelString || '').toUpperCase() === 'FAST';
     const provider = (preferredProvider || '').toLowerCase();
     const candidates: ModelCandidate[] = [];
 
-    // Helper: AgentRouter candidates with internal model fallback
-    const addAgentRouterCandidates = (selectedModel?: string) => {
-      if (!process.env.AGENTROUTER_API_KEY) return;
-
-      // Auto-normalize baseURL: use the direct API gateway mirror ps.air-outer.com to bypass Aliyun WAF captcha
-      let rawBaseUrl = (process.env.AGENTROUTER_BASE_URL || 'https://ps.air-outer.com/v1').trim();
-      rawBaseUrl = rawBaseUrl.replace('co.agentrouter.org', 'ps.air-outer.com');
-      rawBaseUrl = rawBaseUrl.replace('agentrouter.org', 'ps.air-outer.com');
-      rawBaseUrl = rawBaseUrl.replace(/\/+$/, '');
-      if (!rawBaseUrl.endsWith('/v1')) {
-        rawBaseUrl = `${rawBaseUrl}/v1`;
-      }
-
-      const agentRouter = createOpenAI({
-        baseURL: rawBaseUrl,
-        apiKey: process.env.AGENTROUTER_API_KEY,
-        fetch: agentRouterFetch,
+    // Helper: OpenRouter candidates
+    const addOpenRouterCandidates = (selectedModel?: string) => {
+      if (!process.env.OPENROUTER_API_KEY) return;
+      
+      const openrouter = createOpenAI({
+        baseURL: 'https://openrouter.ai/api/v1',
+        apiKey: process.env.OPENROUTER_API_KEY,
       });
 
       let primary = selectedModel;
       if (!primary || ['FAST', 'BALANCED', 'ADVANCED'].includes(primary.toUpperCase())) {
         if (isAdvanced) {
-          primary = process.env.AGENTROUTER_MODEL_ADVANCED || 'claude-opus-5';
+          primary = process.env.OPENROUTER_MODEL_ADVANCED || 'anthropic/claude-3.5-sonnet';
         } else if (isFast) {
-          primary = process.env.AGENTROUTER_MODEL_FAST || 'deepseek-v4-flash';
+          primary = process.env.OPENROUTER_MODEL_FAST || 'google/gemini-flash-1.5';
         } else {
-          primary = process.env.AGENTROUTER_MODEL_BALANCED || 'claude-opus-4-8';
+          primary = process.env.OPENROUTER_MODEL_BALANCED || 'openai/gpt-4o-mini';
         }
       }
 
-      // Add primary model first
       candidates.push({
-        provider: 'agentrouter',
+        provider: 'openrouter',
         modelName: primary,
-        model: agentRouter.chat(primary)
+        model: openrouter.chat(primary)
       });
-
-      // Add remaining AgentRouter models as sequential fallbacks
-      for (const fallbackModel of this.AGENTROUTER_DEFAULT_MODELS) {
-        if (fallbackModel !== primary) {
-          candidates.push({
-            provider: 'agentrouter',
-            modelName: fallbackModel,
-            model: agentRouter.chat(fallbackModel)
-          });
-        }
-      }
     };
 
     // Helper: OpenAI candidates
@@ -187,32 +103,32 @@ export class AgentRuntime {
     };
 
     // Build the prioritized candidate fallback chain
-    if (provider === 'agentrouter') {
-      addAgentRouterCandidates(modelString);
-      addGoogleCandidates();
+    if (provider === 'openrouter') {
+      addOpenRouterCandidates(modelString);
       addOpenAICandidates();
       addAnthropicCandidates();
+      addGoogleCandidates();
     } else if (provider === 'openai') {
       addOpenAICandidates();
-      addAgentRouterCandidates();
-      addGoogleCandidates();
       addAnthropicCandidates();
+      addGoogleCandidates();
+      addOpenRouterCandidates();
     } else if (provider === 'anthropic') {
       addAnthropicCandidates();
-      addAgentRouterCandidates();
       addOpenAICandidates();
       addGoogleCandidates();
+      addOpenRouterCandidates();
     } else if (provider === 'google') {
       addGoogleCandidates();
-      addAgentRouterCandidates();
       addOpenAICandidates();
       addAnthropicCandidates();
+      addOpenRouterCandidates();
     } else {
-      // Default: AgentRouter first if key present, else Google / OpenAI
-      addAgentRouterCandidates(modelString);
-      addGoogleCandidates();
+      // Default fallback sequence
       addOpenAICandidates();
       addAnthropicCandidates();
+      addGoogleCandidates();
+      addOpenRouterCandidates(modelString);
     }
 
     return candidates;
@@ -301,6 +217,7 @@ export class AgentRuntime {
           system: (agent.agent_config as any)?.system_prompt || agent.system_prompt || '',
           tools: Object.keys(aiTools).length > 0 ? aiTools : undefined,
           stopWhen: stepCountIs(MAX_TOOL_CALLS_PER_TURN),
+          maxRetries: 0, // Fallback quickly if a provider fails without waiting for built-in retries
           onStepFinish: (event: any) => {
             console.log(`[AgentRuntime] Step finished (${candidate.modelName}). Text: "${event.text?.substring(0, 100) || '(none)'}". Tool calls: ${event.toolCalls?.length || 0}. Finish reason: ${event.finishReason}`);
           },
