@@ -153,8 +153,10 @@ export class AgentRuntime {
     // 2. Load context
     const state = await AgentConversationService.getState(conversationId, agentId);
     
-    // We would normally fetch recent messages here
+    // We fetch recent messages for conversation context
+    const previousMessages = await AgentConversationService.getRecentMessages(conversationId, 10);
     const messages: any[] = [
+      ...previousMessages,
       { role: "user", content: userMessage }
     ];
 

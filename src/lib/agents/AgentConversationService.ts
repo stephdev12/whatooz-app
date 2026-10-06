@@ -62,6 +62,28 @@ export class AgentConversationService {
     if (error) throw error;
   }
 
+  static async getRecentMessages(conversationId: string, limit: number = 10): Promise<{ role: string, content: string }[]> {
+    const supabase = supabaseAdmin;
+    const { data, error } = await supabase
+      .from('messages')
+      .select('direction, content_text')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('[AgentConversationService] Failed to fetch recent messages:', error);
+      return [];
+    }
+
+    // Convert to AI SDK format (oldest first)
+    const reversed = (data || []).reverse();
+    return reversed.map(msg => ({
+      role: msg.direction === 'inbound' ? 'user' : 'assistant',
+      content: msg.content_text || '[Contenu multimédia ou non pris en charge]'
+    }));
+  }
+
   static async logToolCall(agentId: string, conversationId: string, toolName: string, args: any, result: any, status: 'PENDING'|'SUCCESS'|'ERROR', durationMs: number): Promise<void> {
     const supabase = supabaseAdmin;
     await supabase.from('agent_tool_calls').insert({

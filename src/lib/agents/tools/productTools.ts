@@ -128,7 +128,8 @@ import { decrypt } from '@/lib/whatsapp/encryption';
 
 export const sendProductToUserTool: AgentTool = {
   name: 'send_interactive_product',
-  description: 'Envoyer une carte de produit interactive directement dans WhatsApp avec un bouton. Utilisez ceci quand le client demande un produit précis ou quand vous proposez un produit pertinent.',
+  description: 'Envoyer une carte de produit interactive directement dans WhatsApp avec un bouton. Utilisez ceci quand le client demande un produit précis ou quand vous proposez un produit pertinent. TRÈS IMPORTANT: Après avoir exécuté cet outil, NE RÉPONDEZ PAS avec un long texte explicatif, car le produit a déjà été envoyé avec son propre texte.',
+
   parameters: {
     type: 'object',
     properties: {
@@ -182,7 +183,8 @@ export const sendProductToUserTool: AgentTool = {
 
 export const sendCatalogToUserTool: AgentTool = {
   name: 'send_interactive_catalog',
-  description: 'Envoyer le catalogue complet de la boutique directement dans WhatsApp (message avec bouton "Voir le catalogue"). Utilisez ceci quand le client demande à voir tous les produits ou le catalogue.',
+  description: 'Envoyer le catalogue complet de la boutique directement dans WhatsApp (message avec bouton "Voir le catalogue"). Utilisez ceci quand le client demande à voir tous les produits ou le catalogue. TRÈS IMPORTANT: Après avoir exécuté cet outil, NE RÉPONDEZ PAS avec un long texte. Répondez simplement par une confirmation courte du type "Voici notre catalogue, n\'hésitez pas si vous avez des questions." ou ne répondez rien si ce n\'est pas nécessaire.',
+
   parameters: {
     type: 'object',
     properties: {
@@ -220,7 +222,8 @@ export const sendCatalogToUserTool: AgentTool = {
 
 export const sendProductListToUserTool: AgentTool = {
   name: 'send_interactive_product_list',
-  description: 'Envoyer une liste (carousel) de produits interactifs dans WhatsApp. Utilisez ceci quand le client demande une catégorie de produits ou quand vous voulez lui proposer plusieurs choix de produits.',
+  description: 'Envoyer une liste (carousel) de produits interactifs dans WhatsApp. Utilisez ceci quand le client demande une catégorie de produits ou quand vous voulez lui proposer plusieurs choix de produits. TRÈS IMPORTANT: Après avoir exécuté cet outil, soyez très bref dans votre réponse (ex: "Voici quelques options qui pourraient vous intéresser.") ou ne dites rien, car l\'utilisateur verra déjà les produits.',
+
   parameters: {
     type: 'object',
     properties: {
