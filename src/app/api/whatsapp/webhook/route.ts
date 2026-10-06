@@ -7,6 +7,7 @@ import {
   sendTemplateMessage,
   sendFlowMessage,
   listTemplates,
+  markAsTyping,
 } from '@/lib/whatsapp/meta-api'
 import { SasPayService } from '@/lib/payments/saspay'
 import { AgentAssignmentResolver } from '@/lib/agents/AgentAssignmentResolver'
@@ -1239,23 +1240,36 @@ export async function POST(request: NextRequest) {
           const assignedAgentId = await AgentAssignmentResolver.resolveAgentForConversation(organizationId, contactId, conversationId);
           if (assignedAgentId) {
             console.log(`[Webhook POST] Conversation ${conversationId} is assigned to AI Agent ${assignedAgentId}`);
+
+            const { data: userConfig } = await supabaseAdmin
+              .from('whatsapp_config')
+              .select('access_token_encrypted, phone_number_id')
+              .eq('organization_id', organizationId)
+              .maybeSingle();
+
+            let accessToken = '';
+            let resolvedPhoneId = phoneNumberId;
+            if (userConfig?.access_token_encrypted) {
+              accessToken = decrypt(userConfig.access_token_encrypted);
+              resolvedPhoneId = userConfig.phone_number_id || phoneNumberId;
+              
+              // Mark as typing before AI processing
+              await markAsTyping({
+                phoneNumberId: resolvedPhoneId,
+                accessToken,
+                to: customerPhone,
+              });
+            }
+
             const aiResponseText = await AgentRuntime.handleMessage(organizationId, assignedAgentId, conversationId, contactId, contentText, customerPhone);
             
-            if (aiResponseText && aiResponseText.trim() !== '') {
-              const { data: userConfig } = await supabaseAdmin
-                .from('whatsapp_config')
-                .select('access_token_encrypted, phone_number_id')
-                .eq('organization_id', organizationId)
-                .maybeSingle();
-
-              if (userConfig?.access_token_encrypted) {
-                const accessToken = decrypt(userConfig.access_token_encrypted);
-                const sendRes = await sendTextMessage({
-                  phoneNumberId: userConfig.phone_number_id || phoneNumberId,
-                  accessToken,
-                  to: customerPhone,
-                  text: aiResponseText,
-                });
+            if (aiResponseText && aiResponseText.trim() !== '' && accessToken) {
+              const sendRes = await sendTextMessage({
+                phoneNumberId: resolvedPhoneId,
+                accessToken,
+                to: customerPhone,
+                text: aiResponseText,
+              });
 
                 await supabaseAdmin.from('messages').insert({
                   conversation_id: conversationId,

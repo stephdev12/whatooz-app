@@ -541,6 +541,33 @@ export async function markAsRead(args: {
   })
 }
 
+export async function markAsTyping(args: {
+  phoneNumberId: string
+  accessToken: string
+  to: string
+}): Promise<void> {
+  const { phoneNumberId, accessToken, to } = args
+  const url = `${META_API_BASE}/${phoneNumberId}/messages`
+  await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: to,
+      type: 'action',
+      action: {
+        name: 'typing_on',
+      },
+    }),
+  }).catch((err) => {
+    console.error('[Meta API] Failed to send typing_on action:', err);
+  });
+}
+
 // ============================================================
 // WhatsApp Embedded Signup & OAuth Helpers
 // ============================================================
