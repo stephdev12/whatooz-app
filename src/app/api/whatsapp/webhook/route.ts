@@ -1290,8 +1290,8 @@ export async function POST(request: NextRequest) {
                   })
                   .eq('id', conversationId);
               }
-            }
             
+
             // Done handling with AI agent
             continue;
           }
