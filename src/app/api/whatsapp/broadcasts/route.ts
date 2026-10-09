@@ -290,24 +290,61 @@ export async function POST(request: Request) {
         for (const comp of templateComponents) {
           const compType = (comp.type || '').toUpperCase()
 
-          // 1. Header (TEXT format)
+          // 1. Header (TEXT or MEDIA format)
           if (compType === 'HEADER') {
             const format = (comp.format || 'TEXT').toUpperCase()
-            if (format === 'TEXT' && comp.text) {
-              const matches = comp.text.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) || []
-              if (matches.length > 0) {
-                const headerParams = matches.map((placeholder: string, idx: number) => {
-                  const mapping =
-                    variableMappings[`header_${placeholder}`] ||
-                    variableMappings[`header_${idx + 1}`] ||
-                    variableMappings[placeholder] ||
-                    variableMappings['header']
+            if (format === 'TEXT') {
+              if (comp.text) {
+                const matches = comp.text.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) || []
+                if (matches.length > 0) {
+                  const headerParams = matches.map((placeholder: string, idx: number) => {
+                    const mapping =
+                      variableMappings[`header_${placeholder}`] ||
+                      variableMappings[`header_${idx + 1}`] ||
+                      variableMappings[placeholder] ||
+                      variableMappings['header']
 
-                  const val = resolveMappingValue(mapping, contact, 'Client')
-                  return { type: 'text', text: val || 'Client' }
-                })
-                comps.push({ type: 'header', parameters: headerParams })
+                    const val = resolveMappingValue(mapping, contact, 'Client')
+                    return { type: 'text', text: val || 'Client' }
+                  })
+                  comps.push({ type: 'header', parameters: headerParams })
+                }
               }
+            } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
+              // Media Header: Meta strictly requires { type: 'image'|'video'|'document', [type]: { link } }
+              const mediaType = format.toLowerCase()
+              const mapping =
+                variableMappings['header_media_url'] ||
+                variableMappings['header_image_url'] ||
+                variableMappings['header_image'] ||
+                variableMappings['header']
+
+              let mediaLink = ''
+              if (mapping) {
+                mediaLink = resolveMappingValue(mapping, contact, '')
+              }
+              if (!mediaLink || !mediaLink.startsWith('http')) {
+                mediaLink = comp.example?.header_url?.[0] || ''
+              }
+              if (!mediaLink || !mediaLink.startsWith('http')) {
+                if (mediaType === 'image') {
+                  mediaLink = 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80'
+                } else if (mediaType === 'video') {
+                  mediaLink = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+                } else {
+                  mediaLink = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+                }
+              }
+
+              comps.push({
+                type: 'header',
+                parameters: [
+                  {
+                    type: mediaType,
+                    [mediaType]: { link: mediaLink }
+                  }
+                ]
+              })
             }
           }
 
@@ -368,6 +405,126 @@ export async function POST(request: Request) {
               }
             })
           }
+
+          // 4. Carousel Component
+          else if (compType === 'CAROUSEL' && Array.isArray(comp.cards)) {
+            const cards = comp.cards.map((card: any, cardIdx: number) => {
+              const cardComponents: Array<Record<string, unknown>> = []
+              const cardSubComponents = card.components || []
+
+              // Card Header (Media)
+              const cHeader = cardSubComponents.find((c: any) => c.type?.toUpperCase() === 'HEADER')
+              if (cHeader) {
+                const cFormat = (cHeader.format || 'IMAGE').toUpperCase()
+                if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(cFormat)) {
+                  const mediaType = cFormat.toLowerCase()
+                  const mapping =
+                    variableMappings[`card_${cardIdx}_media_url`] ||
+                    variableMappings[`card_${cardIdx}_image`] ||
+                    variableMappings[`card_${cardIdx}_header`]
+
+                  let link = ''
+                  if (mapping) {
+                    link = resolveMappingValue(mapping, contact, '')
+                  }
+                  if (!link || !link.startsWith('http')) {
+                    link = cHeader.example?.header_url?.[0] || ''
+                  }
+                  if (!link || !link.startsWith('http')) {
+                    if (mediaType === 'image') {
+                      link = 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80'
+                    } else if (mediaType === 'video') {
+                      link = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+                    } else {
+                      link = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+                    }
+                  }
+
+                  cardComponents.push({
+                    type: 'header',
+                    parameters: [
+                      {
+                        type: mediaType,
+                        [mediaType]: { link }
+                      }
+                    ]
+                  })
+                } else if (cFormat === 'TEXT' && cHeader.text) {
+                  const matches = cHeader.text.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) || []
+                  if (matches.length > 0) {
+                    const headerParams = matches.map((placeholder: string, pIdx: number) => {
+                      const mapping =
+                        variableMappings[`card_${cardIdx}_header_${placeholder}`] ||
+                        variableMappings[`card_${cardIdx}_header_${pIdx + 1}`] ||
+                        variableMappings[`header_${placeholder}`]
+                      const val = resolveMappingValue(mapping, contact, 'Client')
+                      return { type: 'text', text: val || 'Client' }
+                    })
+                    cardComponents.push({ type: 'header', parameters: headerParams })
+                  }
+                }
+              }
+
+              // Card Body
+              const cBody = cardSubComponents.find((c: any) => c.type?.toUpperCase() === 'BODY')
+              if (cBody?.text) {
+                const matches = cBody.text.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) || []
+                if (matches.length > 0) {
+                  const bodyParams = matches.map((placeholder: string, pIdx: number) => {
+                    const mapping =
+                      variableMappings[`card_${cardIdx}_body_${placeholder}`] ||
+                      variableMappings[`card_${cardIdx}_body_${pIdx + 1}`] ||
+                      variableMappings[`body_${placeholder}`]
+                    const val = resolveMappingValue(mapping, contact, pIdx === 0 ? 'Cher client' : 'Client')
+                    return { type: 'text', text: val || 'Client' }
+                  })
+                  cardComponents.push({ type: 'body', parameters: bodyParams })
+                }
+              }
+
+              // Card Buttons
+              const cButtons = cardSubComponents.find((c: any) => c.type?.toUpperCase() === 'BUTTONS')
+              if (cButtons?.buttons && Array.isArray(cButtons.buttons)) {
+                cButtons.buttons.forEach((btn: any, btnIndex: number) => {
+                  const btnType = (btn.type || '').toUpperCase()
+                  if (btnType === 'URL') {
+                    const isDynamic =
+                      (btn.url && /\{\{([a-zA-Z0-9_-]+)\}\}/.test(btn.url)) ||
+                      (Array.isArray(btn.example) && btn.example.length > 0) ||
+                      btn.url_type === 'DYNAMIC'
+                    if (isDynamic) {
+                      const urlMatches = btn.url ? btn.url.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) : null
+                      const placeholder = urlMatches ? urlMatches[0] : '{{1}}'
+                      const mapping =
+                        variableMappings[`card_${cardIdx}_button_${btnIndex}_url`] ||
+                        variableMappings[`card_${cardIdx}_button_${btnIndex}`] ||
+                        variableMappings[`button_${btnIndex}_url`]
+                      let val = resolveMappingValue(mapping, contact, contact.phone || 'order')
+                      if (!val || val.trim().length === 0) {
+                        val = contact.phone || 'order'
+                      }
+                      cardComponents.push({
+                        type: 'button',
+                        sub_type: 'url',
+                        index: String(btnIndex),
+                        parameters: [{ type: 'text', text: val }]
+                      })
+                    }
+                  }
+                })
+              }
+
+              return {
+                card_index: cardIdx,
+                components: cardComponents
+              }
+            })
+
+            comps.push({
+              type: 'carousel',
+              cards
+            })
+          }
         }
 
         return comps.length > 0 ? comps : undefined
@@ -406,11 +563,12 @@ export async function POST(request: Request) {
               const errMsg = String(initialSendErr?.message || '')
               
               // Only retry if it is genuinely a translation not found error (Meta 132001)
-              // Do NOT retry for parameter errors (132000 or 131008)!
+              // Do NOT retry for parameter errors (132000, 132012 or 131008)!
               const isTranslationMissing =
                 errMsg.includes('132001') ||
                 (errMsg.toLowerCase().includes('translation') &&
                   !errMsg.includes('132000') &&
+                  !errMsg.includes('132012') &&
                   !errMsg.includes('131008') &&
                   !errMsg.includes('parameter'))
 

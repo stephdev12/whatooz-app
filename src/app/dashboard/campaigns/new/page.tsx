@@ -45,6 +45,7 @@ interface TemplateComponent {
   text?: string
   example?: any
   buttons?: any[]
+  cards?: any[]
 }
 
 interface WhatsAppTemplate {
@@ -204,7 +205,11 @@ export default function NewCampaignPage() {
     return selectedTemplate?.components?.find((c: any) => c.type?.toUpperCase() === 'FOOTER')
   }, [selectedTemplate])
 
-  // Comprehensive variable detector across Header, Body, and Buttons
+  const templateCarouselComponent = useMemo(() => {
+    return selectedTemplate?.components?.find((c: any) => c.type?.toUpperCase() === 'CAROUSEL')
+  }, [selectedTemplate])
+
+  // Comprehensive variable detector across Header (Text & Media), Body, Buttons and Carousel cards
   const detectedTemplateVariables = useMemo(() => {
     if (!selectedTemplate || !selectedTemplate.components) return []
 
@@ -224,7 +229,7 @@ export default function NewCampaignPage() {
     selectedTemplate.components.forEach((comp: any) => {
       const compType = (comp.type || '').toUpperCase()
 
-      // 1. Header (TEXT format)
+      // 1. Header (TEXT or MEDIA format)
       if (compType === 'HEADER') {
         const format = (comp.format || 'TEXT').toUpperCase()
         if (format === 'TEXT' && comp.text) {
@@ -241,6 +246,19 @@ export default function NewCampaignPage() {
               defaultSource: 'contact_first_name',
               defaultFallback: 'Client',
             })
+          })
+        } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
+          const labelFormat = format === 'IMAGE' ? 'Image' : format === 'VIDEO' ? 'Vidéo' : 'Document'
+          const exampleUrl = comp.example?.header_url?.[0] || ''
+          items.push({
+            key: 'header_media_url',
+            componentType: 'header',
+            componentTypeLabel: `En-tête (${labelFormat})`,
+            placeholder: `URL ${labelFormat}`,
+            label: `Lien de l'${labelFormat.toLowerCase()} d'en-tête (HTTPS)`,
+            contextText: exampleUrl ? `Exemple : ${exampleUrl}` : `Ce modèle requiert une ${labelFormat.toLowerCase()} valide`,
+            defaultSource: 'custom',
+            defaultFallback: exampleUrl || 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80',
           })
         }
       }
@@ -292,6 +310,81 @@ export default function NewCampaignPage() {
           }
         })
       }
+
+      // 4. Carousel cards
+      if (compType === 'CAROUSEL' && Array.isArray(comp.cards)) {
+        comp.cards.forEach((card: any, cardIdx: number) => {
+          const cardComponents = card.components || []
+
+          // Card Header (Media)
+          const cardHeader = cardComponents.find((c: any) => c.type?.toUpperCase() === 'HEADER')
+          if (cardHeader) {
+            const cardFormat = (cardHeader.format || 'IMAGE').toUpperCase()
+            if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(cardFormat)) {
+              const labelFormat = cardFormat === 'IMAGE' ? 'Image' : cardFormat === 'VIDEO' ? 'Vidéo' : 'Document'
+              const exampleUrl = cardHeader.example?.header_url?.[0] || ''
+              items.push({
+                key: `card_${cardIdx}_media_url`,
+                componentType: 'header',
+                componentTypeLabel: `Carte #${cardIdx + 1} (${labelFormat})`,
+                placeholder: `URL ${labelFormat}`,
+                label: `Carte #${cardIdx + 1} : Lien de l'${labelFormat.toLowerCase()}`,
+                contextText: exampleUrl ? `Exemple : ${exampleUrl}` : `Média requis pour la carte #${cardIdx + 1}`,
+                defaultSource: 'custom',
+                defaultFallback: exampleUrl || 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80',
+              })
+            }
+          }
+
+          // Card Body
+          const cardBody = cardComponents.find((c: any) => c.type?.toUpperCase() === 'BODY')
+          if (cardBody?.text) {
+            const matches = cardBody.text.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) || []
+            const uniqueMatches = Array.from(new Set(matches)) as string[]
+            uniqueMatches.forEach((placeholder) => {
+              items.push({
+                key: `card_${cardIdx}_body_${placeholder}`,
+                componentType: 'body',
+                componentTypeLabel: `Carte #${cardIdx + 1} (Texte)`,
+                placeholder,
+                label: `Carte #${cardIdx + 1} : ${placeholder}`,
+                contextText: cardBody.text,
+                defaultSource: 'contact_first_name',
+                defaultFallback: 'Client',
+              })
+            })
+          }
+
+          // Card Buttons
+          const cardButtons = cardComponents.find((c: any) => c.type?.toUpperCase() === 'BUTTONS')
+          if (cardButtons?.buttons && Array.isArray(cardButtons.buttons)) {
+            cardButtons.buttons.forEach((btn: any, btnIdx: number) => {
+              if (btn.type === 'URL') {
+                const hasDynamicVar =
+                  (btn.url && /\{\{([a-zA-Z0-9_-]+)\}\}/.test(btn.url)) ||
+                  (Array.isArray(btn.example) && btn.example.length > 0) ||
+                  btn.url_type === 'DYNAMIC'
+                if (hasDynamicVar) {
+                  const urlMatches = btn.url ? btn.url.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) : null
+                  const placeholder = urlMatches ? urlMatches[0] : '{{1}}'
+                  items.push({
+                    key: `card_${cardIdx}_button_${btnIdx}_url`,
+                    componentType: 'button',
+                    componentTypeLabel: `Carte #${cardIdx + 1} (Bouton #${btnIdx + 1})`,
+                    placeholder,
+                    label: `Carte #${cardIdx + 1} : Bouton #${btnIdx + 1} « ${btn.text || 'Lien'} »`,
+                    contextText: btn.url || 'URL dynamique',
+                    buttonIndex: btnIdx,
+                    buttonText: btn.text,
+                    defaultSource: 'contact_phone',
+                    defaultFallback: 'order',
+                  })
+                }
+              }
+            })
+          }
+        })
+      }
     })
 
     return items
@@ -316,7 +409,7 @@ export default function NewCampaignPage() {
         } else {
           next[item.key] = {
             source: item.defaultSource,
-            customText: '',
+            customText: item.defaultSource === 'custom' ? item.defaultFallback : '',
             fallback: item.defaultFallback,
           }
         }
@@ -822,20 +915,93 @@ export default function NewCampaignPage() {
                 </span>
               </div>
 
-              <div className="max-w-md mx-auto sm:mx-0 p-3.5 rounded-2xl bg-background border border-border/60 shadow-xs space-y-2 font-sans text-xs">
+              <div className="max-w-xl mx-auto sm:mx-0 p-3.5 rounded-2xl bg-background border border-border/60 shadow-xs space-y-2.5 font-sans text-xs">
+                {/* Standard Media Header */}
+                {templateHeaderComponent && ['IMAGE', 'VIDEO'].includes((templateHeaderComponent.format || '').toUpperCase()) && (
+                  <div className="w-full h-32 rounded-xl bg-muted/60 border border-border/50 flex flex-col items-center justify-center text-muted-foreground overflow-hidden relative">
+                    {templateHeaderComponent.example?.header_url?.[0] ? (
+                      <img 
+                        src={templateHeaderComponent.example.header_url[0]} 
+                        alt="Aperçu d'en-tête" 
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <span className="text-[11px] font-medium flex items-center gap-1.5">
+                        🖼️ Image d'en-tête dynamique
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Standard Text Header */}
                 {templateHeaderComponent?.text && (
                   <p className="font-bold text-foreground pb-1 border-b border-border/30">
                     {templateHeaderComponent.text}
                   </p>
                 )}
-                <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-                  {templateBodyComponent?.text || 'Message sans contenu texte'}
-                </p>
+
+                {/* Main Body */}
+                {templateBodyComponent?.text && (
+                  <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                    {templateBodyComponent.text}
+                  </p>
+                )}
+
+                {/* CAROUSEL Preview */}
+                {templateCarouselComponent && Array.isArray(templateCarouselComponent.cards) && (
+                  <div className="pt-2 border-t border-border/40 space-y-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Carrousel ({templateCarouselComponent.cards.length} cartes)
+                    </span>
+                    <div className="flex gap-2.5 overflow-x-auto pb-2 pt-1 scrollbar-thin">
+                      {templateCarouselComponent.cards.map((card: any, idx: number) => {
+                        const cardHeader = card.components?.find((c: any) => c.type?.toUpperCase() === 'HEADER')
+                        const cardBody = card.components?.find((c: any) => c.type?.toUpperCase() === 'BODY')
+                        const cardButtons = card.components?.find((c: any) => c.type?.toUpperCase() === 'BUTTONS')
+                        const imgUrl = cardHeader?.example?.header_url?.[0]
+
+                        return (
+                          <div 
+                            key={idx} 
+                            className="min-w-[170px] max-w-[190px] shrink-0 p-2.5 rounded-xl border border-border/70 bg-card/60 flex flex-col justify-between space-y-2 shadow-xs"
+                          >
+                            <div className="space-y-1.5">
+                              {imgUrl ? (
+                                <img src={imgUrl} alt={`Carte #${idx + 1}`} className="w-full h-20 object-cover rounded-lg" />
+                              ) : (
+                                <div className="w-full h-20 bg-muted/60 rounded-lg flex items-center justify-center text-[10px] text-muted-foreground">
+                                  🖼️ Image Carte #{idx + 1}
+                                </div>
+                              )}
+                              <p className="text-[11px] text-foreground font-medium line-clamp-2">
+                                {cardBody?.text || `Carte #${idx + 1}`}
+                              </p>
+                            </div>
+
+                            {cardButtons?.buttons && (
+                              <div className="flex flex-col gap-1 pt-1 border-t border-border/30">
+                                {cardButtons.buttons.map((b: any, bIdx: number) => (
+                                  <span key={bIdx} className="text-[10px] text-center text-primary font-medium py-1 px-1.5 rounded bg-primary/5">
+                                    {b.text || 'Bouton'}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer */}
                 {templateFooterComponent?.text && (
                   <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/30">
                     {templateFooterComponent.text}
                   </p>
                 )}
+
+                {/* Standard Buttons */}
                 {templateButtonsComponent?.buttons && Array.isArray(templateButtonsComponent.buttons) && (
                   <div className="pt-2 flex flex-col gap-1.5 border-t border-border/40">
                     {templateButtonsComponent.buttons.map((btn: any, idx: number) => (
