@@ -20,8 +20,12 @@ import {
   XCircle,
   Trash2,
   AlertTriangle,
+  Tag as TagIcon,
+  StickyNote,
+  Plus,
+  ChevronDown,
 } from 'lucide-react'
-import type { Conversation, Message } from '@/app/dashboard/inbox/page'
+import type { Conversation, Message, Tag as TagType } from '@/app/dashboard/inbox/page'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
 
@@ -52,6 +56,19 @@ export function ChatThread({
   const [members, setMembers] = useState<any[]>([])
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState(conversation.contact_name || '')
+
+  // Quick Tags & Notes State
+  const [contactTags, setContactTags] = useState<TagType[]>([])
+  const [orgTags, setOrgTags] = useState<TagType[]>([])
+  const [showTagPicker, setShowTagPicker] = useState(false)
+  const [newTagName, setNewTagName] = useState('')
+  const [newTagColor, setNewTagColor] = useState('#3b82f6')
+  const [creatingTag, setCreatingTag] = useState(false)
+
+  const [notes, setNotes] = useState<any[]>([])
+  const [showNotesModal, setShowNotesModal] = useState(false)
+  const [newNoteText, setNewNoteText] = useState('')
+  const [addingNote, setAddingNote] = useState(false)
 
   // Delete contact / conversation modal state
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -118,6 +135,137 @@ export function ChatThread({
     setIsEditingName(false)
     setEditName(conversation.contact_name || '')
   }, [conversation.id, conversation.contact_name])
+
+  // Load contact tags, notes, and org tags
+  useEffect(() => {
+    if (!activeOrganization) return
+    const contactId = conversation.contact?.id || conversation.contact_id
+
+    // Org tags
+    supabase
+      .from('tags')
+      .select('id, name, color')
+      .eq('organization_id', activeOrganization.id)
+      .order('name', { ascending: true })
+      .then(({ data }) => {
+        if (data) setOrgTags(data)
+      })
+
+    // Contact tags & notes if contactId exists
+    if (contactId) {
+      supabase
+        .from('contact_tags')
+        .select('tag_id, tags(id, name, color)')
+        .eq('contact_id', contactId)
+        .then(({ data }) => {
+          if (data) {
+            const mapped = data.map((ct: any) => ct.tags).filter(Boolean)
+            setContactTags(mapped)
+          } else if (conversation.contact?.tags) {
+            setContactTags(conversation.contact.tags)
+          }
+        })
+
+      supabase
+        .from('contact_notes')
+        .select('id, note_text, created_at')
+        .eq('contact_id', contactId)
+        .order('created_at', { ascending: false })
+        .then(({ data }) => {
+          if (data) setNotes(data)
+        })
+    } else if (conversation.contact?.tags) {
+      setContactTags(conversation.contact.tags)
+    }
+  }, [conversation.id, conversation.contact?.id, conversation.contact_id, activeOrganization, supabase])
+
+  async function handleToggleTag(tag: TagType) {
+    const contactId = conversation.contact?.id || conversation.contact_id
+    if (!activeOrganization || !contactId) return
+
+    const exists = contactTags.some(t => t.id === tag.id)
+    if (exists) {
+      setContactTags(prev => prev.filter(t => t.id !== tag.id))
+      await supabase
+        .from('contact_tags')
+        .delete()
+        .eq('contact_id', contactId)
+        .eq('tag_id', tag.id)
+    } else {
+      setContactTags(prev => [...prev, tag])
+      await supabase
+        .from('contact_tags')
+        .insert({
+          contact_id: contactId,
+          tag_id: tag.id,
+        })
+    }
+    window.dispatchEvent(new CustomEvent('contact-tags-updated'))
+  }
+
+  async function handleCreateTagAndAssign() {
+    if (!newTagName.trim() || !activeOrganization) return
+    const contactId = conversation.contact?.id || conversation.contact_id
+    setCreatingTag(true)
+    try {
+      const { data: created, error } = await supabase
+        .from('tags')
+        .insert({
+          organization_id: activeOrganization.id,
+          name: newTagName.trim(),
+          color: newTagColor,
+        })
+        .select('id, name, color')
+        .single()
+
+      if (error || !created) throw error || new Error('Erreur création tag')
+
+      setOrgTags(prev => [...prev, created])
+      if (contactId) {
+        await supabase
+          .from('contact_tags')
+          .insert({
+            contact_id: contactId,
+            tag_id: created.id,
+          })
+        setContactTags(prev => [...prev, created])
+        window.dispatchEvent(new CustomEvent('contact-tags-updated'))
+      }
+      setNewTagName('')
+      setShowTagPicker(false)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setCreatingTag(false)
+    }
+  }
+
+  async function handleAddNoteSubmit() {
+    if (!newNoteText.trim() || !activeOrganization) return
+    const contactId = conversation.contact?.id || conversation.contact_id
+    if (!contactId) return
+    setAddingNote(true)
+    try {
+      const { data, error } = await supabase
+        .from('contact_notes')
+        .insert({
+          contact_id: contactId,
+          organization_id: activeOrganization.id,
+          note_text: newNoteText.trim(),
+        })
+        .select('id, note_text, created_at')
+        .single()
+
+      if (!error && data) {
+        setNotes(prev => [data, ...prev])
+        setNewNoteText('')
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setAddingNote(false)
+    }
+  }
 
   useEffect(() => {
     if (activeOrganization) {
@@ -386,21 +534,25 @@ export function ChatThread({
         </div>
         
         {/* Controls */}
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+          {/* Status selector */}
           <select
             value={conversation.status || 'open'}
             onChange={(e) => handleUpdate({ status: e.target.value })}
             className="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            title="Statut de la conversation"
           >
             <option value="open">Ouvert</option>
             <option value="pending">En attente</option>
             <option value="closed">Fermé</option>
           </select>
           
+          {/* Assignation selector (visible on both mobile and desktop) */}
           <select
             value={conversation.assigned_user_id || 'unassigned'}
             onChange={(e) => handleUpdate({ assignedUserId: e.target.value })}
-            className="hidden md:block h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-w-[120px] truncate"
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-w-[105px] sm:max-w-[130px] truncate"
+            title="Assigner un collaborateur"
           >
             <option value="unassigned">Non assigné</option>
             {members.map(m => (
@@ -411,17 +563,7 @@ export function ChatThread({
           {onToggleSidebar && (
             <button
               onClick={onToggleSidebar}
-              className="ml-1 hidden md:flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-              title={showSidebar ? 'Masquer le panneau contact' : 'Afficher le panneau contact'}
-            >
-              {showSidebar ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
-            </button>
-          )}
-          {/* Mobile version of toggle button */}
-          {onToggleSidebar && (
-            <button
-              onClick={onToggleSidebar}
-              className="md:hidden flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors shrink-0"
               title={showSidebar ? 'Masquer le panneau contact' : 'Afficher le panneau contact'}
             >
               {showSidebar ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
@@ -432,7 +574,7 @@ export function ChatThread({
           <button
             type="button"
             onClick={() => setShowDeleteModal(true)}
-            className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+            className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
             title="Supprimer ce contact"
           >
             <Trash2 className="h-4 w-4" />
@@ -440,8 +582,124 @@ export function ChatThread({
         </div>
       </div>
 
+      {/* Quick context strip: Tags, Notes, Inline Actions */}
+      <div className="border-b border-border/60 bg-muted/20 px-3 py-1.5 flex items-center justify-between gap-2 overflow-x-auto shrink-0 text-xs">
+        {/* Left: Tags */}
+        <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-x-auto no-scrollbar py-0.5">
+          <TagIcon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          {contactTags.length === 0 ? (
+            <span className="text-[11px] text-muted-foreground italic shrink-0">Aucun tag</span>
+          ) : (
+            contactTags.map(tag => (
+              <span
+                key={tag.id}
+                style={{ backgroundColor: `${tag.color}15`, color: tag.color, borderColor: `${tag.color}35` }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-medium shrink-0 group transition-all"
+              >
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+                <span>{tag.name}</span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleTag(tag)}
+                  className="hover:opacity-75 p-0.5 -mr-0.5 rounded-full"
+                  title="Retirer ce tag"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))
+          )}
+          
+          {/* Add tag popover trigger */}
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowTagPicker(!showTagPicker)}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-dashed border-border hover:border-foreground/40 bg-background text-[11px] text-muted-foreground hover:text-foreground transition-all"
+            >
+              <Plus className="w-3 h-3" />
+              <span>Tag</span>
+            </button>
+
+            {/* Tag picker dropdown */}
+            {showTagPicker && (
+              <div className="absolute top-7 left-0 z-50 w-56 p-2 rounded-xl border border-border bg-card shadow-xl space-y-2 animate-in fade-in zoom-in-95 duration-100">
+                <div className="flex items-center justify-between text-xs font-semibold px-1">
+                  <span>Tags du contact</span>
+                  <button onClick={() => setShowTagPicker(false)} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <div className="max-h-36 overflow-y-auto space-y-1">
+                  {orgTags.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground px-1 py-1">Aucun tag créé</p>
+                  ) : (
+                    orgTags.map(t => {
+                      const isAssigned = contactTags.some(ct => ct.id === t.id)
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => handleToggleTag(t)}
+                          className={cn(
+                            "w-full flex items-center justify-between px-2 py-1 rounded-lg text-xs text-left transition-colors",
+                            isAssigned ? "bg-primary/10 font-medium text-foreground" : "hover:bg-muted text-muted-foreground"
+                          )}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: t.color }} />
+                            <span>{t.name}</span>
+                          </span>
+                          {isAssigned && <Check className="w-3 h-3 text-primary" />}
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+                <div className="pt-2 border-t border-border flex gap-1">
+                  <input
+                    type="text"
+                    placeholder="Nouveau tag..."
+                    className="flex-1 px-2 py-1 text-xs border border-input rounded-md bg-transparent"
+                    value={newTagName}
+                    onChange={e => setNewTagName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleCreateTagAndAssign() } }}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCreateTagAndAssign}
+                    disabled={!newTagName.trim() || creatingTag}
+                    className="px-2 py-1 rounded-md bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50"
+                  >
+                    {creatingTag ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Notes trigger */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setShowNotesModal(true)}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-border bg-background text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            title="Consulter et ajouter des notes"
+          >
+            <StickyNote className="w-3.5 h-3.5 text-amber-500" />
+            <span>Notes</span>
+            {notes.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-600 font-bold text-[10px]">
+                {notes.length}
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto bg-background p-4">
+      <div className="flex-1 overflow-y-auto overscroll-contain bg-background p-3 sm:p-4">
         <div className="mx-auto max-w-2xl space-y-3">
           {messages.length === 0 && (
             <p className="text-center text-sm text-muted-foreground py-10">
@@ -526,9 +784,9 @@ export function ChatThread({
       </div>
 
       {/* Message composer */}
-      <div className="border-t border-border bg-background p-4">
+      <div className="shrink-0 border-t border-border bg-background/95 backdrop-blur-sm p-2.5 sm:p-3.5">
         {sendError && (
-          <div className="mx-auto max-w-2xl mb-2 flex items-center justify-between rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <div className="mx-auto max-w-3xl mb-2 flex items-center justify-between rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
             <span>{sendError}</span>
             <button
               type="button"
@@ -541,7 +799,7 @@ export function ChatThread({
         )}
         <form
           onSubmit={handleSend}
-          className="mx-auto flex max-w-2xl items-center gap-3"
+          className="mx-auto flex max-w-3xl items-center gap-2 sm:gap-3"
         >
           <input 
             type="file" 
@@ -553,20 +811,20 @@ export function ChatThread({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading || sending}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
             title="Joindre un fichier"
           >
-            {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Paperclip className="h-5 w-5" />}
+            {uploading ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> : <Paperclip className="h-4 w-4 sm:h-5 sm:w-5" />}
           </button>
           
           <button
             type="button"
             onClick={() => setShowProductPicker(true)}
             disabled={uploading || sending}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
             title="Envoyer un produit"
           >
-            <Package className="h-5 w-5" />
+            <Package className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
           
           <input
@@ -577,12 +835,13 @@ export function ChatThread({
               if (sendError) setSendError(null)
             }}
             placeholder="Écrire un message..."
-            className="flex-1 rounded-xl border border-border bg-input px-4 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
+            className="flex-1 min-w-0 rounded-xl border border-border bg-input px-3.5 py-2 sm:py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
           />
           <button
             type="submit"
             disabled={!text.trim() || sending || uploading}
-            className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#fe5105] text-white transition-all hover:bg-[#e04602] disabled:opacity-50"
+            className="flex h-10 w-10 shrink-0 min-w-[42px] min-h-[42px] items-center justify-center rounded-xl bg-[#fe5105] text-white shadow-sm transition-all hover:bg-[#e04602] active:scale-95 disabled:opacity-50"
+            title="Envoyer le message"
           >
             {sending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -711,6 +970,69 @@ export function ChatThread({
                 {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 <span>Supprimer</span>
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Notes Modal */}
+      {showNotesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                <StickyNote className="w-5 h-5 text-amber-500" />
+                <h3 className="font-semibold text-sm">Notes internes sur le contact</h3>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setShowNotesModal(false)} 
+                className="p-1 rounded-md text-muted-foreground hover:bg-muted"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-56 overflow-y-auto">
+              {notes.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">Aucune note enregistrée pour ce contact.</p>
+              ) : (
+                notes.map(note => (
+                  <div key={note.id} className="p-2.5 rounded-xl bg-muted/40 border border-border/60 text-xs space-y-1">
+                    <p className="whitespace-pre-wrap text-foreground leading-relaxed">{note.note_text}</p>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(note.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="space-y-2 pt-2 border-t border-border">
+              <textarea
+                placeholder="Rédigez une note confidentielle..."
+                className="w-full p-2.5 rounded-xl border border-input bg-transparent text-xs outline-none focus:border-primary resize-none h-20"
+                value={newNoteText}
+                onChange={e => setNewNoteText(e.target.value)}
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowNotesModal(false)}
+                  className="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-muted"
+                >
+                  Fermer
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddNoteSubmit}
+                  disabled={!newNoteText.trim() || addingNote}
+                  className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  {addingNote && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Enregistrer la note</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

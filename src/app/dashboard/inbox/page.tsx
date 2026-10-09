@@ -254,7 +254,7 @@ export default function InboxPage() {
     <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
       {selectedConvoId && (
         <style jsx global>{`
-          @media (max-width: 768px) {
+          @media (max-width: 1024px) {
             .mobile-bottom-nav { display: none !important; }
             .inbox-main-content { padding-bottom: 0 !important; }
           }

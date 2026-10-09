@@ -312,28 +312,28 @@ export default function TemplatesPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Modèles de Message</h1>
           <p className="text-sm text-muted-foreground mt-1">Gérez vos templates WhatsApp pour l'envoi de notifications.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2" onClick={handleSync} disabled={loading}>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" className="gap-2 text-xs sm:text-sm" onClick={handleSync} disabled={loading}>
             <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Synchroniser
+            <span>Synchroniser</span>
           </Button>
           <Link href="/dashboard/templates/create">
-            <Button className="gap-2">
+            <Button className="gap-2 text-xs sm:text-sm">
               <Plus className="h-4 w-4" />
-              Créer un modèle
+              <span>Créer un modèle</span>
             </Button>
           </Link>
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-card rounded-2xl border border-border shadow-xs overflow-hidden flex flex-col">
         {/* Filters */}
         <div className="p-4 border-b border-border flex gap-4">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input 
               placeholder="Rechercher un modèle..." 
-              className="pl-9" 
+              className="pl-9 text-xs sm:text-sm" 
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
@@ -341,8 +341,8 @@ export default function TemplatesPage() {
         </div>
 
         {/* List */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full min-w-[620px] text-sm text-left">
             <thead className="text-xs text-muted-foreground bg-muted/50 uppercase">
               <tr>
                 <th className="px-6 py-3 font-medium">Nom</th>

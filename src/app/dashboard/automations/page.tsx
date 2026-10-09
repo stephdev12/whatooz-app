@@ -106,30 +106,30 @@ export default function AutomationsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8">
-      <div className="flex items-center justify-between">
+    <div className="w-full max-w-6xl mx-auto space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-foreground">Scénarios & Automatisations</h1>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground font-heading">Scénarios & Automatisations</h1>
             <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border">
               Actives : {activeCount} / {plan.limits.activeAutomations > 100 ? 'Illimitées' : plan.limits.activeAutomations} ({plan.name})
             </span>
           </div>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Gérez le comportement de votre assistant WhatsApp via l&apos;éditeur visuel (Workflow Builder).
           </p>
         </div>
         <button
           onClick={() => router.push('/dashboard/automations/builder/new')}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold shadow-sm hover:bg-primary/90 transition-all flex items-center gap-2"
+          className="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold shadow-sm hover:bg-primary/90 transition-all flex items-center gap-2 self-start sm:self-auto"
         >
           <Plus className="w-4 h-4" />
-          Créer un scénario
+          <span>Créer un scénario</span>
         </button>
       </div>
 
       {isLimitReached && (
-        <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl flex items-center justify-between text-sm">
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm">
           <div className="flex items-center gap-2">
             <Lock className="w-4 h-4 shrink-0" />
             <span>
@@ -138,10 +138,10 @@ export default function AutomationsPage() {
           </div>
           <button
             onClick={() => router.push('/dashboard/settings/billing')}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:brightness-105 inline-flex items-center gap-1 shrink-0 ml-4"
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:brightness-105 inline-flex items-center gap-1 shrink-0 self-start sm:self-auto"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Débloquer plus d&apos;automatisations
+            <span>Débloquer plus d&apos;automatisations</span>
           </button>
         </div>
       )}

@@ -250,14 +250,14 @@ export default function ContactsPage() {
   )
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col gap-6 p-6">
+    <div className="w-full max-w-7xl mx-auto flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Contacts</h1>
-          <p className="text-sm text-muted-foreground">Gérez votre base de données clients et prospects.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-heading">Contacts</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Gérez votre base de données clients et prospects.</p>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <input 
             type="file" 
             accept=".vcf" 
@@ -268,38 +268,38 @@ export default function ContactsPage() {
           <button 
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="flex items-center gap-2 rounded-xl bg-card px-4 py-2 text-sm font-medium text-foreground shadow-sm border border-border hover:bg-secondary transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-card px-3.5 py-2 text-xs sm:text-sm font-medium text-foreground shadow-xs border border-border hover:bg-secondary transition-colors disabled:opacity-50"
           >
             {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
-            Importer VCF
+            <span>Importer VCF</span>
           </button>
 
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2 text-xs sm:text-sm font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 transition-all active:scale-95"
           >
             <Plus className="h-4 w-4" />
-            Nouveau Contact
+            <span>Nouveau Contact</span>
           </button>
         </div>
       </div>
 
       {uploadError && (
-        <div className="flex items-center gap-2 p-4 rounded-xl bg-red-50 text-red-600 text-sm">
-          <AlertCircle className="w-5 h-5" />
-          {uploadError}
+        <div className="flex items-center gap-2 p-3.5 rounded-xl bg-destructive/10 text-destructive text-xs sm:text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{uploadError}</span>
         </div>
       )}
       
       {uploadSuccess && (
-        <div className="flex items-center gap-2 p-4 rounded-xl bg-green-50 text-green-600 text-sm">
-          <CheckCircle2 className="w-5 h-5" />
-          {uploadSuccess}
+        <div className="flex items-center gap-2 p-3.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          <span>{uploadSuccess}</span>
         </div>
       )}
 
-      <div className="flex-1 rounded-2xl border border-border bg-card shadow-sm flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-border flex items-center justify-between">
+      <div className="rounded-2xl border border-border bg-card shadow-xs flex flex-col overflow-hidden">
+        <div className="p-4 border-b border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="relative w-full max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input 
@@ -307,29 +307,29 @@ export default function ContactsPage() {
               placeholder="Rechercher par nom ou numéro..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-lg border border-border text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-shadow"
+              className="w-full pl-9 pr-4 py-2 rounded-xl border border-input bg-background text-xs sm:text-sm focus:outline-none focus:border-primary transition-shadow"
             />
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-xs text-muted-foreground self-end sm:self-auto">
             {filteredContacts.length} contact{filteredContacts.length > 1 ? 's' : ''}
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto">
+        <div className="overflow-x-auto w-full">
           {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <Loader2 className="w-8 h-8 animate-spin text-slate-300" />
+            <div className="flex items-center justify-center p-12">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
             </div>
           ) : filteredContacts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center p-8">
-              <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-4">
-                <Users className="w-8 h-8 text-slate-300" />
+            <div className="flex flex-col items-center justify-center text-center p-8 sm:p-12">
+              <div className="w-12 h-12 bg-secondary rounded-2xl flex items-center justify-center mb-3">
+                <Users className="w-6 h-6 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-medium text-foreground mb-1">Aucun contact trouvé</h3>
-              <p className="text-muted-foreground max-w-sm">Vous n'avez pas encore de contacts, ou aucun ne correspond à votre recherche.</p>
+              <h3 className="text-base font-semibold text-foreground mb-1">Aucun contact trouvé</h3>
+              <p className="text-xs text-muted-foreground max-w-sm">Vous n'avez pas encore de contacts, ou aucun ne correspond à votre recherche.</p>
             </div>
           ) : (
-            <table className="w-full text-left text-sm text-muted-foreground">
+            <table className="w-full min-w-[640px] text-left text-sm text-muted-foreground">
               <thead className="bg-secondary/50 text-xs uppercase text-muted-foreground sticky top-0 backdrop-blur-md">
                 <tr>
                   <th className="px-6 py-4 font-medium">Contact</th>

@@ -113,10 +113,10 @@ export default function BillingPage() {
   const displayPlanCards: PlanCode[] = ['free', 'starter', 'growth', 'business']
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8">
+    <div className="w-full max-w-6xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Abonnement & Facturation</h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground font-heading">Abonnement & Facturation</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
           Une tarification transparente en FCFA conçue pour évoluer avec la croissance de votre entreprise.
         </p>
       </div>

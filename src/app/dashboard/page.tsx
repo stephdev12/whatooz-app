@@ -208,16 +208,16 @@ export default function DashboardPage() {
   const capitalizedUserName = userName.charAt(0).toUpperCase() + userName.slice(1)
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4.25rem)] max-w-4xl mx-auto px-2 sm:px-4 pb-2">
+    <div className="flex flex-col h-full min-h-0 flex-1 max-w-4xl w-full mx-auto px-1 sm:px-4 pb-2">
       {/* ─── Header ─── */}
-      <header className="flex items-center justify-between py-3 border-b border-border/50 shrink-0">
-        <h1 className="text-base font-medium tracking-tight text-foreground">
+      <header className="flex items-center justify-between py-2 sm:py-3 border-b border-border/50 shrink-0">
+        <h1 className="text-sm sm:text-base font-semibold tracking-tight text-foreground font-heading">
           Bonjour, {capitalizedUserName}
         </h1>
 
         <button
           onClick={handleResetConversation}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
           title="Nouveau chat"
         >
           <RotateCcw className="size-3.5" />
@@ -226,7 +226,7 @@ export default function DashboardPage() {
       </header>
 
       {/* ─── Scrollable Message Thread ─── */}
-      <main className="flex-1 overflow-y-auto py-5 space-y-6 pr-1">
+      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-4 sm:py-5 space-y-5 sm:space-y-6 pr-1">
         {messages.map((msg, index) => {
           const isLastAssistantMessage =
             msg.role === 'assistant' &&

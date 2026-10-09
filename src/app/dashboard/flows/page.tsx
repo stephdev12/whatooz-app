@@ -104,13 +104,13 @@ export default function FlowsPage() {
   }
 
   return (
-    <div className="flex flex-col w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-32 lg:pb-8">
+    <div className="flex flex-col w-full max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-heading flex items-center gap-2">
             <Layers className="w-6 h-6 text-emerald-500" />
-            Flux WhatsApp
+            <span>Flux WhatsApp</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Créez des formulaires et des expériences interactives natives dans WhatsApp.

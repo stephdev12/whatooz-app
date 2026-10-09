@@ -60,26 +60,26 @@ export default function CatalogPage() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col gap-6 p-6">
+    <div className="w-full max-w-7xl mx-auto flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Catalogue Meta</h1>
-          <p className="text-sm text-muted-foreground">Gérez vos catalogues de produits synchronisés depuis Meta Commerce.</p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground font-heading">Catalogue Meta</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Gérez vos catalogues de produits synchronisés depuis Meta Commerce.</p>
         </div>
         
         <div className="flex items-center gap-3">
           <button 
             onClick={handleSync}
             disabled={isSyncing}
-            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50"
           >
             {isSyncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Synchroniser
+            <span>Synchroniser</span>
           </button>
         </div>
       </div>
 
-      <div className="flex-1 rounded-2xl border border-border bg-card shadow-sm flex flex-col overflow-hidden p-6">
+      <div className="rounded-2xl border border-border bg-card shadow-xs flex flex-col p-4 sm:p-6">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="w-8 h-8 animate-spin text-slate-300" />

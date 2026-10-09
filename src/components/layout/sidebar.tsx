@@ -91,8 +91,8 @@ export const navTree: NavTreeItem[] = [
         href: '/dashboard/templates',
       },
       {
-        label: 'Diffusions',
-        href: '/dashboard/broadcasts',
+        label: 'Campagnes',
+        href: '/dashboard/campaigns',
       },
       {
         label: 'Automations',
