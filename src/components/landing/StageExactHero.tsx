@@ -10,18 +10,24 @@ export function StageExactHero({ onStartTrial }: StageExactHeroProps) {
   const farRef = useRef<HTMLDivElement>(null)
   const midRef = useRef<HTMLDivElement>(null)
   const dashboardRef = useRef<HTMLElement>(null)
+  const frontRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleScroll = () => {
       const y = window.scrollY
       if (farRef.current) {
-        farRef.current.style.transform = `translate3d(0, ${y * 0.31}px, 0)`
+        farRef.current.style.transform = `translate3d(0, ${y * 0.12}px, 0)`
       }
       if (midRef.current) {
-        midRef.current.style.transform = `translate3d(0, ${y * 0.17}px, 0)`
+        midRef.current.style.transform = `translate3d(0, ${y * 0.08}px, 0)`
       }
+      // L'image de l'application descend avec le scroll
       if (dashboardRef.current) {
-        dashboardRef.current.style.transform = `translate3d(0, ${y * -0.14}px, 0)`
+        dashboardRef.current.style.transform = `translate3d(0, ${y * 0.22}px, 0)`
+      }
+      // L'image d'avant-plan monte légèrement
+      if (frontRef.current) {
+        frontRef.current.style.transform = `translate3d(0, ${y * -0.08}px, 0)`
       }
     }
 
@@ -34,11 +40,10 @@ export function StageExactHero({ onStartTrial }: StageExactHeroProps) {
       {/* Sky Background */}
       <div className="hero-sky" aria-hidden="true" />
 
-      {/* Far Landscape Layer (parallax: 0.31) */}
+      {/* Far Landscape Layer (parallax) */}
       <div
         ref={farRef}
         className="landscape-layer landscape-far"
-        data-parallax="0.31"
         aria-hidden="true"
       >
         <img
@@ -49,11 +54,10 @@ export function StageExactHero({ onStartTrial }: StageExactHeroProps) {
         />
       </div>
 
-      {/* Mid Landscape Layer (parallax: 0.17) */}
+      {/* Mid Landscape Layer (parallax) */}
       <div
         ref={midRef}
         className="landscape-layer landscape-mid"
-        data-parallax="0.17"
         aria-hidden="true"
       >
         <img
@@ -64,7 +68,7 @@ export function StageExactHero({ onStartTrial }: StageExactHeroProps) {
         />
       </div>
 
-      {/* Hero Heading (Centered, clean, no badges) */}
+      {/* Hero Heading (Centered, clean, responsive) */}
       <div className="hero-heading">
         <h1 aria-label="Votre WhatsApp vend. Vos agents automatisent.">
           Votre WhatsApp vend.<br />
@@ -89,25 +93,29 @@ export function StageExactHero({ onStartTrial }: StageExactHeroProps) {
         <p className="cta-caption">Comprend 30 jours d&apos;essai gratuit</p>
       </div>
 
-      {/* Floating Dashboard Card (parallax: -0.14) */}
+      {/* Floating Dashboard Card (App image moves down on scroll) */}
       <figure
         ref={dashboardRef}
         className="hero-dashboard"
-        data-parallax="0.20"
       >
         <div className="hero-dashboard-screen">
           <img
-            src="/images/stage-dashboard-hover.webp"
+            src="/images/dashboard-preview.png"
             alt="Tableau de bord Whatooz"
-            width={2880}
-            height={2628}
+            width={1024}
+            height={455}
+            className="w-full h-auto object-cover"
             fetchPriority="high"
           />
         </div>
       </figure>
 
-      {/* Front Landscape Layer (in front of the dashboard) */}
-      <div className="landscape-layer landscape-front" aria-hidden="true">
+      {/* Front Landscape Layer (Foreground image rises slightly on scroll) */}
+      <div
+        ref={frontRef}
+        className="landscape-layer landscape-front"
+        aria-hidden="true"
+      >
         <img
           src="/images/stage-landscape-front.webp"
           alt=""

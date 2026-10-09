@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import { WhatoozLogo } from '@/components/ui/whatooz-logo'
 
 interface StageExactFooterProps {
   onStartTrial: () => void
@@ -11,8 +12,8 @@ export function StageExactFooter({ onStartTrial }: StageExactFooterProps) {
     <>
       {/* Exact Stage Closing CTA */}
       <section className="stage-closing">
-        <div className="w-12 h-12 rounded-xl bg-[#171717] mx-auto mb-6 flex items-center justify-center text-white font-bold text-lg">
-          W
+        <div className="flex justify-center mb-6">
+          <WhatoozLogo size="lg" variant="dark" showText={false} />
         </div>
 
         <h2>Prêt à automatiser votre WhatsApp ?</h2>
@@ -38,7 +39,7 @@ export function StageExactFooter({ onStartTrial }: StageExactFooterProps) {
       <footer className="stage-footer">
         <div className="stage-footer-main">
           <div className="stage-footer-brand">
-            <h4>Whatooz</h4>
+            <WhatoozLogo size="sm" variant="light" showText={true} />
             <p>
               La plateforme d&apos;automatisation WhatsApp pour les commerces et marques modernes. Connectée à l&apos;API officielle WhatsApp Cloud de Meta.
             </p>

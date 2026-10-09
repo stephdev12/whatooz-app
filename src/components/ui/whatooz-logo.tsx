@@ -14,6 +14,7 @@ export function WhatoozLogo({
   className,
   size = 'md',
   showText = false,
+  variant = 'auto',
 }: WhatoozLogoProps) {
   // Dimensions for the icon container
   const sizeMap = {
@@ -25,27 +26,57 @@ export function WhatoozLogo({
 
   const currentSize = sizeMap[size]
 
+  const isLightOnly = variant === 'light'
+  const isDarkOnly = variant === 'dark'
+
   return (
-    <div className={cn('flex items-center gap-2.5 select-none', className)}>
+    <div className={cn('flex items-center gap-2 select-none', className)}>
       {/* Real Logo */}
       <div
         className={cn(
-          'relative flex items-center justify-center shrink-0',
+          'relative flex items-center justify-center shrink-0 overflow-hidden',
           currentSize.container
         )}
       >
-        <img
-          src="/logo_white.png"
-          alt="Whatooz"
-          className="h-full w-full object-contain pointer-events-none transform scale-200 block dark:hidden"
-        />
-        <img
-          src="/logo_noir.png"
-          alt="Whatooz"
-          className="h-full w-full object-contain pointer-events-none transform scale-200 hidden dark:block"
-        />
+        {/* Light background version: dark mark */}
+        {(isLightOnly || variant === 'auto') && (
+          <img
+            src="/logo_white.png"
+            alt="Whatooz"
+            className={cn(
+              'h-full w-full object-contain pointer-events-none transform scale-200',
+              variant === 'auto' ? 'block dark:hidden' : 'block'
+            )}
+          />
+        )}
+        {/* Dark background version: white mark */}
+        {(isDarkOnly || variant === 'auto') && (
+          <img
+            src="/logo_noir.png"
+            alt="Whatooz"
+            className={cn(
+              'h-full w-full object-contain pointer-events-none transform scale-200',
+              variant === 'auto' ? 'hidden dark:block' : 'block'
+            )}
+          />
+        )}
       </div>
 
+      {showText && (
+        <span
+          className={cn(
+            'font-bold tracking-tight leading-none',
+            currentSize.text,
+            isDarkOnly
+              ? 'text-white'
+              : isLightOnly
+                ? 'text-zinc-900'
+                : 'text-foreground'
+          )}
+        >
+          whatooz
+        </span>
+      )}
     </div>
   )
 }

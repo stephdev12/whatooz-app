@@ -39,10 +39,10 @@ export function StageExactPricing({ onSelectPlan }: StageExactPricingProps) {
                 <li>30 jours d&apos;essai gratuit sans engagement</li>
               </ul>
             </div>
-            <div>
+            <div className="mt-8">
               <button
                 type="button"
-                className="button button-neutral"
+                className="button button-neutral w-full"
                 onClick={() => onSelectPlan('starter')}
               >
                 <span>Commencer l&apos;essai de 30 jours</span>
@@ -72,10 +72,10 @@ export function StageExactPricing({ onSelectPlan }: StageExactPricingProps) {
                 <li>30 jours d&apos;essai gratuit sans engagement</li>
               </ul>
             </div>
-            <div>
+            <div className="mt-8">
               <button
                 type="button"
-                className="button button-primary"
+                className="button button-primary w-full"
                 onClick={() => onSelectPlan('pro')}
               >
                 <span>Commencer l&apos;essai de 30 jours</span>
