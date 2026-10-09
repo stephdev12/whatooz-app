@@ -187,40 +187,144 @@ export default function NewCampaignPage() {
     return templates.find(t => t.name === selectedTemplateName)
   }, [templates, selectedTemplateName])
 
-  // Extract template body text
+  // Extract template components
   const templateBodyComponent = useMemo(() => {
-    return selectedTemplate?.components?.find((c: any) => c.type === 'BODY')
+    return selectedTemplate?.components?.find((c: any) => c.type?.toUpperCase() === 'BODY')
   }, [selectedTemplate])
 
-  const templateBodyText = templateBodyComponent?.text || ''
+  const templateHeaderComponent = useMemo(() => {
+    return selectedTemplate?.components?.find((c: any) => c.type?.toUpperCase() === 'HEADER')
+  }, [selectedTemplate])
 
-  // Detect placeholders like {{1}}, {{2}}, {{name}}, {{prenom}} in the body
-  const detectedVariables = useMemo(() => {
-    if (!templateBodyText) return []
-    const matches = templateBodyText.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g)
-    if (!matches) return []
-    return Array.from(new Set(matches))
-  }, [templateBodyText])
+  const templateButtonsComponent = useMemo(() => {
+    return selectedTemplate?.components?.find((c: any) => c.type?.toUpperCase() === 'BUTTONS')
+  }, [selectedTemplate])
 
-  // Initialize variable mappings whenever detected variables change
+  const templateFooterComponent = useMemo(() => {
+    return selectedTemplate?.components?.find((c: any) => c.type?.toUpperCase() === 'FOOTER')
+  }, [selectedTemplate])
+
+  // Comprehensive variable detector across Header, Body, and Buttons
+  const detectedTemplateVariables = useMemo(() => {
+    if (!selectedTemplate || !selectedTemplate.components) return []
+
+    const items: Array<{
+      key: string
+      componentType: 'header' | 'body' | 'button'
+      componentTypeLabel: string
+      placeholder: string
+      label: string
+      contextText?: string
+      buttonIndex?: number
+      buttonText?: string
+      defaultSource: string
+      defaultFallback: string
+    }> = []
+
+    selectedTemplate.components.forEach((comp: any) => {
+      const compType = (comp.type || '').toUpperCase()
+
+      // 1. Header (TEXT format)
+      if (compType === 'HEADER') {
+        const format = (comp.format || 'TEXT').toUpperCase()
+        if (format === 'TEXT' && comp.text) {
+          const matches = comp.text.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) || []
+          const uniqueMatches = Array.from(new Set(matches)) as string[]
+          uniqueMatches.forEach((placeholder) => {
+            items.push({
+              key: `header_${placeholder}`,
+              componentType: 'header',
+              componentTypeLabel: 'En-tête',
+              placeholder,
+              label: `En-tête (${placeholder})`,
+              contextText: comp.text,
+              defaultSource: 'contact_first_name',
+              defaultFallback: 'Client',
+            })
+          })
+        }
+      }
+
+      // 2. Body
+      if (compType === 'BODY' && comp.text) {
+        const matches = comp.text.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) || []
+        const uniqueMatches = Array.from(new Set(matches)) as string[]
+        uniqueMatches.forEach((placeholder, idx) => {
+          items.push({
+            key: `body_${placeholder}`,
+            componentType: 'body',
+            componentTypeLabel: 'Corps du message',
+            placeholder,
+            label: `Corps du message (${placeholder})`,
+            contextText: comp.text,
+            defaultSource: idx === 0 ? 'contact_first_name' : 'contact_name',
+            defaultFallback: idx === 0 ? 'Cher client' : 'Client',
+          })
+        })
+      }
+
+      // 3. Dynamic URL Buttons
+      if (compType === 'BUTTONS' && Array.isArray(comp.buttons)) {
+        comp.buttons.forEach((btn: any, btnIndex: number) => {
+          const btnType = (btn.type || '').toUpperCase()
+          if (btnType === 'URL') {
+            const hasDynamicVar =
+              (btn.url && /\{\{([a-zA-Z0-9_-]+)\}\}/.test(btn.url)) ||
+              (Array.isArray(btn.example) && btn.example.length > 0) ||
+              btn.url_type === 'DYNAMIC'
+
+            if (hasDynamicVar) {
+              const urlMatches = btn.url ? btn.url.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) : null
+              const placeholder = urlMatches ? urlMatches[0] : '{{1}}'
+              items.push({
+                key: `button_${btnIndex}_url`,
+                componentType: 'button',
+                componentTypeLabel: `Bouton Lien #${btnIndex + 1}`,
+                placeholder,
+                label: `Bouton #${btnIndex + 1} « ${btn.text || 'Lien'} » (Paramètre URL)`,
+                contextText: btn.url || 'URL dynamique',
+                buttonIndex: btnIndex,
+                buttonText: btn.text,
+                defaultSource: 'contact_phone',
+                defaultFallback: 'order',
+              })
+            }
+          }
+        })
+      }
+    })
+
+    return items
+  }, [selectedTemplate])
+
+  // Synchronize variableMappings strictly to the currently selected template
+  // If template has 0 variables, resets to empty object to prevent sending unauthorized parameters!
   useEffect(() => {
-    if (detectedVariables.length === 0) return
+    if (detectedTemplateVariables.length === 0) {
+      setVariableMappings({})
+      return
+    }
 
     setVariableMappings(prev => {
-      const next = { ...prev }
-      detectedVariables.forEach((v, index) => {
-        if (!next[v]) {
-          // Default: first variable maps to first name or full name
-          next[v] = {
-            source: index === 0 ? 'contact_first_name' : 'contact_name',
+      const next: Record<string, { source: string; customText?: string; fallback?: string }> = {}
+
+      detectedTemplateVariables.forEach(item => {
+        if (prev[item.key]) {
+          next[item.key] = prev[item.key]
+        } else if (prev[item.placeholder]) {
+          next[item.key] = prev[item.placeholder]
+        } else {
+          next[item.key] = {
+            source: item.defaultSource,
             customText: '',
-            fallback: 'Cher client',
+            fallback: item.defaultFallback,
           }
         }
       })
+
       return next
     })
-  }, [detectedVariables])
+  }, [detectedTemplateVariables, selectedTemplateName])
 
   // Calculate target contacts
   const targetAudienceContacts = useMemo(() => {
@@ -317,7 +421,8 @@ export default function NewCampaignPage() {
         message_payload: {
           templateId: selectedTemplateName,
           templateName: selectedTemplateName,
-          templateLanguage: selectedTemplate?.language || 'fr_FR',
+          templateLanguage: selectedTemplate?.language || 'fr',
+          templateComponents: selectedTemplate?.components || [],
           templateVariablesMapping: variableMappings,
           scheduling: schedulingPayload,
         },
@@ -704,13 +809,57 @@ export default function NewCampaignPage() {
             )}
           </div>
 
-          {/* Variables Mapping Grid */}
-          {detectedVariables.length > 0 && (
+          {/* Template Live Preview */}
+          {selectedTemplate && (
+            <div className="p-4 rounded-xl border border-border/70 bg-muted/20 space-y-2.5">
+              <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+                <span className="flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-primary" />
+                  <span>Aperçu du modèle Meta</span>
+                </span>
+                <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-muted">
+                  Langue : {selectedTemplate.language || 'fr'}
+                </span>
+              </div>
+
+              <div className="max-w-md mx-auto sm:mx-0 p-3.5 rounded-2xl bg-background border border-border/60 shadow-xs space-y-2 font-sans text-xs">
+                {templateHeaderComponent?.text && (
+                  <p className="font-bold text-foreground pb-1 border-b border-border/30">
+                    {templateHeaderComponent.text}
+                  </p>
+                )}
+                <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+                  {templateBodyComponent?.text || 'Message sans contenu texte'}
+                </p>
+                {templateFooterComponent?.text && (
+                  <p className="text-[10px] text-muted-foreground pt-1 border-t border-border/30">
+                    {templateFooterComponent.text}
+                  </p>
+                )}
+                {templateButtonsComponent?.buttons && Array.isArray(templateButtonsComponent.buttons) && (
+                  <div className="pt-2 flex flex-col gap-1.5 border-t border-border/40">
+                    {templateButtonsComponent.buttons.map((btn: any, idx: number) => (
+                      <div 
+                        key={idx} 
+                        className="w-full py-1.5 px-3 rounded-lg bg-muted/50 border border-border/50 text-center text-primary font-medium text-xs flex items-center justify-center gap-1.5"
+                      >
+                        <span>{btn.text || 'Action'}</span>
+                        {btn.type === 'URL' && <span className="text-[10px] text-muted-foreground">(Lien)</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Variables Mapping Grid or Zero-variable message */}
+          {detectedTemplateVariables.length > 0 ? (
             <div className="space-y-3 pt-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-purple-500" />
-                  <span>Personnalisation dynamique des variables ({detectedVariables.length})</span>
+                  <span>Personnalisation dynamique des variables ({detectedTemplateVariables.length})</span>
                 </label>
                 <span className="text-[11px] text-muted-foreground">
                   Chaque message sera adapté aux informations du destinataire
@@ -718,16 +867,32 @@ export default function NewCampaignPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {detectedVariables.map((variable) => {
-                  const mapping = variableMappings[variable] || { source: 'contact_first_name', fallback: 'Client' }
+                {detectedTemplateVariables.map((v) => {
+                  const mapping = variableMappings[v.key] || { source: v.defaultSource, fallback: v.defaultFallback }
                   return (
-                    <div key={variable} className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10">
-                          {variable}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">Source de données</span>
+                    <div key={v.key} className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border",
+                            v.componentType === 'header' ? "bg-purple-500/10 text-purple-600 border-purple-500/20" :
+                            v.componentType === 'button' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" :
+                            "bg-blue-500/10 text-blue-600 border-blue-500/20"
+                          )}>
+                            {v.componentTypeLabel}
+                          </span>
+                          <span className="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10">
+                            {v.placeholder}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground shrink-0">Source</span>
                       </div>
+
+                      {v.contextText && (
+                        <p className="text-[11px] text-muted-foreground italic truncate" title={v.contextText}>
+                          "{v.contextText}"
+                        </p>
+                      )}
 
                       <select
                         value={mapping.source}
@@ -735,7 +900,7 @@ export default function NewCampaignPage() {
                           const newSource = e.target.value
                           setVariableMappings(prev => ({
                             ...prev,
-                            [variable]: { ...prev[variable], source: newSource }
+                            [v.key]: { ...prev[v.key], source: newSource }
                           }))
                         }}
                         className="w-full px-2.5 py-1.5 border border-input bg-background rounded-lg text-xs outline-none focus:border-primary"
@@ -757,7 +922,7 @@ export default function NewCampaignPage() {
                             const val = e.target.value
                             setVariableMappings(prev => ({
                               ...prev,
-                              [variable]: { ...prev[variable], customText: val }
+                              [v.key]: { ...prev[v.key], customText: val }
                             }))
                           }}
                         />
@@ -767,14 +932,14 @@ export default function NewCampaignPage() {
                         <span className="text-[10px] text-muted-foreground shrink-0">Secours (si vide) :</span>
                         <input
                           type="text"
-                          placeholder="Ex: Cher client"
+                          placeholder={`Ex: ${v.defaultFallback}`}
                           className="flex-1 px-2 py-1 border border-input bg-background rounded-md text-[11px] outline-none"
                           value={mapping.fallback || ''}
                           onChange={e => {
                             const val = e.target.value
                             setVariableMappings(prev => ({
                               ...prev,
-                              [variable]: { ...prev[variable], fallback: val }
+                              [v.key]: { ...prev[v.key], fallback: val }
                             }))
                           }}
                         />
@@ -782,6 +947,16 @@ export default function NewCampaignPage() {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-800 dark:text-emerald-300 text-xs flex items-start gap-3 mt-2">
+              <Check className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+              <div className="space-y-0.5">
+                <p className="font-semibold text-sm text-foreground">Modèle prêt à l'envoi direct (0 variable)</p>
+                <p className="text-muted-foreground leading-relaxed">
+                  Ce modèle ne requiert aucune variable personnalisée. Vos messages seront envoyés directement avec le texte officiel approuvé par Meta sans risque de discordance de paramètres.
+                </p>
               </div>
             </div>
           )}

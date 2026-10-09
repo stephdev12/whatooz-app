@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 import { checkQuota } from '@/lib/quota'
 import { decrypt } from '@/lib/whatsapp/encryption'
-import { sendTemplateMessage } from '@/lib/whatsapp/meta-api'
+import { sendTemplateMessage, listTemplates } from '@/lib/whatsapp/meta-api'
 
 export const dynamic = 'force-dynamic'
 
@@ -192,20 +192,186 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Nom du modèle WhatsApp manquant.' }, { status: 400 })
       }
 
-      // Resolve template language: passed from client, or lookup in DB, or fallback
+      // Resolve template language & components
       let resolvedLang = message_payload.templateLanguage || message_payload.languageCode
-      if (!resolvedLang) {
+      let templateComponents = message_payload.templateComponents
+
+      // If components or language missing, lookup from database or Meta API
+      if (!resolvedLang || !templateComponents || !Array.isArray(templateComponents) || templateComponents.length === 0) {
         const { data: tmplRow } = await supabaseAdmin
           .from('whatsapp_templates')
-          .select('language')
+          .select('language, components, compiled_payload')
           .eq('organization_id', organizationId)
           .eq('name', templateName)
           .maybeSingle()
-        resolvedLang = tmplRow?.language || 'fr_FR'
+
+        if (tmplRow) {
+          if (!resolvedLang) resolvedLang = tmplRow.language || 'fr'
+          if (!templateComponents || templateComponents.length === 0) {
+            templateComponents = tmplRow.compiled_payload || tmplRow.components || []
+          }
+        }
+
+        // If still missing and config has waba_id, fetch from Meta API
+        if ((!templateComponents || templateComponents.length === 0) && config.waba_id) {
+          try {
+            const accessToken = decrypt(config.access_token_encrypted)
+            const metaTemplates = await listTemplates({ wabaId: config.waba_id, accessToken })
+            const foundMetaTmpl = metaTemplates.find((t: any) => t.name === templateName)
+            if (foundMetaTmpl) {
+              templateComponents = foundMetaTmpl.components || []
+              if (!resolvedLang) resolvedLang = foundMetaTmpl.language || 'fr'
+            }
+          } catch (fetchErr) {
+            console.warn('Could not fetch template details from Meta API:', fetchErr)
+          }
+        }
       }
 
+      if (!resolvedLang) resolvedLang = 'fr'
+
+      // Get organization name for mapping
+      const { data: orgData } = await supabaseAdmin
+        .from('organizations')
+        .select('name')
+        .eq('id', organizationId)
+        .maybeSingle()
+      const orgName = orgData?.name || 'Whatooz'
+
       const variableMappings = message_payload.templateVariablesMapping || message_payload.variableMappings || {}
-      const detectedVars = Object.keys(variableMappings)
+
+      // Helper function to resolve mapping value for a contact
+      const resolveMappingValue = (mapping: any, contact: any, fallbackVal: string): string => {
+        if (!mapping) return fallbackVal
+
+        if (mapping.source === 'contact_first_name') {
+          if (contact.name && contact.name.trim().length > 0) {
+            return contact.name.trim().split(' ')[0]
+          }
+          return mapping.fallback || fallbackVal
+        }
+
+        if (mapping.source === 'contact_name') {
+          return contact.name || mapping.fallback || fallbackVal
+        }
+
+        if (mapping.source === 'contact_phone') {
+          return contact.phone || mapping.fallback || fallbackVal
+        }
+
+        if (mapping.source === 'organization_name') {
+          return orgName
+        }
+
+        if (mapping.source === 'custom') {
+          return mapping.customText || mapping.fallback || fallbackVal
+        }
+
+        return mapping.fallback || contact.name || fallbackVal
+      }
+
+      // Helper function to build Meta components for a contact
+      const buildComponentsForContact = (contact: any): Array<Record<string, unknown>> | undefined => {
+        if (!templateComponents || !Array.isArray(templateComponents) || templateComponents.length === 0) {
+          // Fallback if no components structure is known:
+          // ONLY create body parameters if variableMappings has keys
+          const keys = Object.keys(variableMappings)
+          if (keys.length === 0) return undefined
+
+          const bodyParams = keys.map(k => ({
+            type: 'text',
+            text: resolveMappingValue(variableMappings[k], contact, 'Client')
+          }))
+          return [{ type: 'body', parameters: bodyParams }]
+        }
+
+        const comps: Array<Record<string, unknown>> = []
+
+        for (const comp of templateComponents) {
+          const compType = (comp.type || '').toUpperCase()
+
+          // 1. Header (TEXT format)
+          if (compType === 'HEADER') {
+            const format = (comp.format || 'TEXT').toUpperCase()
+            if (format === 'TEXT' && comp.text) {
+              const matches = comp.text.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) || []
+              if (matches.length > 0) {
+                const headerParams = matches.map((placeholder: string, idx: number) => {
+                  const mapping =
+                    variableMappings[`header_${placeholder}`] ||
+                    variableMappings[`header_${idx + 1}`] ||
+                    variableMappings[placeholder] ||
+                    variableMappings['header']
+
+                  const val = resolveMappingValue(mapping, contact, 'Client')
+                  return { type: 'text', text: val || 'Client' }
+                })
+                comps.push({ type: 'header', parameters: headerParams })
+              }
+            }
+          }
+
+          // 2. Body
+          else if (compType === 'BODY') {
+            if (comp.text) {
+              const matches = comp.text.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) || []
+              if (matches.length > 0) {
+                const bodyParams = matches.map((placeholder: string, idx: number) => {
+                  const mapping =
+                    variableMappings[`body_${placeholder}`] ||
+                    variableMappings[`body_${idx + 1}`] ||
+                    variableMappings[placeholder] ||
+                    variableMappings[String(idx + 1)]
+
+                  const val = resolveMappingValue(mapping, contact, idx === 0 ? 'Cher client' : 'Client')
+                  return { type: 'text', text: val || 'Client' }
+                })
+                comps.push({ type: 'body', parameters: bodyParams })
+              }
+              // STRICT: If matches.length === 0, DO NOT add body component!
+            }
+          }
+
+          // 3. Dynamic URL Buttons
+          else if (compType === 'BUTTONS' && Array.isArray(comp.buttons)) {
+            comp.buttons.forEach((btn: any, btnIndex: number) => {
+              const btnType = (btn.type || '').toUpperCase()
+              if (btnType === 'URL') {
+                const isDynamic =
+                  (btn.url && /\{\{([a-zA-Z0-9_-]+)\}\}/.test(btn.url)) ||
+                  (Array.isArray(btn.example) && btn.example.length > 0) ||
+                  btn.url_type === 'DYNAMIC'
+
+                if (isDynamic) {
+                  const urlMatches = btn.url ? btn.url.match(/\{\{([a-zA-Z0-9_-]+)\}\}/g) : null
+                  const placeholder = urlMatches ? urlMatches[0] : '{{1}}'
+
+                  const mapping =
+                    variableMappings[`button_${btnIndex}_url`] ||
+                    variableMappings[`button_${btnIndex}`] ||
+                    variableMappings[`btn_${btnIndex}`] ||
+                    variableMappings[`button_${placeholder}`] ||
+                    variableMappings[placeholder]
+
+                  let val = resolveMappingValue(mapping, contact, contact.phone || 'order')
+                  if (!val || val.trim().length === 0) {
+                    val = contact.phone || 'order'
+                  }
+
+                  comps.push({
+                    type: 'button',
+                    sub_type: 'url',
+                    index: String(btnIndex),
+                    parameters: [{ type: 'text', text: val }]
+                  })
+                }
+              }
+            })
+          }
+        }
+
+        return comps.length > 0 ? comps : undefined
+      }
 
       let sentCount = 0
       let failedCount = 0
@@ -224,37 +390,7 @@ export async function POST(request: Request) {
           }
 
           try {
-            // Construct personalized parameters for this specific contact
-            const parameters = detectedVars.map((v) => {
-              const mapping = variableMappings[v]
-              let val = 'Client'
-
-              if (mapping) {
-                if (mapping.source === 'contact_first_name') {
-                  val = contact.name ? contact.name.trim().split(' ')[0] : (mapping.fallback || 'Client')
-                } else if (mapping.source === 'contact_name') {
-                  val = contact.name || mapping.fallback || 'Client'
-                } else if (mapping.source === 'contact_phone') {
-                  val = contact.phone || ''
-                } else if (mapping.source === 'custom') {
-                  val = mapping.customText || mapping.fallback || ''
-                } else {
-                  val = mapping.fallback || contact.name || 'Client'
-                }
-              }
-
-              return {
-                type: 'text',
-                text: val || 'Client'
-              }
-            })
-
-            const components = parameters.length > 0 ? [
-              {
-                type: 'body',
-                parameters
-              }
-            ] : undefined
+            const components = buildComponentsForContact(contact)
 
             let sendResult: any = null
             try {
@@ -268,9 +404,19 @@ export async function POST(request: Request) {
               })
             } catch (initialSendErr: any) {
               const errMsg = String(initialSendErr?.message || '')
-              // If language translation error (Meta 132000), retry with alternate language format
-              if (errMsg.includes('132000') || errMsg.toLowerCase().includes('translation') || errMsg.toLowerCase().includes('language')) {
+              
+              // Only retry if it is genuinely a translation not found error (Meta 132001)
+              // Do NOT retry for parameter errors (132000 or 131008)!
+              const isTranslationMissing =
+                errMsg.includes('132001') ||
+                (errMsg.toLowerCase().includes('translation') &&
+                  !errMsg.includes('132000') &&
+                  !errMsg.includes('131008') &&
+                  !errMsg.includes('parameter'))
+
+              if (isTranslationMissing) {
                 const altLang = resolvedLang.includes('_') ? resolvedLang.split('_')[0] : `${resolvedLang}_FR`
+                console.log(`[Broadcast Dispatch] Retrying ${templateName} with alternate language ${altLang} for ${cleanedPhone}`)
                 sendResult = await sendTemplateMessage({
                   phoneNumberId,
                   accessToken,
