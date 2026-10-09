@@ -7,7 +7,8 @@ import { LogOut, Moon, Sun, Settings, Menu, X, ChevronDown } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { navTree } from './sidebar'
+import { navTree, getEffectiveNavTree } from './sidebar'
+import { isPlatformAdmin } from '@/lib/admin'
 import { cn } from '@/lib/utils'
 import { useOrganization } from '@/hooks/use-organization'
 import { useUnreadCount } from '@/hooks/use-unread-count'
@@ -20,6 +21,9 @@ export function Header() {
   const pathname = usePathname()
   const unreadCount = useUnreadCount()
 
+  const isAdmin = isPlatformAdmin(user?.email)
+  const effectiveNavTree = React.useMemo(() => getEffectiveNavTree(isAdmin), [isAdmin])
+
   // Track expanded tree branches in mobile drawer
   const [expandedBranches, setExpandedBranches] = useState<Record<string, boolean>>({
     agents: true,
@@ -30,7 +34,7 @@ export function Header() {
 
   // Auto-expand active tree branch
   useEffect(() => {
-    navTree.forEach((branch) => {
+    effectiveNavTree.forEach((branch) => {
       if (branch.children) {
         const hasActiveChild = branch.children.some((child) =>
           child.exact ? pathname === child.href : pathname.startsWith(child.href)
@@ -40,7 +44,7 @@ export function Header() {
         }
       }
     })
-  }, [pathname])
+  }, [pathname, effectiveNavTree])
 
   const toggleBranch = (id: string) => {
     setExpandedBranches((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -48,7 +52,7 @@ export function Header() {
 
   return (
     <>
-      <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4 sm:px-6 z-30">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-4 sm:px-6 z-30">
         {/* Mobile Brand */}
         <div className="flex items-center gap-3 lg:hidden">
           <button 
@@ -133,7 +137,7 @@ export function Header() {
 
             {/* Tree Navigation */}
             <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-              {navTree.map((item) => {
+              {effectiveNavTree.map((item) => {
                 const Icon = item.icon
                 const isTreeBranch = Boolean(item.children && item.children.length > 0)
                 const isExpanded = Boolean(expandedBranches[item.id])
@@ -148,7 +152,7 @@ export function Header() {
                   ? item.children.some((c) => (c.exact ? pathname === c.href : pathname.startsWith(c.href)))
                   : false
 
-                // Direct Item (Chat, Contacts, Wallet)
+                // Direct Item (Chat, Contacts, Wallet, Administration)
                 if (!isTreeBranch) {
                   return (
                     <Link
@@ -167,6 +171,18 @@ export function Header() {
                       {item.id === 'whatsapp' && unreadCount > 0 && (
                         <span className="ml-auto inline-flex items-center justify-center min-w-4.5 h-4.5 px-1 text-[10px] font-bold rounded-full bg-[#fe5105]/15 text-[#fe5105]">
                           {unreadCount}
+                        </span>
+                      )}
+                      {item.badge && (
+                        <span
+                          className={cn(
+                            'ml-auto inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full',
+                            item.badgeVariant === 'orange'
+                              ? 'bg-[#fe5105]/15 text-[#fe5105]'
+                              : 'bg-muted text-muted-foreground'
+                          )}
+                        >
+                          {item.badge}
                         </span>
                       )}
                     </Link>

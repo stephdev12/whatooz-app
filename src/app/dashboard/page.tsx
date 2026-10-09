@@ -73,9 +73,15 @@ export default function DashboardPage() {
 
   const [isAiExecuting, setIsAiExecuting] = useState(false)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null)
 
   const scrollToBottom = () => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: 'smooth',
+      })
+    }
   }
 
   useEffect(() => {
@@ -226,7 +232,7 @@ export default function DashboardPage() {
       </header>
 
       {/* ─── Scrollable Message Thread ─── */}
-      <main className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-4 sm:py-5 space-y-5 sm:space-y-6 pr-1">
+      <div ref={messagesContainerRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-4 sm:py-5 space-y-5 sm:space-y-6 pr-1">
         {messages.map((msg, index) => {
           const isLastAssistantMessage =
             msg.role === 'assistant' &&
@@ -336,7 +342,7 @@ export default function DashboardPage() {
         )}
 
         <div ref={chatEndRef} />
-      </main>
+      </div>
 
       {/* ─── Bottom Interactive Prompt Bar ─── */}
       <footer className="pt-2 shrink-0">

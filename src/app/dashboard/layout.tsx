@@ -45,6 +45,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
   }
 
   const isInboxRoute = pathname?.includes('/dashboard/inbox')
+  const isChatRoute = pathname === '/dashboard'
 
   return (
     <div className="flex h-[100dvh] max-h-[100dvh] overflow-hidden bg-noisy-canvas">
@@ -61,12 +62,18 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
 
         {/* Scrollable Dashboard View */}
         <main className={cn(
-           "flex-1 overflow-y-auto overflow-x-hidden flex flex-col relative min-w-0",
-           isBuilderRoute ? "p-0" : isInboxRoute ? "p-0 pb-16 lg:pb-0 inbox-main-content" : "p-3 sm:p-5 lg:p-8"
+           "flex-1 overflow-x-hidden flex flex-col relative min-w-0",
+           isBuilderRoute
+             ? "p-0 overflow-hidden"
+             : isInboxRoute
+               ? "p-0 pb-16 lg:pb-0 inbox-main-content overflow-hidden"
+               : isChatRoute
+                 ? "p-2 sm:p-4 lg:p-6 pb-16 lg:pb-4 overflow-hidden"
+                 : "p-3 sm:p-5 lg:p-8 overflow-y-auto"
         )}>
           {children}
-          {/* Explicit spacer to ensure content scrolls past the mobile bottom nav */}
-          {!isBuilderRoute && !isInboxRoute && <div className="h-20 lg:hidden shrink-0 w-full" />}
+          {/* Explicit spacer to ensure content scrolls past the mobile bottom nav on normal pages */}
+          {!isBuilderRoute && !isInboxRoute && !isChatRoute && <div className="h-20 lg:hidden shrink-0 w-full" />}
         </main>
 
         {/* Mobile Floating Bottom Nav (Single clean mobile navigation) */}

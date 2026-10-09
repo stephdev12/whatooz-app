@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { getPlanDefinition, normalizePlanCode, type PlanCode, type PlanDefinition } from '@/lib/plans'
+import { isPlatformAdmin } from '@/lib/admin'
 
 export type QuotaType =
   | 'agents'
@@ -32,6 +33,17 @@ export async function getOrganizationPlan(organizationId: string): Promise<{
   currentPeriodEnd?: string | null
 }> {
   const supabase = await createClient()
+
+  // Le Super Admin de la plateforme n'a AUCUNE restriction d'abonnement
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user && isPlatformAdmin(user.email)) {
+    return {
+      plan: getPlanDefinition('enterprise'),
+      status: 'active',
+      trialEndsAt: null,
+      currentPeriodEnd: null,
+    }
+  }
 
   const { data: subscription } = await supabase
     .from('subscriptions')
@@ -108,6 +120,19 @@ export async function checkQuota(
   quotaType: QuotaType
 ): Promise<QuotaCheckResult> {
   const supabase = await createClient()
+
+  // Le Super Admin de la plateforme n'a AUCUNE restriction de quota
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user && isPlatformAdmin(user.email)) {
+    return {
+      allowed: true,
+      current: 0,
+      max: 999999,
+      planCode: 'enterprise',
+      planName: 'Super Admin (Illimité)',
+    }
+  }
+
   const { plan, status } = await getOrganizationPlan(organizationId)
 
   // 1. Vérification des membres d'équipe humains (Utilisateurs)
@@ -240,7 +265,7 @@ export async function checkQuota(
   // 7. Vérification des Numéros WhatsApp connectés
   if (quotaType === 'whatsapp_numbers') {
     const { count, error } = await supabase
-      .from('whatsapp_configs')
+      .from('whatsapp_config')
       .select('*', { count: 'exact', head: true })
       .eq('organization_id', organizationId)
 

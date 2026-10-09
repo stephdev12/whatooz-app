@@ -480,30 +480,30 @@ export function ChatThread({
   return (
     <div className="flex h-full flex-col">
       {/* Chat header */}
-      <div className="flex items-center gap-3 border-b border-border bg-background px-4 py-3">
+      <div className="flex items-center gap-2 sm:gap-3 border-b border-border bg-background px-3 sm:px-4 py-2.5 sm:py-3">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
-            className="md:hidden rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground -ml-1 mr-1"
+            className="md:hidden rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground -ml-1 mr-0.5 shrink-0"
             title="Retour aux discussions"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
         )}
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fe5105]/10 text-sm font-semibold text-[#fe5105]">
+        <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-[#fe5105]/10 text-sm font-semibold text-[#fe5105]">
           {(conversation.contact_name || conversation.contact_phone || '?')
             .charAt(0)
             .toUpperCase()}
         </div>
-        <div>
+        <div className="min-w-0 flex-1">
           {isEditingName ? (
-            <form onSubmit={handleRename} className="flex items-center gap-2">
+            <form onSubmit={handleRename} className="flex items-center gap-1.5">
               <input 
                 type="text"
                 value={editName}
                 onChange={e => setEditName(e.target.value)}
-                className="h-7 w-40 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="h-7 w-32 sm:w-40 rounded-md border border-input bg-background px-2 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 autoFocus
               />
               <button type="submit" className="text-muted-foreground hover:text-foreground">
@@ -514,32 +514,32 @@ export function ChatThread({
               </button>
             </form>
           ) : (
-            <div className="flex items-center gap-2 group">
-              <h3 className="text-sm font-semibold text-foreground">
+            <div className="flex items-center gap-1.5 group">
+              <h3 className="text-sm font-semibold text-foreground truncate">
                 {conversation.contact_name || conversation.contact_phone}
               </h3>
               <button 
                 onClick={() => setIsEditingName(true)}
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground shrink-0"
                 title="Renommer le contact"
               >
                 <Pencil className="h-3 w-3" />
               </button>
             </div>
           )}
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-            <Phone className="h-3 w-3" />
-            {conversation.contact_phone}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 truncate">
+            <Phone className="h-3 w-3 shrink-0" />
+            <span className="truncate">{conversation.contact_phone}</span>
           </div>
         </div>
         
         {/* Controls */}
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
-          {/* Status selector */}
+        <div className="ml-auto flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Desktop-only status selector */}
           <select
             value={conversation.status || 'open'}
             onChange={(e) => handleUpdate({ status: e.target.value })}
-            className="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className="hidden sm:inline-flex h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             title="Statut de la conversation"
           >
             <option value="open">Ouvert</option>
@@ -547,11 +547,11 @@ export function ChatThread({
             <option value="closed">Fermé</option>
           </select>
           
-          {/* Assignation selector (visible on both mobile and desktop) */}
+          {/* Desktop-only assignation selector */}
           <select
             value={conversation.assigned_user_id || 'unassigned'}
             onChange={(e) => handleUpdate({ assignedUserId: e.target.value })}
-            className="h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-w-[105px] sm:max-w-[130px] truncate"
+            className="hidden sm:inline-flex h-8 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-w-[130px] truncate"
             title="Assigner un collaborateur"
           >
             <option value="unassigned">Non assigné</option>
@@ -579,6 +579,35 @@ export function ChatThread({
           >
             <Trash2 className="h-4 w-4" />
           </button>
+        </div>
+      </div>
+
+      {/* Mobile-only secondary control bar for Status & Assignation */}
+      <div className="sm:hidden border-b border-border/70 bg-secondary/30 px-3 py-1.5 flex items-center gap-2 shrink-0">
+        <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-background border border-border rounded-lg px-2 py-1">
+          <span className="text-[10px] uppercase font-bold text-muted-foreground shrink-0">Statut</span>
+          <select
+            value={conversation.status || 'open'}
+            onChange={(e) => handleUpdate({ status: e.target.value })}
+            className="w-full bg-transparent text-xs font-medium text-foreground focus:outline-none truncate"
+          >
+            <option value="open">Ouvert</option>
+            <option value="pending">En attente</option>
+            <option value="closed">Fermé</option>
+          </select>
+        </div>
+        <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-background border border-border rounded-lg px-2 py-1">
+          <span className="text-[10px] uppercase font-bold text-muted-foreground shrink-0">Assigné</span>
+          <select
+            value={conversation.assigned_user_id || 'unassigned'}
+            onChange={(e) => handleUpdate({ assignedUserId: e.target.value })}
+            className="w-full bg-transparent text-xs font-medium text-foreground focus:outline-none truncate"
+          >
+            <option value="unassigned">Non assigné</option>
+            {members.map(m => (
+              <option key={m.member_id} value={m.user_id}>{m.full_name}</option>
+            ))}
+          </select>
         </div>
       </div>
 

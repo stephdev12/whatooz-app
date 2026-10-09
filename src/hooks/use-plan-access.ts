@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useOrganization } from '@/hooks/use-organization'
+import { useAuth } from '@/hooks/use-auth'
+import { isPlatformAdmin } from '@/lib/admin'
 import {
   getPlanDefinition,
   normalizePlanCode,
@@ -27,9 +29,11 @@ export interface PlanAccessState {
 }
 
 export function usePlanAccess(): PlanAccessState {
+  const { user } = useAuth()
   const { activeOrganization } = useOrganization()
+  const isAdmin = isPlatformAdmin(user?.email)
   const [loading, setLoading] = useState(true)
-  const [planCode, setPlanCode] = useState<string>('free')
+  const [planCode, setPlanCode] = useState<string>(isAdmin ? 'enterprise' : 'free')
   const [status, setStatus] = useState<'trialing' | 'active' | 'expired' | 'canceled'>('active')
   const [trialEndsAt, setTrialEndsAt] = useState<Date | null>(null)
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState<Date | null>(null)
@@ -37,6 +41,13 @@ export function usePlanAccess(): PlanAccessState {
   const supabase = useMemo(() => createClient(), [])
 
   const fetchPlan = useCallback(async () => {
+    if (isAdmin) {
+      setPlanCode('enterprise')
+      setStatus('active')
+      setLoading(false)
+      return
+    }
+
     if (!activeOrganization) {
       setPlanCode('free')
       setLoading(false)
@@ -110,15 +121,23 @@ export function usePlanAccess(): PlanAccessState {
 
   const canAccess = useCallback(
     (feature: keyof PlanFeatureDefinition) => {
+      if (isAdmin) return true
       const val = plan.features[feature]
       if (typeof val === 'boolean') return val
       return val !== 'none'
     },
-    [plan]
+    [plan, isAdmin]
   )
 
   const checkLimit = useCallback(
     (limitKey: keyof PlanDefinition['limits'], currentCount: number) => {
+      if (isAdmin) {
+        return {
+          allowed: true,
+          max: 999999,
+          remaining: 999999,
+        }
+      }
       const maxVal = plan.limits[limitKey]
       const max = typeof maxVal === 'number' ? maxVal : Infinity
       const remaining = Math.max(0, max - currentCount)
@@ -128,7 +147,7 @@ export function usePlanAccess(): PlanAccessState {
         remaining,
       }
     },
-    [plan]
+    [plan, isAdmin]
   )
 
   return {

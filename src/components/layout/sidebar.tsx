@@ -29,6 +29,8 @@ import {
 } from 'lucide-react'
 import { useOrganization } from '@/hooks/use-organization'
 import { useUnreadCount } from '@/hooks/use-unread-count'
+import { useAuth } from '@/hooks/use-auth'
+import { isPlatformAdmin } from '@/lib/admin'
 
 export interface NavChildItem {
   label: string
@@ -177,8 +179,28 @@ export const navSections = [
   },
 ]
 
+export function getEffectiveNavTree(isAdmin: boolean): NavTreeItem[] {
+  if (!isAdmin) return navTree
+  return [
+    ...navTree,
+    {
+      id: 'admin',
+      label: 'Administration',
+      href: '/dashboard/admin',
+      exact: true,
+      icon: ShieldCheck,
+      badge: 'Admin',
+      badgeVariant: 'orange',
+    },
+  ]
+}
+
 export function Sidebar() {
   const pathname = usePathname()
+  const { user } = useAuth()
+  const isAdmin = isPlatformAdmin(user?.email)
+  const effectiveNavTree = React.useMemo(() => getEffectiveNavTree(isAdmin), [isAdmin])
+
   const { activeOrganization, organizations, setActiveOrganization } = useOrganization()
   const [isSwitcherOpen, setIsSwitcherOpen] = useState(false)
   const [isCollapsed, setIsCollapsed] = useState(false)
@@ -194,7 +216,7 @@ export function Sidebar() {
 
   // Auto-expand tree branch if current pathname is inside it
   useEffect(() => {
-    navTree.forEach((branch) => {
+    effectiveNavTree.forEach((branch) => {
       if (branch.children) {
         const hasActiveChild = branch.children.some((child) =>
           child.exact ? pathname === child.href : pathname.startsWith(child.href)
@@ -204,7 +226,7 @@ export function Sidebar() {
         }
       }
     })
-  }, [pathname])
+  }, [pathname, effectiveNavTree])
 
   const toggleBranch = (id: string) => {
     setExpandedBranches((prev) => ({ ...prev, [id]: !prev[id] }))
@@ -291,7 +313,7 @@ export function Sidebar() {
 
       {/* ─── Tree Navigation ─── */}
       <nav className="flex-1 space-y-1 p-3 overflow-y-auto">
-        {navTree.map((item) => {
+        {effectiveNavTree.map((item) => {
           const Icon = item.icon
           const isTreeBranch = Boolean(item.children && item.children.length > 0)
           const isExpanded = Boolean(expandedBranches[item.id])
@@ -329,7 +351,7 @@ export function Sidebar() {
             )
           }
 
-          // Direct Item (no tree children, e.g. Chat, Contacts, Wallet)
+          // Direct Item (no tree children, e.g. Chat, Contacts, Wallet, Administration)
           if (!isTreeBranch) {
             return (
               <Link
@@ -347,6 +369,18 @@ export function Sidebar() {
                 {item.id === 'whatsapp' && unreadCount > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center min-w-4.5 h-4.5 px-1 text-[10px] font-bold rounded-full bg-[#fe5105]/15 text-[#fe5105]">
                     {unreadCount}
+                  </span>
+                )}
+                {item.badge && (
+                  <span
+                    className={cn(
+                      'ml-auto inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-bold rounded-full',
+                      item.badgeVariant === 'orange'
+                        ? 'bg-[#fe5105]/15 text-[#fe5105]'
+                        : 'bg-muted text-muted-foreground'
+                    )}
+                  >
+                    {item.badge}
                   </span>
                 )}
               </Link>
