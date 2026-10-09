@@ -10,9 +10,12 @@ import {
   Trash2,
   AlertCircle,
   Edit3,
+  Lock,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
+import { usePlanAccess } from '@/hooks/use-plan-access'
 
 interface Agent {
   id: string
@@ -26,9 +29,12 @@ interface Agent {
 export default function AgentsPage() {
   const router = useRouter()
   const { activeOrganization } = useOrganization()
+  const { plan } = usePlanAccess()
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const isLimitReached = agents.length >= plan.limits.aiAgents
 
   useEffect(() => {
     if (activeOrganization) {
@@ -99,19 +105,52 @@ export default function AgentsPage() {
     <div className="max-w-6xl mx-auto p-6 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Agents IA</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-foreground">Agents IA</h1>
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border">
+              {agents.length} / {plan.limits.aiAgents} ({plan.name})
+            </span>
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             Configurez des agents autonomes pour répondre à vos clients, vendre et assister.
           </p>
         </div>
-        <button
-          onClick={() => router.push('/dashboard/agents/new')}
-          className="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold shadow-sm hover:bg-primary/90 transition-all flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Créer un agent
-        </button>
+        {isLimitReached ? (
+          <button
+            onClick={() => router.push('/dashboard/settings/billing')}
+            className="bg-secondary text-foreground hover:bg-secondary/80 px-4 py-2 rounded-xl text-sm font-semibold border border-border transition-all flex items-center gap-2"
+          >
+            <Lock className="w-4 h-4 text-primary" />
+            <span>Limite atteinte ({plan.limits.aiAgents}) • Mettre à niveau</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => router.push('/dashboard/agents/new')}
+            className="bg-primary text-primary-foreground px-4 py-2 rounded-xl text-sm font-semibold shadow-sm hover:bg-primary/90 transition-all flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Créer un agent
+          </button>
+        )}
       </div>
+
+      {isLimitReached && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 shrink-0" />
+            <span>
+              Vous avez atteint la limite de <strong>{plan.limits.aiAgents} agent(s) IA</strong> incluse dans votre forfait <strong>{plan.name}</strong>.
+            </span>
+          </div>
+          <button
+            onClick={() => router.push('/dashboard/settings/billing')}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:brightness-105 inline-flex items-center gap-1 shrink-0 ml-4"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Débloquer plus d&apos;agents
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 bg-red-50 text-red-600 rounded-xl flex items-center gap-3">

@@ -1,18 +1,20 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Search, Calendar, Play, CheckCircle2, XCircle, Clock, Zap } from 'lucide-react'
+import { Plus, Search, Calendar, Play, CheckCircle2, XCircle, Clock, Zap, Lock, Sparkles } from 'lucide-react'
 import Link from 'next/link'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 import { useOrganization } from '@/hooks/use-organization'
+import { usePlanAccess } from '@/hooks/use-plan-access'
 
 export default function BroadcastsPage() {
   const [broadcasts, setBroadcasts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const supabase = createClient()
   const { activeOrganization } = useOrganization()
+  const { canAccess, plan } = usePlanAccess()
 
   useEffect(() => {
     if (activeOrganization) {
@@ -57,14 +59,41 @@ export default function BroadcastsPage() {
           <p className="text-muted-foreground">Envoyez des messages en masse à vos contacts</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Link 
-            href="/dashboard/broadcasts/new" 
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
-          >
-            <Plus className="mr-2 h-4 w-4" /> Nouvelle diffusion
-          </Link>
+          {canAccess('campaigns') ? (
+            <Link 
+              href="/dashboard/broadcasts/new" 
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2"
+            >
+              <Plus className="mr-2 h-4 w-4" /> Nouvelle diffusion
+            </Link>
+          ) : (
+            <Link 
+              href="/dashboard/settings/billing" 
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors bg-secondary text-foreground hover:bg-secondary/80 h-10 px-4 py-2 gap-1.5"
+            >
+              <Lock className="h-4 w-4 text-primary" /> Débloquer les diffusions
+            </Link>
+          )}
         </div>
       </div>
+
+      {!canAccess('campaigns') && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 gap-3">
+          <div className="flex items-center gap-3">
+            <Lock className="w-5 h-5 shrink-0" />
+            <p className="text-sm">
+              Les campagnes de diffusion WhatsApp nécessitent le forfait <strong>Starter (5 000 FCFA/mois)</strong> ou supérieur. Vous êtes actuellement sur le forfait <strong>{plan.name}</strong>.
+            </p>
+          </div>
+          <Link
+            href="/dashboard/settings/billing"
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:brightness-105 shrink-0 self-start sm:self-auto inline-flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Passer à Starter</span>
+          </Link>
+        </div>
+      )}
 
       <div className="rounded-xl border border-border bg-card">
         <div className="p-4 border-b border-border flex items-center justify-between">

@@ -18,10 +18,10 @@ export function WhatoozLogo({
 }: WhatoozLogoProps) {
   // Dimensions for the icon container
   const sizeMap = {
-    sm: { container: 'h-8 w-8', text: 'text-base' },
-    md: { container: 'h-9 w-9', text: 'text-lg' },
-    lg: { container: 'h-11 w-11', text: 'text-xl' },
-    xl: { container: 'h-14 w-14', text: 'text-2xl' },
+    sm: { container: 'h-7 w-12', text: 'text-base' },
+    md: { container: 'h-8 w-16', text: 'text-lg' },
+    lg: { container: 'h-10 w-20', text: 'text-xl' },
+    xl: { container: 'h-12 w-24', text: 'text-2xl' },
   }
 
   const currentSize = sizeMap[size]
@@ -30,11 +30,11 @@ export function WhatoozLogo({
   const isDarkOnly = variant === 'dark'
 
   return (
-    <div className={cn('flex items-center gap-2 select-none', className)}>
-      {/* Real Logo */}
+    <div className={cn('flex items-center select-none', className)}>
+      {/* Real Logo Mark with scale 2.5, no clipping box */}
       <div
         className={cn(
-          'relative flex items-center justify-center shrink-0 overflow-hidden',
+          'relative flex items-center justify-center shrink-0',
           currentSize.container
         )}
       >
@@ -44,7 +44,7 @@ export function WhatoozLogo({
             src="/logo_white.png"
             alt="Whatooz"
             className={cn(
-              'h-full w-full object-contain pointer-events-none transform scale-200',
+              'h-full w-auto max-w-none object-contain pointer-events-none transform scale-[2.5]',
               variant === 'auto' ? 'block dark:hidden' : 'block'
             )}
           />
@@ -55,7 +55,7 @@ export function WhatoozLogo({
             src="/logo_noir.png"
             alt="Whatooz"
             className={cn(
-              'h-full w-full object-contain pointer-events-none transform scale-200',
+              'h-full w-auto max-w-none object-contain pointer-events-none transform scale-[2.5]',
               variant === 'auto' ? 'hidden dark:block' : 'block'
             )}
           />

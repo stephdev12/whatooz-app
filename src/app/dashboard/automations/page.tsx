@@ -12,9 +12,12 @@ import {
   MessageSquare,
   Layers,
   Edit3,
+  Lock,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
+import { usePlanAccess } from '@/hooks/use-plan-access'
 
 interface Automation {
   id: string
@@ -30,9 +33,13 @@ interface Automation {
 export default function AutomationsPage() {
   const router = useRouter()
   const { activeOrganization } = useOrganization()
+  const { plan } = usePlanAccess()
   const [automations, setAutomations] = useState<Automation[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const activeCount = automations.filter((a) => a.is_active).length
+  const isLimitReached = activeCount >= plan.limits.activeAutomations
 
   useEffect(() => {
     if (activeOrganization) {
@@ -102,9 +109,14 @@ export default function AutomationsPage() {
     <div className="max-w-6xl mx-auto p-6 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Scénarios & Automatisations</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-foreground">Scénarios & Automatisations</h1>
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-secondary text-secondary-foreground border border-border">
+              Actives : {activeCount} / {plan.limits.activeAutomations > 100 ? 'Illimitées' : plan.limits.activeAutomations} ({plan.name})
+            </span>
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Gérez le comportement de votre assistant WhatsApp via l'éditeur visuel (Workflow Builder).
+            Gérez le comportement de votre assistant WhatsApp via l&apos;éditeur visuel (Workflow Builder).
           </p>
         </div>
         <button
@@ -115,6 +127,24 @@ export default function AutomationsPage() {
           Créer un scénario
         </button>
       </div>
+
+      {isLimitReached && (
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 rounded-xl flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 shrink-0" />
+            <span>
+              Vous avez atteint la limite de <strong>{plan.limits.activeAutomations} automatisations actives</strong> sur votre forfait <strong>{plan.name}</strong>.
+            </span>
+          </div>
+          <button
+            onClick={() => router.push('/dashboard/settings/billing')}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:brightness-105 inline-flex items-center gap-1 shrink-0 ml-4"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Débloquer plus d&apos;automatisations
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 bg-red-50 text-red-600 rounded-xl flex items-center gap-3">

@@ -33,11 +33,11 @@ export function StageExactNav({ isAuthenticated, onOpenApp }: StageExactNavProps
       id="navigation"
     >
       <div className="stage-nav-row">
-        {/* Brand with Real Whatooz Logo (Auto dark/light background variation) */}
+        {/* Brand with Real Whatooz Logo (Only logo mark, no text) */}
         <a className="stage-nav-brand shrink-0" href="#top" aria-label="Whatooz accueil">
           <WhatoozLogo
-            size="sm"
-            showText={true}
+            size="md"
+            showText={false}
             variant={isScrolledToLight ? 'light' : 'dark'}
           />
         </a>

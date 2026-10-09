@@ -14,21 +14,30 @@ export function StageExactHero({ onStartTrial }: StageExactHeroProps) {
 
   useEffect(() => {
     const handleScroll = () => {
+      // On mobile screens, disable parallax translation so layout stays rock-solid
+      if (window.innerWidth <= 640) {
+        if (farRef.current) farRef.current.style.transform = 'none'
+        if (midRef.current) midRef.current.style.transform = 'none'
+        if (dashboardRef.current) dashboardRef.current.style.transform = 'none'
+        if (frontRef.current) frontRef.current.style.transform = 'none'
+        return
+      }
+
       const y = window.scrollY
+      const farOffset = y * 0.20
+      const midOffset = y * 0.10
+      const dashboardOffset = Math.min(y * 0.08, 24)
+
       if (farRef.current) {
-        farRef.current.style.transform = `translate3d(0, ${y * 0.12}px, 0)`
+        farRef.current.style.transform = `translate3d(0, ${farOffset}px, 0)`
       }
       if (midRef.current) {
-        midRef.current.style.transform = `translate3d(0, ${y * 0.08}px, 0)`
+        midRef.current.style.transform = `translate3d(0, ${midOffset}px, 0)`
       }
-      // L'image de l'application descend avec le scroll
       if (dashboardRef.current) {
-        dashboardRef.current.style.transform = `translate3d(0, ${y * 0.22}px, 0)`
+        dashboardRef.current.style.transform = `translate3d(0, ${dashboardOffset}px, 0)`
       }
-      // L'image d'avant-plan monte légèrement
-      if (frontRef.current) {
-        frontRef.current.style.transform = `translate3d(0, ${y * -0.08}px, 0)`
-      }
+      // Landscape front stays grounded at the bottom as on getstage.co
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })

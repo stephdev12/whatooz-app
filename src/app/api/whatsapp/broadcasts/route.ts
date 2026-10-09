@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkQuota } from '@/lib/quota'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -53,6 +54,20 @@ export async function POST(request: Request) {
 
     if (!organizationId || !name || !message_type || !message_payload) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+
+    // 1. Verify if organization is allowed to send campaigns (Free tier blocked)
+    const campaignQuota = await checkQuota(organizationId, 'campaigns')
+    if (!campaignQuota.allowed) {
+      return NextResponse.json({ error: campaignQuota.error }, { status: 403 })
+    }
+
+    // 2. Verify if scheduled/recurring campaigns are allowed (Requires Growth or higher)
+    if (scheduled_at || recurrence) {
+      const scheduledQuota = await checkQuota(organizationId, 'scheduled_campaigns')
+      if (!scheduledQuota.allowed) {
+        return NextResponse.json({ error: scheduledQuota.error }, { status: 403 })
+      }
     }
 
     const status = scheduled_at ? 'scheduled' : 'sending'

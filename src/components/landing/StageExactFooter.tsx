@@ -13,7 +13,7 @@ export function StageExactFooter({ onStartTrial }: StageExactFooterProps) {
       {/* Exact Stage Closing CTA */}
       <section className="stage-closing">
         <div className="flex justify-center mb-6">
-          <WhatoozLogo size="lg" variant="dark" showText={false} />
+          <WhatoozLogo size="lg" variant="light" showText={false} />
         </div>
 
         <h2>Prêt à automatiser votre WhatsApp ?</h2>
@@ -39,7 +39,7 @@ export function StageExactFooter({ onStartTrial }: StageExactFooterProps) {
       <footer className="stage-footer">
         <div className="stage-footer-main">
           <div className="stage-footer-brand">
-            <WhatoozLogo size="sm" variant="light" showText={true} />
+            <WhatoozLogo size="md" variant="dark" showText={false} />
             <p>
               La plateforme d&apos;automatisation WhatsApp pour les commerces et marques modernes. Connectée à l&apos;API officielle WhatsApp Cloud de Meta.
             </p>

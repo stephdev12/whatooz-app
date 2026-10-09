@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/supabase/admin'
+import { checkQuota } from '@/lib/quota'
 
 export const dynamic = 'force-dynamic'
 
@@ -26,6 +27,12 @@ export async function POST(req: Request) {
   try {
     const orgId = req.headers.get('x-organization-id')
     if (!orgId) return NextResponse.json({ error: 'Missing x-organization-id' }, { status: 400 })
+
+    // Check plan quota for AI Agents
+    const quota = await checkQuota(orgId, 'ai_agents')
+    if (!quota.allowed) {
+      return NextResponse.json({ error: quota.error }, { status: 403 })
+    }
 
     const body = await req.json()
     const { name, description, model, provider, system_prompt } = body
