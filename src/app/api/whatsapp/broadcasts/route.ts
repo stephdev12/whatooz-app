@@ -310,8 +310,8 @@ export async function POST(request: Request) {
                   comps.push({ type: 'header', parameters: headerParams })
                 }
               }
-            } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
-              // Media Header: Meta strictly requires { type: 'image'|'video'|'document', [type]: { link } }
+            } else if (['IMAGE', 'VIDEO'].includes(format)) {
+              // Media Header: Meta strictly requires { type: 'image'|'video', [type]: { link } }
               const mediaType = format.toLowerCase()
               const mapping =
                 variableMappings['header_media_url'] ||
@@ -329,10 +329,8 @@ export async function POST(request: Request) {
               if (!mediaLink || !mediaLink.startsWith('http')) {
                 if (mediaType === 'image') {
                   mediaLink = 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80'
-                } else if (mediaType === 'video') {
-                  mediaLink = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
                 } else {
-                  mediaLink = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+                  mediaLink = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
                 }
               }
 
@@ -342,6 +340,59 @@ export async function POST(request: Request) {
                   {
                     type: mediaType,
                     [mediaType]: { link: mediaLink }
+                  }
+                ]
+              })
+            } else if (format === 'DOCUMENT') {
+              // Document Header with optional filename
+              const mapping =
+                variableMappings['header_media_url'] ||
+                variableMappings['header_document_url'] ||
+                variableMappings['header']
+
+              let mediaLink = ''
+              if (mapping) {
+                mediaLink = resolveMappingValue(mapping, contact, '')
+              }
+              if (!mediaLink || !mediaLink.startsWith('http')) {
+                mediaLink = comp.example?.header_url?.[0] || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+              }
+
+              const docFilename =
+                resolveMappingValue(variableMappings['header_document_filename'], contact, '') ||
+                comp.example?.header_filename?.[0] ||
+                'Document.pdf'
+
+              comps.push({
+                type: 'header',
+                parameters: [
+                  {
+                    type: 'document',
+                    document: {
+                      link: mediaLink,
+                      filename: docFilename,
+                    }
+                  }
+                ]
+              })
+            } else if (format === 'LOCATION') {
+              // Location Header (coordinates & address)
+              const latVal = resolveMappingValue(variableMappings['header_location_latitude'], contact, '4.0510564')
+              const lngVal = resolveMappingValue(variableMappings['header_location_longitude'], contact, '9.7678687')
+              const locName = resolveMappingValue(variableMappings['header_location_name'], contact, orgName || 'Notre établissement')
+              const locAddress = resolveMappingValue(variableMappings['header_location_address'], contact, 'Centre-ville')
+
+              comps.push({
+                type: 'header',
+                parameters: [
+                  {
+                    type: 'location',
+                    location: {
+                      latitude: latVal,
+                      longitude: lngVal,
+                      name: locName,
+                      address: locAddress
+                    }
                   }
                 ]
               })
@@ -369,7 +420,7 @@ export async function POST(request: Request) {
             }
           }
 
-          // 3. Dynamic URL Buttons
+          // 3. Dynamic Buttons (URL, Copy Code, Flow)
           else if (compType === 'BUTTONS' && Array.isArray(comp.buttons)) {
             comp.buttons.forEach((btn: any, btnIndex: number) => {
               const btnType = (btn.type || '').toUpperCase()
@@ -402,6 +453,34 @@ export async function POST(request: Request) {
                     parameters: [{ type: 'text', text: val }]
                   })
                 }
+              } else if (btnType === 'COPY_CODE' || btnType === 'COUPON_CODE') {
+                const couponCode =
+                  resolveMappingValue(variableMappings[`button_${btnIndex}_code`], contact, '') ||
+                  btn.example?.[0] ||
+                  'PROMO'
+                comps.push({
+                  type: 'button',
+                  sub_type: 'coupon_code',
+                  index: String(btnIndex),
+                  parameters: [{ type: 'coupon_code', coupon_code: couponCode }]
+                })
+              } else if (btnType === 'FLOW') {
+                const flowToken =
+                  resolveMappingValue(variableMappings[`button_${btnIndex}_flow_token`], contact, '') ||
+                  `flow_${contact.id || contact.phone || Date.now()}`
+                comps.push({
+                  type: 'button',
+                  sub_type: 'flow',
+                  index: String(btnIndex),
+                  parameters: [
+                    {
+                      type: 'action',
+                      action: {
+                        flow_token: flowToken
+                      }
+                    }
+                  ]
+                })
               }
             })
           }

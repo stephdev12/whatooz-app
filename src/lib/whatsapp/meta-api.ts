@@ -162,7 +162,7 @@ export async function sendTemplateMessage(args: {
             );
           }
           if (pType === 'location') {
-            return param.location && param.location.latitude && param.location.longitude;
+            return param.location && param.location.latitude != null && param.location.longitude != null;
           }
           return true; // Keep other types (like coupon_code, etc) if we don't strictly know them
         });

@@ -247,8 +247,8 @@ export default function NewCampaignPage() {
               defaultFallback: 'Client',
             })
           })
-        } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
-          const labelFormat = format === 'IMAGE' ? 'Image' : format === 'VIDEO' ? 'Vidéo' : 'Document'
+        } else if (['IMAGE', 'VIDEO'].includes(format)) {
+          const labelFormat = format === 'IMAGE' ? 'Image' : 'Vidéo'
           const exampleUrl = comp.example?.header_url?.[0] || ''
           items.push({
             key: 'header_media_url',
@@ -256,9 +256,72 @@ export default function NewCampaignPage() {
             componentTypeLabel: `En-tête (${labelFormat})`,
             placeholder: `URL ${labelFormat}`,
             label: `Lien de l'${labelFormat.toLowerCase()} d'en-tête (HTTPS)`,
-            contextText: exampleUrl ? `Exemple : ${exampleUrl}` : `Ce modèle requiert une ${labelFormat.toLowerCase()} valide`,
+            contextText: exampleUrl ? `Exemple : ${exampleUrl}` : `Ce modèle requiert un lien ${labelFormat.toLowerCase()} HTTPS direct`,
             defaultSource: 'custom',
-            defaultFallback: exampleUrl || 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80',
+            defaultFallback: exampleUrl || (format === 'IMAGE' ? 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80' : 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'),
+          })
+        } else if (format === 'DOCUMENT') {
+          const exampleUrl = comp.example?.header_url?.[0] || ''
+          items.push({
+            key: 'header_media_url',
+            componentType: 'header',
+            componentTypeLabel: 'En-tête (Document)',
+            placeholder: 'URL Document PDF',
+            label: 'Lien du document PDF (HTTPS)',
+            contextText: exampleUrl ? `Exemple : ${exampleUrl}` : 'Lien HTTPS direct vers votre fichier PDF',
+            defaultSource: 'custom',
+            defaultFallback: exampleUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+          })
+          items.push({
+            key: 'header_document_filename',
+            componentType: 'header',
+            componentTypeLabel: 'Nom du fichier PDF',
+            placeholder: 'Nom affiché',
+            label: 'Nom du fichier affiché dans la bulle',
+            contextText: 'Ex: Catalogue-2026.pdf',
+            defaultSource: 'custom',
+            defaultFallback: 'Catalogue.pdf',
+          })
+        } else if (format === 'LOCATION') {
+          items.push({
+            key: 'header_location_name',
+            componentType: 'header',
+            componentTypeLabel: 'Lieu (Nom)',
+            placeholder: 'Nom de l’établissement',
+            label: 'Nom de l’établissement ou boutique',
+            contextText: 'Ex: Siège Whatooz',
+            defaultSource: 'organization_name',
+            defaultFallback: 'Notre boutique',
+          })
+          items.push({
+            key: 'header_location_address',
+            componentType: 'header',
+            componentTypeLabel: 'Lieu (Adresse)',
+            placeholder: 'Adresse complète',
+            label: 'Adresse physique affichée',
+            contextText: 'Ex: Akwa, Douala',
+            defaultSource: 'custom',
+            defaultFallback: 'Centre-ville',
+          })
+          items.push({
+            key: 'header_location_latitude',
+            componentType: 'header',
+            componentTypeLabel: 'Lieu (Latitude)',
+            placeholder: 'Ex: 4.0510564',
+            label: 'Coordonnée GPS Latitude',
+            contextText: 'Latitude',
+            defaultSource: 'custom',
+            defaultFallback: '4.0510564',
+          })
+          items.push({
+            key: 'header_location_longitude',
+            componentType: 'header',
+            componentTypeLabel: 'Lieu (Longitude)',
+            placeholder: 'Ex: 9.7678687',
+            label: 'Coordonnée GPS Longitude',
+            contextText: 'Longitude',
+            defaultSource: 'custom',
+            defaultFallback: '9.7678687',
           })
         }
       }
@@ -281,7 +344,7 @@ export default function NewCampaignPage() {
         })
       }
 
-      // 3. Dynamic URL Buttons
+      // 3. Dynamic URL & Action Buttons
       if (compType === 'BUTTONS' && Array.isArray(comp.buttons)) {
         comp.buttons.forEach((btn: any, btnIndex: number) => {
           const btnType = (btn.type || '').toUpperCase()
@@ -307,6 +370,19 @@ export default function NewCampaignPage() {
                 defaultFallback: 'order',
               })
             }
+          } else if (btnType === 'COPY_CODE' || btnType === 'COUPON_CODE') {
+            items.push({
+              key: `button_${btnIndex}_code`,
+              componentType: 'button',
+              componentTypeLabel: `Code Promo #${btnIndex + 1}`,
+              placeholder: 'Code Promo',
+              label: `Bouton #${btnIndex + 1} « ${btn.text || 'Copier le code'} » (Code Promo)`,
+              contextText: btn.example?.[0] ? `Exemple : ${btn.example[0]}` : 'Code promo copié au clic',
+              buttonIndex: btnIndex,
+              buttonText: btn.text,
+              defaultSource: 'custom',
+              defaultFallback: btn.example?.[0] || 'PROMO2026',
+            })
           }
         })
       }
@@ -916,7 +992,7 @@ export default function NewCampaignPage() {
               </div>
 
               <div className="max-w-xl mx-auto sm:mx-0 p-3.5 rounded-2xl bg-background border border-border/60 shadow-xs space-y-2.5 font-sans text-xs">
-                {/* Standard Media Header */}
+                {/* Standard Media Header (IMAGE / VIDEO) */}
                 {templateHeaderComponent && ['IMAGE', 'VIDEO'].includes((templateHeaderComponent.format || '').toUpperCase()) && (
                   <div className="w-full h-32 rounded-xl bg-muted/60 border border-border/50 flex flex-col items-center justify-center text-muted-foreground overflow-hidden relative">
                     {templateHeaderComponent.example?.header_url?.[0] ? (
@@ -927,9 +1003,41 @@ export default function NewCampaignPage() {
                       />
                     ) : (
                       <span className="text-[11px] font-medium flex items-center gap-1.5">
-                        🖼️ Image d'en-tête dynamique
+                        {templateHeaderComponent.format === 'IMAGE' ? '🖼️ Image d\'en-tête dynamique' : '▶ Vidéo d\'en-tête (MP4)'}
                       </span>
                     )}
+                  </div>
+                )}
+
+                {/* Document Header Preview */}
+                {templateHeaderComponent && (templateHeaderComponent.format || '').toUpperCase() === 'DOCUMENT' && (
+                  <div className="p-3 rounded-xl bg-muted/60 border border-border/50 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center shrink-0 font-bold text-xs">
+                      PDF
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-xs text-foreground truncate">
+                        {variableMappings['header_document_filename']?.customText || 'Document joint.pdf'}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground truncate">Document d'en-tête</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Location Header Preview */}
+                {templateHeaderComponent && (templateHeaderComponent.format || '').toUpperCase() === 'LOCATION' && (
+                  <div className="p-3 rounded-xl bg-muted/60 border border-border/50 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0 text-base">
+                      📍
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-xs text-foreground truncate">
+                        {variableMappings['header_location_name']?.customText || 'Lieu partagé'}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {variableMappings['header_location_address']?.customText || 'Coordonnées GPS'}
+                      </p>
+                    </div>
                   </div>
                 )}
 
