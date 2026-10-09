@@ -4,22 +4,21 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard,
+  Sparkles,
   MessageSquare,
-  Layers,
-  Zap,
-  Settings,
-  FileText,
+  Bot,
+  ShoppingCart,
+  ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUnreadCount } from '@/hooks/use-unread-count'
 
 const bottomNavItems = [
   {
-    label: 'Accueil',
+    label: 'Chat',
     href: '/dashboard',
     exact: true,
-    icon: LayoutDashboard,
+    icon: Sparkles,
   },
   {
     label: 'Inbox',
@@ -27,19 +26,19 @@ const bottomNavItems = [
     icon: MessageSquare,
   },
   {
-    label: 'Flows',
-    href: '/dashboard/flows',
-    icon: Layers,
+    label: 'Agents',
+    href: '/dashboard/agents',
+    icon: Bot,
   },
   {
-    label: 'Scénarios',
-    href: '/dashboard/automations',
-    icon: Zap,
+    label: 'Commandes',
+    href: '/dashboard/orders',
+    icon: ShoppingCart,
   },
   {
-    label: 'Modèles',
-    href: '/dashboard/templates',
-    icon: FileText,
+    label: 'Équipe',
+    href: '/dashboard/team',
+    icon: ShieldCheck,
   },
 ]
 

@@ -17,7 +17,9 @@ import {
   PanelRightClose,
   Package,
   Search,
-  XCircle
+  XCircle,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react'
 import type { Conversation, Message } from '@/app/dashboard/inbox/page'
 import { useOrganization } from '@/hooks/use-organization'
@@ -30,6 +32,7 @@ interface ChatThreadProps {
   onBack?: () => void
   showSidebar?: boolean
   onToggleSidebar?: () => void
+  onDeleteContact?: () => void
 }
 
 export function ChatThread({
@@ -38,7 +41,8 @@ export function ChatThread({
   onMessageSent,
   onBack,
   showSidebar,
-  onToggleSidebar
+  onToggleSidebar,
+  onDeleteContact,
 }: ChatThreadProps) {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
@@ -48,6 +52,45 @@ export function ChatThread({
   const [members, setMembers] = useState<any[]>([])
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState(conversation.contact_name || '')
+
+  // Delete contact / conversation modal state
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConvoToo, setDeleteConvoToo] = useState(true)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function handleDelete() {
+    if (!activeOrganization) return
+    setDeleting(true)
+    setDeleteError(null)
+
+    try {
+      const contactId = conversation.contact?.id || conversation.contact_id
+      if (contactId) {
+        const res = await fetch(`/api/contacts/${contactId}?deleteConversations=${deleteConvoToo}`, {
+          method: 'DELETE',
+          headers: { 'x-organization-id': activeOrganization.id },
+        })
+        if (!res.ok) {
+          const errData = await res.json()
+          throw new Error(errData.error || 'Erreur lors de la suppression')
+        }
+      } else {
+        const supabase = createClient()
+        await supabase.from('messages').delete().eq('conversation_id', conversation.id)
+        await supabase.from('conversations').delete().eq('id', conversation.id).eq('organization_id', activeOrganization.id)
+      }
+
+      setShowDeleteModal(false)
+      window.dispatchEvent(new CustomEvent('contact-deleted'))
+      window.dispatchEvent(new CustomEvent('contact-tags-updated'))
+      onDeleteContact?.()
+    } catch (err: any) {
+      setDeleteError(err.message || 'Impossible de supprimer ce contact')
+    } finally {
+      setDeleting(false)
+    }
+  }
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
@@ -379,11 +422,21 @@ export function ChatThread({
             <button
               onClick={onToggleSidebar}
               className="md:hidden flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-              title={showSidebar ? 'Masquer le profil' : 'Afficher le profil'}
+              title={showSidebar ? 'Masquer le panneau contact' : 'Afficher le panneau contact'}
             >
-              <UserIcon className="h-4 w-4" />
+              {showSidebar ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
             </button>
           )}
+
+          {/* Delete Contact Button */}
+          <button
+            type="button"
+            onClick={() => setShowDeleteModal(true)}
+            className="flex items-center justify-center h-8 w-8 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors"
+            title="Supprimer ce contact"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
@@ -603,6 +656,61 @@ export function ChatThread({
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Contact Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-150">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-red-500/10 text-red-500 shrink-0">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Supprimer ce contact ?
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Cette action supprimera la fiche de <strong>{conversation.contact_name || conversation.contact_phone}</strong>.
+                </p>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none bg-muted/30 p-2.5 rounded-lg border border-border/60">
+              <input
+                type="checkbox"
+                checked={deleteConvoToo}
+                onChange={(e) => setDeleteConvoToo(e.target.checked)}
+                className="rounded border-border text-red-500 focus:ring-0"
+              />
+              <span>Supprimer aussi la conversation WhatsApp</span>
+            </label>
+
+            {deleteError && (
+              <p className="text-xs text-red-500">{deleteError}</p>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg border border-border hover:bg-muted transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                <span>Supprimer</span>
+              </button>
             </div>
           </div>
         </div>

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import '@/styles/bencho.css'
+import '@/styles/chat-ui.css'
 import { ThemeProvider } from '@/components/theme-provider'
 
 export const metadata: Metadata = {

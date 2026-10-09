@@ -14,6 +14,7 @@ import {
   Edit3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Switch } from '@/components/ui/switch'
 
 interface Automation {
   id: string
@@ -158,20 +159,11 @@ export default function AutomationsPage() {
                   </div>
                 </div>
                 {/* Active Toggle */}
-                <button
-                  onClick={() => handleToggle(auto.id, auto.is_active)}
-                  className={cn(
-                    'w-11 h-6 rounded-full transition-colors relative',
-                    auto.is_active ? 'bg-green-500' : 'bg-slate-300'
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'absolute top-1 left-1 bg-card w-4 h-4 rounded-full transition-transform',
-                      auto.is_active ? 'translate-x-5' : 'translate-x-0'
-                    )}
-                  />
-                </button>
+                <Switch
+                  checked={auto.is_active}
+                  onCheckedChange={() => handleToggle(auto.id, auto.is_active)}
+                  ariaLabel={`Activer ou désactiver le scénario ${auto.name}`}
+                />
               </div>
 
               <div className="space-y-3 mb-6 bg-secondary rounded-xl p-3 border border-border">

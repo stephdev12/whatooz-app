@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next'
+import path from 'path'
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   // Vercel deployment: standalone output for optimal cold starts
   output: 'standalone',
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Phone, Check, Copy, Mail, Tag, StickyNote, Plus, User as UserIcon } from 'lucide-react'
+import { Phone, Check, Copy, Mail, Tag, StickyNote, Plus, User as UserIcon, Trash2, AlertTriangle, Loader2 } from 'lucide-react'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
 import type { Contact, Tag as TagType } from '@/app/dashboard/inbox/page'
@@ -15,9 +15,10 @@ interface Note {
 
 interface ContactSidebarProps {
   contact: Contact
+  onContactDeleted?: () => void
 }
 
-export function ContactSidebar({ contact }: ContactSidebarProps) {
+export function ContactSidebar({ contact, onContactDeleted }: ContactSidebarProps) {
   const { activeOrganization } = useOrganization()
   const [copied, setCopied] = useState(false)
   
@@ -32,6 +33,42 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
   const [newTagName, setNewTagName] = useState('')
   const [newTagColor, setNewTagColor] = useState('#4F46E5')
   const [creatingTag, setCreatingTag] = useState(false)
+
+  // Delete contact state
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteConversationToo, setDeleteConversationToo] = useState(true)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function handleDeleteContact() {
+    if (!activeOrganization || !contact) return
+    setDeleting(true)
+    setDeleteError(null)
+
+    try {
+      const url = `/api/contacts/${contact.id}?deleteConversations=${deleteConversationToo}`
+      const res = await fetch(url, {
+        method: 'DELETE',
+        headers: {
+          'x-organization-id': activeOrganization.id,
+        },
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || 'Erreur lors de la suppression')
+      }
+
+      setShowDeleteModal(false)
+      window.dispatchEvent(new CustomEvent('contact-deleted', { detail: { contactId: contact.id } }))
+      window.dispatchEvent(new CustomEvent('contact-tags-updated'))
+      onContactDeleted?.()
+    } catch (err: any) {
+      setDeleteError(err.message || 'Impossible de supprimer ce contact')
+    } finally {
+      setDeleting(false)
+    }
+  }
 
   const supabase = createClient()
 
@@ -322,6 +359,75 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
           </div>
         </div>
       </div>
+
+      <div className="my-5 border-t border-border" />
+
+      {/* Action de suppression */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowDeleteModal(true)}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-red-500 hover:text-red-600 hover:bg-red-500/10 rounded-lg transition-colors border border-red-500/20"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          <span>Supprimer ce contact</span>
+        </button>
+      </div>
+
+      {/* Modal de confirmation de suppression */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg bg-red-500/10 text-red-500 shrink-0">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Supprimer le contact ?
+                </h3>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  Cette action supprimera définitivement la fiche de <strong>{contact.name || contact.phone}</strong>.
+                </p>
+              </div>
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none bg-muted/30 p-2.5 rounded-lg border border-border/60">
+              <input
+                type="checkbox"
+                checked={deleteConversationToo}
+                onChange={(e) => setDeleteConversationToo(e.target.checked)}
+                className="rounded border-border text-red-500 focus:ring-0"
+              />
+              <span>Supprimer aussi la conversation WhatsApp</span>
+            </label>
+
+            {deleteError && (
+              <p className="text-xs text-red-500">{deleteError}</p>
+            )}
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg border border-border hover:bg-muted transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteContact}
+                disabled={deleting}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {deleting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                <span>Supprimer</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

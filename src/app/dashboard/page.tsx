@@ -1,365 +1,352 @@
 'use client'
 
-import React, { useEffect, useState, useMemo } from 'react'
-import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
+import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useOrganization } from '@/hooks/use-organization'
-import {
-  TrendingUp,
-  MessageSquare,
-  Zap,
-  Layers,
-  ArrowUpRight,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { RotateCcw, Sparkles } from 'lucide-react'
+import LoadingState from '@/components/chat/LoadingState'
+import ThinkingState from '@/components/chat/ThinkingState'
+import StreamingText, { StreamingToken, StreamingSource } from '@/components/chat/StreamingText'
+import TaskRows, { TaskRow } from '@/components/chat/TaskRows'
+import ApprovalCard from '@/components/chat/ApprovalCard'
+import RecommendationCard from '@/components/chat/RecommendationCard'
+import PromptBar from '@/components/chat/PromptBar'
 
-interface DashboardStats {
-  totalConversations: number
-  totalOrders: number
-  totalRevenueFcfa: number
-  recentInteractions: Array<{
-    id: string
-    created_at: string
-    contact_name: string
-    contact_phone: string
-    type: string
-    detail: string
-  }>
-  chartData: Array<{ month: string; value: number; peak: boolean }>
+interface ToolExecution {
+  tool: string
+  args: Record<string, any>
+  result: Record<string, any>
+  timestamp: string
 }
+
+interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  tokens?: StreamingToken[]
+  sources?: StreamingSource[]
+  tools?: ToolExecution[]
+  taskRows?: TaskRow[]
+  suggestedActions?: string[]
+  isApprovalRequired?: boolean
+  isRecommendation?: boolean
+  timestamp: string
+  isStreaming?: boolean
+}
+
+const DEFAULT_SOURCES: StreamingSource[] = [
+  { name: 'WhatsApp Business API', domain: 'whatsapp.com', href: '#', image: '' },
+  { name: 'Catalogue Whatooz', domain: 'whatooz.com', href: '#', image: '' },
+  { name: 'Passerelle Paiements', domain: 'wave.com', href: '#', image: '' },
+]
+
+function textToTokens(text: string): StreamingToken[] {
+  if (!text) return []
+  const words = text.split(/(\s+)/)
+  return words.filter(Boolean).map((word) => ({
+    text: word,
+  }))
+}
+
+const INITIAL_WELCOME = "Bonjour ! Que souhaitez-vous faire aujourd'hui ?"
 
 export default function DashboardPage() {
   const { user } = useAuth()
-  const [stats, setStats] = useState<DashboardStats>({
-    totalConversations: 0,
-    totalOrders: 0,
-    totalRevenueFcfa: 0,
-    recentInteractions: [],
-    chartData: [],
-  })
-
-  const [timeframe, setTimeframe] = useState<'monthly' | 'annually'>('monthly')
-  const [loading, setLoading] = useState(true)
   const { activeOrganization } = useOrganization()
-  const supabase = useMemo(() => createClient(), [])
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'welcome-1',
+      role: 'assistant',
+      content: INITIAL_WELCOME,
+      tokens: textToTokens(INITIAL_WELCOME),
+      sources: DEFAULT_SOURCES,
+      suggestedActions: [
+        'Combien ai-je vendu ce mois-ci ?',
+        'Relancer les paniers abandonnés sur WhatsApp',
+        'Quels sont mes produits les plus demandés ?',
+        'Consulter le solde disponible',
+      ],
+      timestamp: new Date().toISOString(),
+      isStreaming: false,
+    },
+  ])
+
+  const [isAiExecuting, setIsAiExecuting] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement | null>(null)
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
 
   useEffect(() => {
-    async function loadDashboardData() {
-      if (!user || !activeOrganization) {
-        setLoading(false)
-        return
-      }
+    scrollToBottom()
+  }, [messages, isAiExecuting])
 
-      try {
-        const { data: config } = await supabase
-          .from('whatsapp_config')
-          .select('display_phone_number, verified_name, phone_number_id')
-          .eq('organization_id', activeOrganization.id)
-          .maybeSingle()
+  const handleSendMessage = async (textToSend: string) => {
+    const text = textToSend?.trim()
+    if (!text || isAiExecuting || !activeOrganization) return
 
-        const { count: convoCount } = await supabase
-          .from('conversations')
-          .select('id', { count: 'exact', head: true })
-          .eq('organization_id', activeOrganization.id)
-
-        const { data: responses } = await supabase
-          .from('flow_responses')
-          .select('*')
-          .eq('organization_id', activeOrganization.id)
-          .order('created_at', { ascending: false })
-          .limit(10)
-
-        let ordersCount = 0
-        let totalFcfa = 0
-        const interactions: typeof stats.recentInteractions = []
-
-        if (responses && responses.length > 0) {
-          responses.forEach((r) => {
-            const data = (r.response_data as Record<string, any>) || {}
-            ordersCount++
-            let price = 260000
-            const model = String(data.modele_selectionne || data.product_name || '').toLowerCase()
-
-            if (model.includes('apex')) price = 260000
-            else if (model.includes('virtu')) price = 225000
-            else if (model.includes('audio') || model.includes('casque')) price = 45000
-
-            totalFcfa += price
-            interactions.push({
-              id: r.id,
-              created_at: r.created_at,
-              contact_name: r.contact_name || 'Client',
-              contact_phone: r.contact_phone,
-              type: 'Formulaire',
-              detail: data.product_name || data.modele_selectionne || 'Soumission Flow',
-            })
-          })
-        }
-
-        // Build 6 months dynamic chart data based on real interaction counts
-        const monthCounts: Record<string, number> = {}
-        interactions.forEach(r => {
-          const date = new Date(r.created_at)
-          const month = date.toLocaleString('fr-FR', { month: 'short' }).toUpperCase().replace('.', '')
-          monthCounts[month] = (monthCounts[month] || 0) + 1
-        })
-        
-        const dynamicChartData = []
-        for (let i = 5; i >= 0; i--) {
-          const d = new Date()
-          d.setMonth(d.getMonth() - i)
-          const m = d.toLocaleString('fr-FR', { month: 'short' }).toUpperCase().replace('.', '')
-          const val = monthCounts[m] || 0
-          dynamicChartData.push({
-            month: m,
-            // visually scale it up so the chart isn't completely flat if there's only 1 order
-            value: val > 0 ? Math.min(val * 20, 100) : 5, 
-            peak: false
-          })
-        }
-
-        // Add a peak visual if there's actual data
-        let maxVal = -1
-        let peakIdx = -1
-        dynamicChartData.forEach((d, i) => {
-          if (d.value > maxVal && d.value > 5) {
-            maxVal = d.value
-            peakIdx = i
-          }
-        })
-        if (peakIdx !== -1) {
-          dynamicChartData[peakIdx].peak = true
-        }
-
-        // Fetch actual wallet balance
-        const { data: wData } = await supabase
-          .from('wallets')
-          .select('balance')
-          .eq('organization_id', activeOrganization.id)
-          .maybeSingle()
-
-        setStats({
-          totalConversations: convoCount || 0,
-          totalOrders: ordersCount,
-          totalRevenueFcfa: wData?.balance || 0,
-          recentInteractions: interactions,
-          chartData: dynamicChartData,
-        })
-      } catch (err) {
-        console.error('Error loading dashboard stats:', err)
-      } finally {
-        setLoading(false)
-      }
+    const userMsg: ChatMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      content: text,
+      timestamp: new Date().toISOString(),
     }
 
-    loadDashboardData()
-  }, [user?.id, activeOrganization?.id, supabase])
+    setMessages((prev) => [...prev, userMsg])
+    setIsAiExecuting(true)
 
-  const userName = user?.email?.split('@')[0] || 'Marchand'
+    try {
+      const res = await fetch('/api/ai/operational', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-organization-id': activeOrganization.id,
+        },
+        body: JSON.stringify({ message: text }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        const replyText = data.reply || ''
+        const tokens = textToTokens(replyText)
+
+        // Check if tools were executed
+        let generatedTaskRows: TaskRow[] | undefined
+        if (data.tools && data.tools.length > 0) {
+          generatedTaskRows = data.tools.map((t: ToolExecution, idx: number) => ({
+            key: `task-${idx}-${t.tool}`,
+            label: `Exécution de ${t.tool}`,
+            summary: 'Tâche opérationnelle exécutée avec succès',
+            meta: 'Validé',
+            status: 'done' as const,
+            details: Object.entries(t.args || {}).map(([k, v]) => ({
+              label: k,
+              meta: typeof v === 'object' ? JSON.stringify(v) : String(v),
+            })),
+          }))
+        }
+
+        // Check if approval card or recommendation is relevant
+        const requiresApproval = text.toLowerCase().includes('retrait') || text.toLowerCase().includes('supprimer') || text.toLowerCase().includes('virer')
+        const isRecommendation = text.toLowerCase().includes('produit') || text.toLowerCase().includes('conseil') || text.toLowerCase().includes('campagne')
+
+        const assistantMsg: ChatMessage = {
+          id: `ai-${Date.now()}`,
+          role: 'assistant',
+          content: replyText,
+          tokens: tokens,
+          sources: DEFAULT_SOURCES,
+          tools: data.tools,
+          taskRows: generatedTaskRows,
+          suggestedActions: data.suggestedActions || [
+            'Détailler cette analyse',
+            'Envoyer une mise à jour sur WhatsApp',
+            'Exporter les données',
+          ],
+          isApprovalRequired: requiresApproval,
+          isRecommendation: isRecommendation,
+          timestamp: data.timestamp || new Date().toISOString(),
+          isStreaming: true,
+        }
+
+        setMessages((prev) => [...prev, assistantMsg])
+      } else {
+        const errorText = `Désolé, une anomalie est survenue : ${data.error || 'Erreur de connexion'}`
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `err-${Date.now()}`,
+            role: 'assistant',
+            content: errorText,
+            tokens: textToTokens(errorText),
+            timestamp: new Date().toISOString(),
+            isStreaming: false,
+          },
+        ])
+      }
+    } catch {
+      const errorText = "Impossible de joindre l'agent opérationnel. Vérifiez la connexion au serveur."
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `err-${Date.now()}`,
+          role: 'assistant',
+          content: errorText,
+          tokens: textToTokens(errorText),
+          timestamp: new Date().toISOString(),
+          isStreaming: false,
+        },
+      ])
+    } finally {
+      setIsAiExecuting(false)
+    }
+  }
+
+  const handleResetConversation = () => {
+    setMessages([
+      {
+        id: `welcome-${Date.now()}`,
+        role: 'assistant',
+        content: INITIAL_WELCOME,
+        tokens: textToTokens(INITIAL_WELCOME),
+        sources: DEFAULT_SOURCES,
+        suggestedActions: [
+          'Combien ai-je vendu ce mois-ci ?',
+          'Relancer les paniers abandonnés sur WhatsApp',
+          'Quels sont mes produits les plus demandés ?',
+          'Consulter le solde disponible',
+        ],
+        timestamp: new Date().toISOString(),
+        isStreaming: false,
+      },
+    ])
+  }
+
+  const userName = user?.email?.split('@')[0] || 'Stéphane'
   const capitalizedUserName = userName.charAt(0).toUpperCase() + userName.slice(1)
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-4.25rem)] max-w-4xl mx-auto px-2 sm:px-4 pb-2">
       {/* ─── Header ─── */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground font-heading">
-          Bon retour, {capitalizedUserName} !
+      <header className="flex items-center justify-between py-3 border-b border-border/50 shrink-0">
+        <h1 className="text-base font-medium tracking-tight text-foreground">
+          Bonjour, {capitalizedUserName}
         </h1>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Aperçu de votre activité
-        </p>
-      </div>
 
-      {/* ─── Metrics Row ─── */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        {/* Solde */}
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-[11px] font-medium text-muted-foreground">Solde total</p>
-          <p className="text-lg font-bold text-foreground mt-1">
-            {stats.totalRevenueFcfa.toLocaleString('fr-FR')} <span className="text-xs font-normal text-muted-foreground">FCFA</span>
-          </p>
-        </div>
+        <button
+          onClick={handleResetConversation}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted transition-colors"
+          title="Nouveau chat"
+        >
+          <RotateCcw className="size-3.5" />
+          <span className="hidden sm:inline">Nouveau chat</span>
+        </button>
+      </header>
 
-        {/* Conversations */}
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-[11px] font-medium text-muted-foreground">Conversations</p>
-          <p className="text-lg font-bold text-foreground mt-1">{stats.totalConversations}</p>
-        </div>
+      {/* ─── Scrollable Message Thread ─── */}
+      <main className="flex-1 overflow-y-auto py-5 space-y-6 pr-1">
+        {messages.map((msg, index) => {
+          const isLastAssistantMessage =
+            msg.role === 'assistant' &&
+            index === messages.findLastIndex((m) => m.role === 'assistant')
 
-        {/* Commandes */}
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-[11px] font-medium text-muted-foreground">Commandes</p>
-          <p className="text-lg font-bold text-foreground mt-1">{stats.totalOrders}</p>
-        </div>
-
-        {/* Taux conversion */}
-        <div className="rounded-2xl border border-border bg-card p-4">
-          <p className="text-[11px] font-medium text-muted-foreground">Taux de conversion</p>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-lg font-bold text-emerald-500">94.2%</p>
-            <span className="flex items-center gap-0.5 text-[10px] font-medium text-emerald-500">
-              <TrendingUp className="h-3 w-3" /> +12.8%
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ─── Chart + Quick Links ─── */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {/* Chart */}
-        <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-foreground">Engagement</h2>
-            <div className="flex items-center rounded-full bg-secondary p-0.5 border border-border">
-              <button
-                type="button"
-                onClick={() => setTimeframe('monthly')}
-                className={cn(
-                  'rounded-full px-3 py-1 text-[11px] font-medium transition-all',
-                  timeframe === 'monthly'
-                    ? 'bg-foreground text-background shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                Mensuel
-              </button>
-              <button
-                type="button"
-                onClick={() => setTimeframe('annually')}
-                className={cn(
-                  'rounded-full px-3 py-1 text-[11px] font-medium transition-all',
-                  timeframe === 'annually'
-                    ? 'bg-foreground text-background shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                Annuel
-              </button>
-            </div>
-          </div>
-
-          {/* Bar Chart */}
-          <div className="flex h-40 items-end gap-3 border-b border-border pb-1">
-            {stats.chartData.map((bar) => (
-              <div key={bar.month} className="relative flex flex-col items-center flex-1">
-                {bar.peak && (
-                  <span className="absolute -top-5 rounded-full bg-emerald-500 text-white px-1.5 py-0.5 text-[9px] font-bold">
-                    Max
-                  </span>
-                )}
-                <div
-                  style={{ height: `${bar.value}%` }}
-                  className={cn(
-                    'w-full max-w-[28px] rounded-full transition-all',
-                    bar.peak ? 'bg-quixotic-bar-peak' : 'bg-quixotic-bar-idle'
+          return (
+            <div key={msg.id} className="space-y-3">
+              {msg.role === 'user' ? (
+                /* User Message Bubble */
+                <div className="flex justify-end">
+                  <div className="max-w-[85%] sm:max-w-[75%] rounded-2xl bg-muted/70 px-4 py-2.5 text-xs sm:text-sm text-foreground border border-border/60">
+                    <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                  </div>
+                </div>
+              ) : (
+                /* Assistant Message Stack */
+                <div className="space-y-4 max-w-full">
+                  {/* Task progress rows if tools were executed */}
+                  {msg.taskRows && msg.taskRows.length > 0 && (
+                    <div className="pt-1">
+                      <TaskRows
+                        variant="Cards"
+                        rows={msg.taskRows}
+                        className="max-w-2xl"
+                      />
+                    </div>
                   )}
-                />
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between pt-2 text-[10px] font-medium text-muted-foreground">
-            {stats.chartData.map((bar) => (
-              <span key={bar.month} className="flex-1 text-center">{bar.month}</span>
-            ))}
-          </div>
-        </div>
 
-        {/* Quick Links */}
-        <div className="space-y-3">
-          <Link
-            href="/dashboard/inbox"
-            className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 hover:bg-secondary/50 transition-colors"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#fe5105]/10 text-[#fe5105]">
-              <MessageSquare className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-foreground">Discussions</p>
-              <p className="text-[11px] text-muted-foreground">Répondre aux messages</p>
-            </div>
-            <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
-          </Link>
+                  {/* Human-in-the-loop approval card if needed */}
+                  {msg.isApprovalRequired && (
+                    <div className="pt-1">
+                      <ApprovalCard
+                        labels={{
+                          continue: 'Valider et exécuter',
+                          skip: 'Annuler',
+                          send: 'Envoyer',
+                        }}
+                        onSubmitted={() => {
+                          handleSendMessage("Action confirmée par l'administrateur.")
+                        }}
+                      />
+                    </div>
+                  )}
 
-          <Link
-            href="/dashboard/flows"
-            className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 hover:bg-secondary/50 transition-colors"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
-              <Layers className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-foreground">Flows</p>
-              <p className="text-[11px] text-muted-foreground">Créer un formulaire</p>
-            </div>
-            <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
-          </Link>
+                  {/* Proactive Recommendation card if needed */}
+                  {msg.isRecommendation && (
+                    <div className="pt-1">
+                      <RecommendationCard
+                        labels={{
+                          title: 'Recommandation : Relance WhatsApp',
+                          alternatives: 'Alternatives',
+                          accepted: 'Confirmé',
+                        }}
+                      />
+                    </div>
+                  )}
 
-          <Link
-            href="/dashboard/automations"
-            className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4 hover:bg-secondary/50 transition-colors"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10 text-violet-500">
-              <Zap className="h-4 w-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-foreground">Scénarios</p>
-              <p className="text-[11px] text-muted-foreground">Automatiser les réponses</p>
-            </div>
-            <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
-          </Link>
-        </div>
-      </div>
-
-      {/* ─── Interactions récentes ─── */}
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-foreground">Interactions récentes</h2>
-          <Link
-            href="/dashboard/flows"
-            className="text-xs font-medium text-[#fe5105] hover:underline"
-          >
-            Tout voir
-          </Link>
-        </div>
-
-        {stats.recentInteractions.length === 0 ? (
-          <p className="text-xs text-muted-foreground py-6 text-center">
-            Aucune interaction pour le moment
-          </p>
-        ) : (
-          <div className="divide-y divide-border">
-            {stats.recentInteractions.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between py-3 gap-3"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#fe5105]/10 text-[#fe5105] text-xs font-bold shrink-0">
-                    {item.contact_name.charAt(0)}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-foreground truncate">{item.contact_name}</p>
-                    <p className="text-[11px] text-muted-foreground truncate">{item.detail}</p>
+                  {/* Streaming Text Output with followups */}
+                  <div className="w-full">
+                    <StreamingText
+                      content={msg.tokens}
+                      sources={msg.sources}
+                      followUps={msg.suggestedActions}
+                      immediate={!isLastAssistantMessage || !msg.isStreaming}
+                      loop={false}
+                      fill={true}
+                      onFollowUp={(followUpText) => {
+                        handleSendMessage(followUpText)
+                      }}
+                    />
                   </div>
                 </div>
+              )}
+            </div>
+          )
+        })}
 
-                <div className="text-right shrink-0">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
-                    {item.type}
-                  </span>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    {new Date(item.created_at).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'short',
-                    })}
-                  </p>
-                </div>
-              </div>
-            ))}
+        {/* Live Loading & Thinking State while AI is computing */}
+        {isAiExecuting && (
+          <div className="space-y-3 pt-2">
+            <LoadingState
+              variant="Drive"
+              label="Recherche en cours..."
+            />
+            <div className="max-w-xl">
+              <ThinkingState
+                variant="Steps"
+                active="Recherche en cours..."
+                done="Terminé"
+                rows={[
+                  {
+                    primary: 'Consultation des données WhatsApp et catalogue',
+                    secondary: '620ms',
+                  },
+                  {
+                    primary: 'Vérification des commandes et des stocks',
+                    secondary: '840ms',
+                  },
+                  {
+                    primary: 'Génération de la réponse',
+                    secondary: '450ms',
+                  },
+                ]}
+              />
+            </div>
           </div>
         )}
-      </div>
+
+        <div ref={chatEndRef} />
+      </main>
+
+      {/* ─── Bottom Interactive Prompt Bar ─── */}
+      <footer className="pt-2 shrink-0">
+        <PromptBar
+          demo={false}
+          variant="Rounded"
+          placeholder="Posez une question ou tapez / pour une action..."
+          onSend={(draftText) => handleSendMessage(draftText)}
+        />
+      </footer>
     </div>
   )
 }

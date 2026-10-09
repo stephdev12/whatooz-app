@@ -12,6 +12,7 @@ import {
   Edit3,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Switch } from '@/components/ui/switch'
 
 interface Agent {
   id: string
@@ -155,20 +156,11 @@ export default function AgentsPage() {
                   </div>
                 </div>
                 {/* Active Toggle */}
-                <button
-                  onClick={() => handleToggle(agent.id, agent.status)}
-                  className={cn(
-                    'w-11 h-6 rounded-full transition-colors relative',
-                    agent.status === 'ACTIVE' ? 'bg-green-500' : 'bg-slate-300'
-                  )}
-                >
-                  <div
-                    className={cn(
-                      'absolute top-1 left-1 bg-card w-4 h-4 rounded-full transition-transform',
-                      agent.status === 'ACTIVE' ? 'translate-x-5' : 'translate-x-0'
-                    )}
-                  />
-                </button>
+                <Switch
+                  checked={agent.status === 'ACTIVE'}
+                  onCheckedChange={() => handleToggle(agent.id, agent.status)}
+                  ariaLabel={`Activer ou désactiver l'agent ${agent.name}`}
+                />
               </div>
 
               <div className="flex-1 space-y-3 mb-6 bg-secondary rounded-xl p-3 border border-border text-sm text-muted-foreground">

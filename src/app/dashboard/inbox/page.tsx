@@ -365,6 +365,11 @@ export default function InboxPage() {
                 onBack={() => { setSelectedConvoId(null); setShowSidebar(false) }}
                 showSidebar={showSidebar}
                 onToggleSidebar={() => setShowSidebar(!showSidebar)}
+                onDeleteContact={() => {
+                  setSelectedConvoId(null)
+                  setShowSidebar(false)
+                  loadConversations()
+                }}
               />
             </div>
             

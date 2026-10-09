@@ -1,0 +1,961 @@
+/* ══════════════════════════════════════════════════════════
+   Bencho Design System Tokens Mapped to Whatooz
+   ══════════════════════════════════════════════════════════ */
+:root {
+  --font-ui: var(--font-body, var(--font-sans, system-ui, sans-serif));
+  --ink: #111111;
+  --ink-rgb: 17, 17, 17;
+  --ink-2: #3f3f46;
+  --ink-3: #71717a;
+  --ink-4: #a1a1aa;
+  --ink-5: #d4d4d8;
+  --board: var(--background);
+  --fill-slab: var(--card);
+  --fill-on: var(--card-foreground);
+  --pane: var(--card);
+  --pane-edge: var(--border, rgba(0, 0, 0, 0.1));
+  --wash: 0.04;
+  --g-blur: 16px;
+  --g-bright: 1.05;
+  --g-sat: 1.2;
+}
+
+.dark {
+  --ink: #f4f4f5;
+  --ink-rgb: 244, 244, 245;
+  --ink-2: #e4e4e7;
+  --ink-3: #a1a1aa;
+  --ink-4: #71717a;
+  --ink-5: #3f3f3e;
+  --board: var(--background);
+  --fill-slab: var(--card);
+  --fill-on: var(--card-foreground);
+  --pane: var(--card);
+  --pane-edge: var(--border, rgba(255, 255, 255, 0.1));
+  --wash: 0.08;
+  --g-blur: 16px;
+  --g-bright: 1.1;
+  --g-sat: 1.2;
+}
+
+
+
+/* ══ Label input ═══════════════════════════════════════════
+   lab/LabelInput.tsx. Positioned at the root for the canvas
+   halo — see the note on .gen. */
+.lbi {
+  position: relative;
+  font-family: var(--font-ui);
+  display: grid;
+  place-items: center;
+  /* room above the field for the lifted label */
+  padding-top: 10px;}
+
+/* no fill: the field is only its outline */
+.lbi-box {
+  position: relative;
+  background: transparent;
+  cursor: text;}
+
+/* ── the outline ────────────────────────────────────────────
+   Always whole. At rest a hairline of grey; focused, the ink
+   at a hair heavier; left filled, a grey a step darker than
+   rest. The gap across the top is the only part that moves. */
+.lbi-ring {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;}
+
+.lbi-ring path {
+  fill: none;
+  stroke: rgba(var(--ink-rgb), 0.18);
+  stroke-width: 1;
+  stroke-linecap: butt;
+  transition: stroke 240ms ease, stroke-width 240ms ease;}
+
+.lbi[data-focus="true"] .lbi-ring path {
+  stroke: var(--ink);
+  stroke-width: 1.5;}
+
+.lbi[data-filled="true"]:not([data-focus="true"]) .lbi-ring path {
+  stroke: rgba(var(--ink-rgb), 0.3);}
+
+/* the gap: whole at rest, parting from its middle when the
+   label lifts. The dash is longer than the path so offset 0
+   is the whole line and -1 is none of it. */
+.lbi-gap {
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 0;
+  transition: stroke 240ms ease, stroke-width 240ms ease,
+    stroke-dashoffset 320ms cubic-bezier(0.22, 1, 0.36, 1);}
+
+.lbi[data-up="true"] .lbi-gap { stroke-dashoffset: -1; }
+
+/* ── the label ──────────────────────────────────────────────
+   Its placeholder self in the middle of the field, and its
+   lifted self centred on the top edge — the second is the
+   first moved up by half the field and scaled from its left. */
+.lbi-label {
+  position: absolute;
+  left: var(--lbi-x);
+  top: 50%;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: -0.005em;
+  white-space: pre;
+  color: var(--ink-4);
+  transform-origin: left center;
+  transform: translateY(-50%);
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1), color 200ms ease;
+  cursor: text;
+  -webkit-user-select: none;
+  user-select: none;}
+
+.lbi[data-up="true"] .lbi-label {
+  transform: translateY(-50%) translateY(-26px) scale(0.78);
+  color: var(--ink-3);}
+
+.lbi[data-focus="true"] .lbi-label { color: var(--fill-on, var(--ink)); }
+
+.lbi-label span { display: inline-block; }
+
+/* the hop: each letter lifts a hair and settles, one after the
+   next, so the word ripples as it rises */
+.lbi[data-focus="true"] .lbi-label span {
+  animation: lbi-hop 460ms cubic-bezier(0.3, 0.7, 0.3, 1) both;
+  animation-delay: calc(var(--i) * 24ms);}
+
+.lbi-field {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0 0 0 var(--lbi-x);
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  letter-spacing: -0.005em;
+  color: var(--fill-on, var(--ink));
+  outline: none;}
+
+/* the reveal: the text passes through a soft blur rather than
+   snapping between dots and letters. Two names so a second
+   press restarts it. */
+.lbi-field[data-flip="1"] { animation: lbi-flip-a 260ms ease-out; }
+
+.lbi-field[data-flip="0"] { animation: lbi-flip-b 260ms ease-out; }
+
+.lbi-eye {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 30px;
+  height: 30px;
+  margin-top: -15px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-4);
+  cursor: pointer;
+  transition: color 160ms ease, scale 130ms cubic-bezier(0.3, 0.9, 0.4, 1);}
+
+.lbi-eye:hover { color: var(--fill-on, var(--ink)); }
+
+.lbi-eye:active { scale: 0.9; }
+
+/* the two icons in one place, trading places */
+.lbi-eye svg {
+  grid-area: 1 / 1;
+  transition: opacity 200ms ease, scale 260ms cubic-bezier(0.22, 1, 0.36, 1), filter 200ms ease;}
+
+.lbi-eye svg:last-child { opacity: 0; scale: 0.7; filter: blur(2px); }
+
+.lbi-eye[data-show="true"] svg:first-child { opacity: 0; scale: 0.7; filter: blur(2px); }
+
+.lbi-eye[data-show="true"] svg:last-child { opacity: 1; scale: 1; filter: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .lbi-ring path,
+    .lbi-gap,
+    .lbi-label { transition-duration: 1ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lbi[data-focus="true"] .lbi-label span,
+    .lbi-field { animation: none; }
+}
+
+@keyframes lbi-hop {
+  0% { transform: translateY(0); }
+  38% { transform: translateY(-3px); }
+  100% { transform: translateY(0); }}
+
+@keyframes lbi-flip-a { from { filter: blur(3px); opacity: 0.5; } }
+
+@keyframes lbi-flip-b { from { filter: blur(3px); opacity: 0.5; } }
+
+
+
+/* ── the rest of them ────────────────────────────────────────
+   Not every block has a ::before to hang a border on, and
+   giving each one a pseudo-element it does not otherwise need
+   is a lot of stylesheet for a hairline. A 1px spread shadow
+   is the same mark by another means — the create menu has
+   used exactly this since it was written, for exactly this
+   reason — and it composites without touching layout.
+
+   This is what makes Stroke honest on every entry rather than
+   on the dozen that happened to be built on a glass pane. */
+[data-stroke="on"] .bal,
+[data-stroke="on"] .bar-rail,
+[data-stroke="on"] .fan-core,
+[data-stroke="on"] .step-pill,
+[data-stroke="on"] .liq-sw,
+[data-stroke="on"] .deck-card,
+[data-stroke="on"] .tick-row,
+/* NOT the rows. Stroke is a question about the block's own
+   edge, and hanging it on every row inside drew four
+   hairlines in the middle of a panel that still had none
+   round it. `.lab` already carries the ::before this control
+   was built for, and the roster's box is a .lab. */
+
+/* ── a ring on a metaball ────────────────────────────────────
+   The reorder list's rows are blobs on a filtered layer, and a
+   spread shadow drawn there does not survive: the blur smears
+   it and the alpha row then crushes what is left to nothing,
+   so Stroke appeared to do nothing on this block in either
+   theme.
+
+   The ring goes on the UNFILTERED twin instead. Every row is
+   drawn twice — a blob that merges and an ink layer above it
+   that carries the avatar and the name — and the two share
+   their geometry exactly, so an outline on the top one traces
+   the shape of the bottom one for free. */
+/* ── and the node card ─────────────────────────────────────
+   It drew its hairline unconditionally for a revision, which
+   is the one thing a block with a Stroke control must not do:
+   the control then reads as broken in the Off position,
+   because the edge it promises to remove is still there. The
+   ring follows the card's own corner, which is a knob. */
+[data-stroke="on"] .nod-card {
+  box-shadow: 0 0 0 1px var(--pane-edge);
+  border-radius: var(--nod-r, 20px);}
+
+/* and the buttons, which have nothing else on them */
+[data-stroke="on"] .nod-act {
+  box-shadow: 0 0 0 1px var(--pane-edge);}
+
+/* ══ Action node ══════════════════════════════════════════
+   A node card whose controls live in its top-right corner
+   until the pointer asks for them. The component owns the
+   geometry — every number that decides where a button sits is
+   in lab/ActionNode.tsx, because it is arithmetic on an arc
+   and not a style. What is here is what the card and the
+   buttons are MADE of.
+
+   The vertical padding on .nod is set inline for the same
+   reason: it is the fan's own reach, and a rule here would be
+   a second copy of a number that already exists. */
+/* ── the box is the card, plus air ABOVE AND BELOW ───────────────────────────────────
+   Never beside. The wall sizes a component by its LARGEST
+   side, so air reserved to the left or right is width the
+   card does not get — which is what made this card draw at
+   199 against a neighbour's 260 once. Height is free until it
+   passes the width, and the fan needs somewhere of its own to
+   be: see AIR in ActionNode.tsx. */
+.nod {
+  position: relative;
+  width: max-content;
+  font-family: var(--font-ui);}
+
+/* ── the card is painted OVER the fan ──────────────────────
+   Which is what makes the buttons come out of the corner
+   rather than out of the middle of the card. They are struck
+   from a point 26px inside it, so at rest they are sitting
+   under the card with nothing of them showing; travelling out
+   along the arc is what brings them past the edge.
+
+   Without this they emerge from inside the card, small, and
+   grow — which reads as the card sprouting things rather than
+   as a drawer being opened. One line of stacking, and the
+   whole gesture changes meaning.
+
+   `position: relative` only so z-index applies. Nothing here
+   is offset. */
+.nod-card {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  /* 272. It was 300, the width the rest of the wall is drawn
+     at, and read as a banner rather than a node — a card on a
+     canvas is taller than it looks wide. Narrower also draws it
+     a touch larger on the wall, which scales by the longest
+     side. */
+  width: 272px;
+  padding: 18px;
+  /* set per render — the Corner knob. The BUTTONS are not cut
+     with it: they are discs, and a disc with a 12px corner is
+     a squircle, which is a different object rather than the
+     same one adjusted. One knob, one shape. */
+  border-radius: var(--nod-r, 20px);
+  background: var(--fill-slab, var(--card));
+  color: var(--fill-on, var(--ink));
+  /* ── it lifts a hair while the fan is out ──────────────
+     Not a hover state for its own sake: the card is the thing
+     the buttons came out of, and a card that answers at the
+     same moment they do reads as one object doing one thing.
+     0.4px of travel — you would not find it if you looked for
+     it, and you would miss it if it were not there. */
+  transition: translate 260ms cubic-bezier(0.3, 1.1, 0.4, 1);}
+
+.nod-card[data-on] { translate: 0 -1px; }
+
+.nod-top {
+  display: flex;
+  align-items: center;
+  gap: 9px;}
+
+/* the product's mark, on its own ground. A disc rather than a
+   square because everything else in the card that stands for
+   a service is a disc, and two shapes for one idea is how a
+   card stops reading as a set. */
+.nod-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  /* ── cut with the card, not pinned to a circle ──────────
+     Written from the Corner knob — see the note on --nod-mark-r
+     in ActionNode.tsx. At the top of the range it is 15, which
+     on a 30px box is the disc this used to be, so nothing is
+     lost at the end it came from.
+
+     The FACES are not cut with it and must not be. A face is a
+     photograph of a person, and how a photograph of a person is
+     cut has nothing to do with the radius of the card it
+     happens to be sitting on — the reorder list's note makes
+     the same call about the same thing. The buttons on the fan
+     stay discs for their own reason, written on the knob. */
+  border-radius: var(--nod-mark-r, 15px);
+  background: rgba(var(--ink-rgb), var(--wash));
+  color: var(--fill-on, var(--ink));}
+
+/* ── the step's name ────────────────────────────────
+   500, not 600. The bench uses 600 all over, but almost all of
+   it is at 10 to 13px — furniture, where the weight is buying
+   back legibility a small size gave away. At 15px nothing has
+   been given away, so the same 600 is just loud, and it was
+   the heaviest thing on a card whose whole subject is four
+   quiet buttons.
+
+   The badge beside it is what keeps the hierarchy: this line
+   does not need to be bold to be the name, it needs to be the
+   darkest and the largest, and it is both. */
+.nod-name {
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.004em;}
+
+/* The "Connected" badge that sat at the end of the header row
+   is gone — see the note where it was drawn in ActionNode.tsx.
+   Its rules went with it, and so did the green it used: a
+   token kept alive for a rule nobody draws is the next thing
+   somebody restyles by accident. */
+
+/* ── the services, overlapped ──────────────────────────────
+   A negative margin and a ring in the card's own colour, so
+   the discs read as a stack rather than as a row with a
+   spacing problem. The ring has to be the CARD's fill and not
+   a fixed white: on the dark fill a white ring would draw
+   four bright arcs across the middle of the card. */
+/* ── after the sentence, and further from it than the
+   sentence is from the name ───────────────────────────────
+   The faces are a different KIND of thing from the two lines
+   above them — a name and a description are one block of
+   reading, and who is on the step is an aside under it. 16
+   against the description's 13 is what says so. */
+.nod-chain {
+  display: flex;
+  align-items: center;
+  margin-top: 16px;}
+
+.nod-link {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(var(--ink-rgb), 0.1);
+  box-shadow: 0 0 0 2px var(--fill-slab, var(--card));
+  /* the fallback when a photograph does not load, which is
+     what the initials in the component are for */
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--ink-4);}
+
+.nod-link img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;}
+
+.nod-link + .nod-link { margin-left: -6px; }
+
+.nod-more {
+  margin-left: 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-4);}
+
+.nod-say {
+  margin: 13px 0 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-3);}
+
+/* ── AND THE GREEN DOT IS GONE WITH IT ─────────────────────
+   Two rules and a colour pair lived here: .nod-state, a row at
+   the foot of the card holding a dot and the word Connected,
+   and then .nod-dot and --nod-live after the pair moved up
+   into the header badge. The badge has gone now, so the dot
+   has nothing left to sit in and the token has nothing left to
+   colour.
+
+   Written down rather than simply deleted because the COLOUR
+   was a decision and the next status dot on this bench will
+   want it: #12b055 on light, #3ce085 on dark, which is the
+   humidity wheel's pair. A text green (#16a34a) goes grey at
+   seven pixels — a small mark needs a brighter one to read as
+   the same colour. And no halo: a 3px spread at a tenth alpha
+   makes a connection look like it is transmitting. */
+
+/* ── the fan ───────────────────────────────────────────────
+   A zero-sized box pinned to the card's top-right corner.
+   Every button is absolutely placed against it and carries
+   its own translate, so they all share one origin and the arc
+   is the only thing that separates them.
+
+   `position: absolute` with width 0: the anchor is a POINT,
+   and giving it a size would mean every button's offset was
+   measured from an edge that has nothing to do with the
+   corner they are supposed to be coming out of. */
+.nod-fan {
+  position: absolute;
+  /* under the card. It comes after it in the markup, so
+     without this it would paint on top and every button would
+     be visible from the first frame. */
+  z-index: 0;
+  width: 0;
+  height: 0;}
+
+/* ── the pad that makes the fan reachable ───────────────
+   Invisible, and it has no business being anything else: its
+   whole job is to be part of .nod so that the air between the
+   card and the buttons stops being a place the pointer can
+   fall through. Shape, size and the bite out of it are all in
+   ActionNode.tsx, where the geometry they follow lives.
+
+   Inert until the fan is out. The card opens on its own hover
+   and nothing else, and a pad that could open it would put a
+   trigger in blank space beside the card. */
+.nod-reach {
+  position: absolute;
+  pointer-events: none;}
+
+.nod-reach[data-on] { pointer-events: auto; }
+
+.nod-act {
+  position: absolute;
+  /* the anchor is a point and the translate in the component
+     moves the button from it. The half-a-button that centres
+     it on that point is set inline, next to the DOT it is
+     half OF — see ActionNode.tsx. */
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--fill-slab, var(--card));
+  color: var(--fill-on, var(--ink));
+  /* ── no shadow, and none to put back ───────────────────
+     It had a soft lift, on the reasoning that a button off
+     the edge of a card needs separating from the page. It
+     does not: it is a filled disc on flat ground and the fill
+     already separates it. What the shadow actually did was
+     make four small objects look like they were hovering
+     above a card they are supposed to have come out of.
+
+     The hairline is the Stroke control's to draw and is not
+     here either \u2014 a button outlined whatever that switch says
+     makes the switch look broken. */
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  /* ── two writers, one scale ────────────────────────────
+     The spring owns how far out of the corner a button is and
+     the hover owns whether it is being pointed at, and both
+     want to scale it. An inline `scale` beats any rule, so
+     the component writes --pop instead and the two are
+     multiplied here.
+
+     ONLY --zoom IS TRANSITIONED, which is the whole reason
+     for the split. A transition on `scale` itself would smooth
+     the spring's own frames — two animations arguing over one
+     property, which is the note Sound and Tilt both carry.
+     --zoom changes twice per hover and can be eased; --pop
+     changes every frame and must not be. */
+  scale: calc(var(--pop, 1) * var(--zoom, 1));
+  transition: --zoom 180ms cubic-bezier(0.3, 1.1, 0.4, 1);}
+
+/* ── the hover is the size, and nothing else ───────────────
+   It inverted first — ink disc, card-coloured glyph — which
+   made four small buttons the darkest thing on screen the
+   moment you went near them. Then it was eight per cent of
+   ink mixed into the fill, which is quieter and still a
+   second answer to a question the scale had already answered.
+
+   So: one cue. The button grows and stays the colour it was.
+   Nothing here changes the fill, which is why the rule above
+   has no background transition left to run. */
+.nod-act:hover { --zoom: 1.12; }
+
+
+
+/* ── flat panes ────────────────────────────────────────────
+   Set data-surface="flat" on any ancestor and every glass
+   surface under it becomes a solid fill with a hairline. The
+   inner buttons already sit on rgba(var(--ink-rgb), 0.05)
+   with no border, which is what flat wants anyway, so they
+   need nothing.
+
+   The frost is switched off at the element rather than through
+   a token. A var() holding a url() filter cannot be validated
+   at parse time, so the browser would treat it as invalid at
+   computed-value time and drop the property outright — which
+   breaks the two-declaration fallback the glass depends on. */
+/* ══ stroke ═════════════════════════════════════════════════
+   Whether a component draws a hairline round itself. OFF by
+   default, which is the change: every glass surface carried
+   one unconditionally, and a grey line round everything makes
+   a wall of components look like a wall of boxes rather than
+   a wall of things.
+
+   The line is not load-bearing. A flat pane is a fill against
+   a different fill and reads on its own; the ring was there
+   to sharpen an edge that was already there.
+
+   Placed ABOVE the glass rules on purpose. Glass draws its
+   own lit rim, and that rim is the material rather than a
+   stroke — it is what gives a pane thickness. So glass wins
+   the border wherever the two meet, and Stroke governs the
+   drawn line that flat surfaces would otherwise have. */
+[data-stroke="on"] .lab::before,
+[data-stroke="on"] .gcard::before,
+[data-stroke="on"] .gpane::before,
+[data-stroke="on"] .gnav::before,
+[data-stroke="on"] .gdock::before,
+/* the playful blocks. None of them is glass, so none has a
+   lit rim for the stroke to lose to — the hairline is the
+   only edge they can have, and it is the whole of what this
+   control does for them. */
+[data-stroke="on"] .esc-btn::before,
+[data-stroke="on"] .slo-track::before,
+[data-stroke="on"] .sek-skin::before {
+  border-color: var(--pane-edge);}
+
+/* ══ Seek ═══════════════════════════════════════════════════
+   A search icon that becomes a search field, as one object.
+
+   Everything below is width and radius. There is no crossfade
+   between two components, no second element to keep in sync,
+   and nothing that animates on a clock of its own — the box
+   is sprung in JS and every other value here is derived from
+   how far through that spring it is. That is the whole reason
+   the transformation reads as continuous: there is only one
+   number, so nothing can arrive at the wrong time relative to
+   anything else. */
+.sek {
+  /* the frame is the composition. It never moves, which is
+     what gives the magnet a stable home to measure from and
+     keeps the object centred at every width. */
+  position: relative;
+  display: grid;
+  place-items: center;
+  /* ── THE FRAME IS `--frame`, and it was not ──────────────
+     Seek.tsx computes `--frame` and `--frameh` from the width
+     that is actually set — its note explains why at length:
+     the wall fits a card by the BOUNDING BOX, so a frame sized
+     for the widest the knob goes makes every smaller setting
+     draw smaller. It has been publishing those two numbers to
+     a stylesheet that ignored them and used a hard 380 x 96.
+
+     Measured on a phone card: the frame reserved 380 for a
+     field set to 320, the wall fitted 380 into 260, and the
+     shut button — the only thing drawn at rest — came out at
+     44px. The 36px of nothing was being paid for in the one
+     part of the object you are looking at.
+
+     With the variables wired up the knob does what its own
+     comment says it does, and the frame is tight to what is
+     set on every screen. */
+  width: var(--frame, 380px);
+  height: var(--frameh, 96px);
+  font-family: var(--font-ui);}
+
+/* ── the object ─────────────────────────────────────────────
+   Width is the state. Height is fixed, so the radius can be
+   derived from the width rather than animated beside it —
+   at 44 the corner is 22 and the shape IS a circle, and there
+   is no frame where the two disagree.
+
+   The surface is the quietest thing that still reads as an
+   object: a low-alpha ink fill and a hairline. No shadow, no
+   glass, no gradient — at this size any of them would be the
+   loudest thing on an otherwise empty page. */
+.sek-skin {
+  position: relative;
+  width: var(--w);
+  /* --shut, NOT a number. The component sets the closed width
+     and the height from one constant precisely so they cannot
+     drift, and its own comment says so: "the skin's height and
+     the closed width are the same number by definition, and
+     two places holding it is two places to get it wrong."
+     Hard-coded here at 44 against a --shut of 64, the closed
+     state was a 64x44 lozenge — a circle that is not round is
+     the one shape everybody notices. */
+  height: var(--shut);
+  /* ── ONE SHAPE RULE ─────────────────────────────────────
+     Fully round, at every width. The radius used to
+     interpolate 22 → 13, which was a second thing to keep in
+     agreement with the first; a stadium corner needs no
+     agreement at all. At --shut wide it is a circle and at 320
+     a pill, and those are the same rule rather than two ends
+     of a tween. Height is fixed, so it cannot be anything
+     else. */
+  /* the Corner knob's, and ::before and .sek-hit inherit it */
+  border-radius: var(--sek-r, 999px);
+  /* ── FLAT, and glass only if asked ──────────────────────
+     `--pane` is the bench's own material token, so this
+     follows the Glass dial rather than deciding for itself:
+     at 0 it resolves to a solid board and at 100 to the
+     frosted pane. It was a translucent ink wash with an inset
+     hairline, which is glass by every visual measure while
+     answering to no control — the worst of both, since it
+     could not be turned off.
+
+     And it picks up Fill for free. Flat resolves --pane to
+     --board, and Fill redeclares --board, so a dark fill
+     gives a dark pill without this rule naming a colour. */
+  background: var(--pane);
+  -webkit-backdrop-filter:
+    blur(var(--g-blur, 2px)) saturate(var(--g-sat, 150%)) brightness(var(--g-bright, 100%));
+  backdrop-filter:
+    blur(var(--g-blur, 2px)) saturate(var(--g-sat, 150%)) brightness(var(--g-bright, 100%));
+  isolation: isolate;
+  /* the magnet, and the press, on one transform — two
+     transforms on one element is one of them winning */
+  transform: translate(var(--lx), var(--ly)) scale(var(--sk, 1));
+  transition:
+    transform 260ms cubic-bezier(0.22, 0.9, 0.28, 1),
+    background 220ms ease;
+  /* the field is inside from the first frame; this is what
+     keeps it from spilling out of a 44px circle */
+  overflow: hidden;}
+
+/* the edge, and NOTHING until Stroke asks for it. A hairline
+   nobody switched on is a hairline the control cannot remove,
+   which is the same bug the background had. */
+.sek-skin::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid transparent;
+  pointer-events: none;
+  z-index: 2;}
+
+/* Hover: it comes up a hair and lifts off the ground. Both
+   are small enough to be felt rather than seen, which is the
+   point — a hover state you notice is a hover state that has
+   said too much. */
+.sek:not([data-open="true"]) .sek-skin:hover {
+  --sk: 1.045;
+  /* the surface answers, without drawing an edge it was not
+     given — brightness rather than an outline */
+  --g-bright: 104%;}
+
+/* pressed: it yields before it moves. A thing that gives
+   under a click reads as having been pushed; a thing that
+   only expands reads as having been triggered. */
+.sek[data-press="true"] .sek-skin {
+  --sk: 0.93;
+  transition: transform 90ms cubic-bezier(0.4, 0, 0.6, 1);}
+
+/* the field is a text target, and the object is a button */
+.sek[data-open="true"] .sek-skin { cursor: text; }
+
+/* ── the lens ───────────────────────────────────────────────
+   Fixed to the box's left inset and never animated. At the
+   shut width that inset centres it; at the open width it is
+   the field's padding. The lens crossing the page is the box
+   growing around a mark that stayed still. */
+.sek-lens {
+  position: absolute;
+  left: var(--inset);
+  top: 50%;
+  width: var(--lens);
+  height: var(--lens);
+  margin-top: calc(var(--lens) / -2);
+  fill: none;
+  stroke: var(--ink-3);
+  /* 1.5, AND THE NUMBER CANNOT BE COMPARED TO LUCIDE'S.
+     Every lucide glyph is drawn on a 24-unit grid; this one is
+     drawn on 18. A stroke-width of u paints at u/viewBox of
+     the icon's size, so lucide's 2-on-24 is 0.0833 and a 2
+     here would be 0.1111 — the same number, a third heavier.
+     1.5/18 is 0.0833 exactly, which is the radial menu's
+     weight and the nav's.
+
+     The value that stood here was 1.6 (0.0889). That was very
+     nearly right; it was changed to 2 on the assumption that
+     the two viewBoxes matched, and they never did. */
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  pointer-events: none;
+  transition: stroke 200ms ease, stroke-width 200ms ease;}
+
+.sek-skin:hover .sek-lens { stroke: var(--ink); }
+
+.sek[data-open="true"] .sek-lens { stroke: var(--ink-4); }
+
+/* typing: the lens thickens a hair and darkens. One beat per
+   burst, not one per keystroke — a mark that flickers at the
+   rate of your typing is noise wearing the costume of
+   feedback. */
+/* still "a hair", and still the same proportion of the base it
+   always was — 1.9 was to 1.6 as 1.8 is to 1.5 */
+.sek[data-busy="true"] .sek-lens { stroke: var(--ink-2); stroke-width: 1.8; }
+
+/* ── the field ──────────────────────────────────────────────
+   Present from the first frame and revealed by --say, which
+   is the last third of the width's own progress. It slides a
+   few pixels as it arrives, from the left, so it reads as
+   having come out of the lens rather than as having faded up
+   where it stood. */
+.sek-field {
+  position: absolute;
+  left: calc(var(--inset) + var(--lens) + 11px);
+  right: 14px;
+  top: 0;
+  height: 100%;
+  border: 0;
+  background: none;
+  font: inherit;
+  /* 14 is the NAV's size, and the nav's field is 44px tall.
+     This pill is --shut, 64, and carrying header type in it
+     left the words looking like a caption inside the object
+     rather than its content. 18 restores roughly the
+     proportion the bar has — 0.28 of the height against the
+     bar's 0.32 — on a control that is the whole component
+     rather than one item in a row of them. */
+  font-size: 18px;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  outline: none;
+  opacity: var(--say);
+  transform: translateX(calc((1 - var(--say)) * -6px));
+  /* until it is most of the way open it is not a target, and
+     a caret that can be placed in a 44px circle is a caret in
+     the wrong place */
+  pointer-events: var(--say-hit, none);}
+
+.sek[data-open="true"] .sek-field { --say-hit: auto; }
+
+.sek-field::placeholder { color: var(--ink-5); }
+
+/* the way in, while there is one */
+.sek-hit {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  cursor: pointer;}
+
+.sek-hit:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px rgba(var(--ink-rgb), 0.4);}
+
+
+/* ── the rest of them ────────────────────────────────────────
+   Not every block has a ::before to hang a border on, and
+   giving each one a pseudo-element it does not otherwise need
+   is a lot of stylesheet for a hairline. A 1px spread shadow
+   is the same mark by another means — the create menu has
+   used exactly this since it was written, for exactly this
+   reason — and it composites without touching layout.
+
+   This is what makes Stroke honest on every entry rather than
+   on the dozen that happened to be built on a glass pane. */
+[data-stroke="on"] .bal,
+[data-stroke="on"] .bar-rail,
+[data-stroke="on"] .fan-core,
+[data-stroke="on"] .step-pill,
+[data-stroke="on"] .liq-sw,
+[data-stroke="on"] .deck-card,
+[data-stroke="on"] .tick-row,
+/* NOT the rows. Stroke is a question about the block's own
+   edge, and hanging it on every row inside drew four
+   hairlines in the middle of a panel that still had none
+   round it. `.lab` already carries the ::before this control
+   was built for, and the roster's box is a .lab. */
+
+/* ── a ring on a metaball ────────────────────────────────────
+   The reorder list's rows are blobs on a filtered layer, and a
+   spread shadow drawn there does not survive: the blur smears
+   it and the alpha row then crushes what is left to nothing,
+   so Stroke appeared to do nothing on this block in either
+   theme.
+
+   The ring goes on the UNFILTERED twin instead. Every row is
+   drawn twice — a blob that merges and an ink layer above it
+   that carries the avatar and the name — and the two share
+   their geometry exactly, so an outline on the top one traces
+   the shape of the bottom one for free. */
+/* ── and the node card ─────────────────────────────────────
+   It drew its hairline unconditionally for a revision, which
+   is the one thing a block with a Stroke control must not do:
+   the control then reads as broken in the Off position,
+   because the edge it promises to remove is still there. The
+   ring follows the card's own corner, which is a knob. */
+[data-stroke="on"] .nod-card {
+  box-shadow: 0 0 0 1px var(--pane-edge);
+  border-radius: var(--nod-r, 20px);}
+
+/* ════ liquid ═══════════════════════════════════════════════
+   Three studies in one filter. Prefix liq-.
+
+   Every one of these is two layers in register: opaque shapes
+   on a layer carrying url(#liq-goo), and anything that needs
+   a crisp edge — text, a hit area — riding above on a layer
+   that carries no filter at all. The goo eats translucency
+   and mangles glyphs, so nothing else can share the layer. */
+
+/* ── 1 · liquid toggle ───────────────────────────────────── */
+.liq-well {
+  width: 240px; height: 130px;
+  display: grid; place-items: center;}
+
+/* ── BLACK AND WHITE, AND NO EDGE OF ITS OWN ────────────────
+   The on state was a green wash with a green ring, which made
+   this the only block on the bench asserting a colour nothing
+   else uses — and a switch does not need a hue to say it is
+   on. It inverts instead: a light track with a dark thumb
+   becomes a dark track with a light one, which is the strongest
+   thing two colours can say and the only thing this component
+   has to say.
+
+   `--fill-on` / `--fill-slab` rather than --ink / --board, so
+   the pair follows the Fill control the entry declares instead
+   of naming a colour twice.
+
+   And no inset ring. It carried one unconditionally, which is
+   an edge the Stroke switch cannot take away — the same bug
+   the sleep pill, the command bar and the Notify pill all had.
+   Stroke's own rule is a few hundred lines up. */
+.liq-sw {
+  position: relative;
+  width: 92px; height: 46px;
+  padding: 0; border: 0;
+  /* ── ALWAYS A PILL ────────────────────────────────────────
+     It took a Corner knob for a while and does not any more.
+     A switch is a pill: that is the shape the gesture is named
+     after, and squaring it turns a thing you slide into a
+     thing you click. The droplet inside followed the knob too,
+     concentrically, and the same argument applies twice over —
+     one number that could only ever make the component less
+     like itself. */
+  border-radius: 999px;
+  /* ── OFF IS THE SLAB, NOT A GREY ─────────────────────────
+     The two states are the two ends of the fill's own ramp,
+     and OFF is the light end of it: the track is the slab —
+     white on a light fill, near-black on a dark one — and the
+     dot is a grey mixed toward it. ON is the inversion, ink
+     track and slab dot, which is what it always was.
+
+     Read across the pair, the TRACK carries the state and the
+     dot is along for the ride. It was the other way round:
+     the off track was a 12% wash and the dot was full ink, so
+     the loud half of the switch was the part that only moves.
+
+     It reads because the card behind is not white — the stage
+     is the board's own grey, so a white pill on it is an
+     object. Stroke's hairline is there for anywhere it is
+     not. */
+  background: var(--fill-slab, var(--card));
+  cursor: pointer;
+  /* it is a rail you can push along, not only a button */
+  touch-action: none;
+  transition: background 320ms ease;}
+
+.liq-sw[data-on="true"] { background: var(--fill-on, var(--ink)); }
+
+.liq-sw-blobs {
+  position: absolute; inset: 0;}
+
+/* opaque on purpose: a goo filter over a translucent fill
+   thresholds the alpha away and the shape disappears */
+/* left: 0 is not optional. These are inline elements, so with
+   left: auto the static position is wherever the line box put
+   them — and the button they sit in centres its text, which
+   pushed both blobs to the middle of the track and the thumb
+   clean off the end of it. */
+/* ── the droplet, and it is the ONLY body ───────────────────
+   There was a second, smaller blob running behind it on a
+   lagging spring; the goo between them necked into a thread,
+   which is what a trail is and what it looks like. It is one
+   body that stretches now — see the note in Liquid.tsx, and
+   the dragging ball's, which lost the same thing first.
+
+   `left: 0` is not optional. It is an inline element, so with
+   `left: auto` the static position is wherever the line box
+   put it — and the button it sits in centres its text, which
+   pushed the thumb to the middle of the track.
+
+   OPAQUE on purpose: a goo filter over a translucent fill
+   thresholds the alpha away and the shape disappears. Which
+   is why the grey is a `color-mix` and not an alpha — see the
+   note where the off colour is chosen. */
+.liq-thumb {
+  position: absolute;
+  left: 0; top: 50%;
+  /* the size comes from Liquid.tsx, which also needs it for the
+     travel — one number, so the circle and the distance it
+     crosses cannot disagree */
+  width: var(--liq-thumb, 36px); height: var(--liq-thumb, 36px);
+  margin-top: calc(var(--liq-thumb, 36px) / -2);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fill-on, var(--ink)) 19%, var(--fill-slab, var(--card)));
+  /* transform is Framer's — a CSS transition on the same
+     property re-interpolates every frame the spring writes,
+     and what you see is the easing, not the spring. The colour
+     is the only thing here that eases, and it is the only one
+     that can: everything else about this element is written
+     into one transform by Framer. */
+  transition: background 320ms ease;}
+
+/* ON inverts the pair: ink track, slab droplet. The two states
+   are the two ends of the fill's ramp and never two values of
+   the same one. */
+.liq-sw[data-on="true"] .liq-thumb { background: var(--fill-slab, var(--board)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .liq-thumb, .liq-pill, .liq-bead { transition-duration: 1ms; }
+}
