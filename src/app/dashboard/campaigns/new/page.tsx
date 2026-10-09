@@ -12,13 +12,12 @@ import {
   Check, 
   AlertCircle, 
   Repeat, 
-  Smartphone,
-  Eye,
-  Info,
-  ChevronRight,
-  Plus,
-  Trash2,
-  FileText
+  Eye, 
+  Info, 
+  ChevronRight, 
+  Plus, 
+  Trash2, 
+  FileText 
 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -97,8 +96,6 @@ export default function NewCampaignPage() {
   const [loadingTemplates, setLoadingTemplates] = useState(true)
   const [variableMappings, setVariableMappings] = useState<Record<string, { source: string; customText?: string; fallback?: string }>>({})
 
-  // Preview contact selector
-  const [previewContactId, setPreviewContactId] = useState<string>('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
@@ -131,9 +128,6 @@ export default function NewCampaignPage() {
             tag_ids: (c.contact_tags || []).map((ct: any) => ct.tag_id).filter(Boolean),
           }))
           setContacts(mappedContacts)
-          if (mappedContacts.length > 0) {
-            setPreviewContactId(mappedContacts[0].id)
-          }
         }
       } catch (e) {
         console.error('Error loading audience data:', e)
@@ -270,47 +264,7 @@ export default function NewCampaignPage() {
     )
   }
 
-  // Generate simulated preview text for a chosen contact
-  const previewContact = useMemo(() => {
-    return contacts.find(c => c.id === previewContactId) || contacts[0] || {
-      id: 'demo',
-      name: 'Mamadou Diallo',
-      phone: '+225 07 01 02 03 04',
-      tag_ids: [],
-    }
-  }, [contacts, previewContactId])
 
-  const simulatedMessageText = useMemo(() => {
-    if (!templateBodyText) return ''
-    let text = templateBodyText
-
-    detectedVariables.forEach(v => {
-      const mapping = variableMappings[v]
-      let val = ''
-
-      if (mapping) {
-        if (mapping.source === 'contact_name') {
-          val = previewContact.name || mapping.fallback || 'Client'
-        } else if (mapping.source === 'contact_first_name') {
-          val = previewContact.name ? previewContact.name.split(' ')[0] : (mapping.fallback || 'Client')
-        } else if (mapping.source === 'contact_phone') {
-          val = previewContact.phone || ''
-        } else if (mapping.source === 'organization_name') {
-          val = activeOrganization?.name || 'Notre Entreprise'
-        } else if (mapping.source === 'custom') {
-          val = mapping.customText || mapping.fallback || ''
-        }
-      }
-
-      if (!val) {
-        val = mapping?.fallback || `[${v}]`
-      }
-
-      text = text.replaceAll(v, val)
-    })
-
-    return text
-  }, [templateBodyText, detectedVariables, variableMappings, previewContact, activeOrganization])
 
   // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
@@ -325,6 +279,10 @@ export default function NewCampaignPage() {
     }
     if (targetType === 'tags' && selectedTags.length === 0) {
       setErrorMsg('Veuillez sélectionner au moins un tag pour le ciblage par tags.')
+      return
+    }
+    if (targetAudienceContacts.length === 0) {
+      setErrorMsg('Aucun contact trouvé pour cette audience. Veuillez ajouter des contacts ou modifier vos filtres.')
       return
     }
     if (campaignMode === 'scheduled' && scheduleType === 'recurring' && selectedDays.length === 0) {
@@ -359,6 +317,7 @@ export default function NewCampaignPage() {
         message_payload: {
           templateId: selectedTemplateName,
           templateName: selectedTemplateName,
+          templateLanguage: selectedTemplate?.language || 'fr_FR',
           templateVariablesMapping: variableMappings,
           scheduling: schedulingPayload,
         },
@@ -828,58 +787,7 @@ export default function NewCampaignPage() {
           )}
         </div>
 
-        {/* SECTION 5: Simulation & Prévisualisation Smartphone WhatsApp */}
-        <div className="rounded-2xl border border-border bg-card p-5 sm:p-6 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border pb-3">
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-indigo-500/10 text-indigo-600 flex items-center justify-center text-xs font-bold">5</span>
-              <h2 className="text-base font-semibold text-foreground">Simulation en Direct</h2>
-            </div>
 
-            {/* Contact Preview Switcher */}
-            {contacts.length > 0 && (
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-muted-foreground">Tester avec :</span>
-                <select
-                  value={previewContactId}
-                  onChange={e => setPreviewContactId(e.target.value)}
-                  className="px-2.5 py-1 border border-input bg-background rounded-lg text-xs font-medium outline-none"
-                >
-                  {contacts.slice(0, 10).map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name || c.phone}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-
-          {/* Smartphone Mockup */}
-          <div className="max-w-md mx-auto p-4 rounded-3xl border border-border/80 bg-neutral-900/90 text-white shadow-xl space-y-3">
-            {/* Header Mockup */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-2 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-[#fe5105] flex items-center justify-center text-[10px] font-bold">
-                  W
-                </div>
-                <div>
-                  <span className="font-semibold block leading-tight">{activeOrganization?.name || 'Whatooz'}</span>
-                  <span className="text-[10px] text-neutral-400 block">Compte WhatsApp vérifié</span>
-                </div>
-              </div>
-              <span className="text-[10px] text-neutral-400">Aperçu direct</span>
-            </div>
-
-            {/* Bubble */}
-            <div className="p-3.5 rounded-2xl bg-neutral-800 text-white text-xs leading-relaxed space-y-2 border border-white/5">
-              <p className="whitespace-pre-wrap">{simulatedMessageText || 'Sélectionnez un modèle pour voir le message...'}</p>
-              <div className="flex justify-end text-[10px] text-neutral-400">
-                10:30 • Délivré
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Action Buttons */}
         <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 pt-4 border-t border-border">

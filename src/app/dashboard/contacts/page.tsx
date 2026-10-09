@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   Users,
   Search,
@@ -12,12 +12,21 @@ import {
   Download,
   Loader2,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Tag as TagIcon,
+  Check
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useOrganization } from '@/hooks/use-organization'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { cn } from '@/lib/utils'
+
+interface TagItem {
+  id: string
+  name: string
+  color: string
+}
 
 interface Contact {
   id: string
@@ -26,11 +35,14 @@ interface Contact {
   email: string | null
   status: string
   created_at: string
+  tags?: TagItem[]
 }
 
 export default function ContactsPage() {
   const { activeOrganization } = useOrganization()
   const [contacts, setContacts] = useState<Contact[]>([])
+  const [availableTags, setAvailableTags] = useState<TagItem[]>([])
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -39,6 +51,7 @@ export default function ContactsPage() {
   const [newName, setNewName] = useState('')
   const [newPhone, setNewPhone] = useState('')
   const [newEmail, setNewEmail] = useState('')
+  const [newSelectedTags, setNewSelectedTags] = useState<string[]>([])
   const [creating, setCreating] = useState(false)
 
   // Edit Modal State
@@ -46,6 +59,7 @@ export default function ContactsPage() {
   const [editName, setEditName] = useState('')
   const [editPhone, setEditPhone] = useState('')
   const [editEmail, setEditEmail] = useState('')
+  const [editSelectedTags, setEditSelectedTags] = useState<string[]>([])
   const [updating, setUpdating] = useState(false)
 
   // VCF Upload State
@@ -64,14 +78,40 @@ export default function ContactsPage() {
     try {
       setLoading(true)
       const supabase = createClient()
+
+      // 1. Load organization tags
+      const { data: tagsData } = await supabase
+        .from('tags')
+        .select('id, name, color')
+        .eq('organization_id', activeOrganization!.id)
+        .order('name', { ascending: true })
+
+      if (tagsData) {
+        setAvailableTags(tagsData)
+      }
+
+      // 2. Load contacts with tags
       const { data, error } = await supabase
         .from('contacts')
-        .select('*')
+        .select('*, contact_tags(tag_id, tags(id, name, color))')
         .eq('organization_id', activeOrganization!.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      setContacts(data || [])
+
+      const normalized: Contact[] = (data || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        phone: c.phone,
+        email: c.email,
+        status: c.status || 'ACTIVE',
+        created_at: c.created_at,
+        tags: (c.contact_tags || [])
+          .map((ct: any) => ct.tags)
+          .filter(Boolean),
+      }))
+
+      setContacts(normalized)
     } catch (err) {
       console.error('Error loading contacts:', err)
     } finally {
@@ -100,11 +140,20 @@ export default function ContactsPage() {
 
       if (error) throw error
 
-      setContacts([data, ...contacts])
+      let assignedTags: TagItem[] = []
+      if (newSelectedTags.length > 0) {
+        await supabase
+          .from('contact_tags')
+          .insert(newSelectedTags.map((tid) => ({ contact_id: data.id, tag_id: tid })))
+        assignedTags = availableTags.filter((t) => newSelectedTags.includes(t.id))
+      }
+
+      setContacts([{ ...data, tags: assignedTags }, ...contacts])
       setIsModalOpen(false)
       setNewName('')
       setNewPhone('')
       setNewEmail('')
+      setNewSelectedTags([])
     } catch (err) {
       console.error('Error creating contact:', err)
     } finally {
@@ -132,6 +181,15 @@ export default function ContactsPage() {
 
       if (error) throw error
 
+      // Synchronize contact_tags
+      await supabase.from('contact_tags').delete().eq('contact_id', editingContact.id)
+      if (editSelectedTags.length > 0) {
+        await supabase
+          .from('contact_tags')
+          .insert(editSelectedTags.map((tid) => ({ contact_id: editingContact.id, tag_id: tid })))
+      }
+      const assignedTags = availableTags.filter((t) => editSelectedTags.includes(t.id))
+
       // Also update conversations that belong to this phone number
       await supabase
         .from('conversations')
@@ -139,7 +197,7 @@ export default function ContactsPage() {
         .eq('organization_id', activeOrganization?.id)
         .eq('contact_phone', editingContact.phone)
 
-      setContacts(contacts.map(c => c.id === editingContact.id ? data : c))
+      setContacts(contacts.map(c => c.id === editingContact.id ? { ...data, tags: assignedTags } : c))
       setEditingContact(null)
     } catch (err) {
       console.error('Error updating contact:', err)
@@ -244,10 +302,34 @@ export default function ContactsPage() {
     }
   }
 
-  const filteredContacts = contacts.filter(c => 
-    (c.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || 
-    c.phone.includes(searchTerm)
-  )
+  // Calculate count of contacts per tag
+  const tagCounts = useMemo(() => {
+    const map = new Map<string, number>()
+    contacts.forEach((c) => {
+      c.tags?.forEach((t) => {
+        map.set(t.id, (map.get(t.id) || 0) + 1)
+      })
+    })
+    return map
+  }, [contacts])
+
+  const filteredContacts = useMemo(() => {
+    const s = searchTerm.trim().toLowerCase()
+    return contacts.filter((c) => {
+      const matchesSearch =
+        !s ||
+        (c.name?.toLowerCase() || '').includes(s) ||
+        c.phone.includes(s) ||
+        (c.email?.toLowerCase() || '').includes(s) ||
+        Boolean(c.tags && c.tags.some((t) => t.name.toLowerCase().includes(s)))
+
+      const matchesTag =
+        !selectedTagId ||
+        Boolean(c.tags && c.tags.some((t) => t.id === selectedTagId))
+
+      return matchesSearch && matchesTag
+    })
+  }, [contacts, searchTerm, selectedTagId])
 
   return (
     <div className="w-full max-w-7xl mx-auto flex flex-col gap-6">
@@ -275,7 +357,13 @@ export default function ContactsPage() {
           </button>
 
           <button 
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setNewName('')
+              setNewPhone('')
+              setNewEmail('')
+              setNewSelectedTags([])
+              setIsModalOpen(true)
+            }}
             className="flex items-center gap-2 rounded-xl bg-primary px-3.5 py-2 text-xs sm:text-sm font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 transition-all active:scale-95"
           >
             <Plus className="h-4 w-4" />
@@ -299,20 +387,78 @@ export default function ContactsPage() {
       )}
 
       <div className="rounded-2xl border border-border bg-card shadow-xs flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input 
-              type="text" 
-              placeholder="Rechercher par nom ou numéro..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl border border-input bg-background text-xs sm:text-sm focus:outline-none focus:border-primary transition-shadow"
-            />
+        <div className="p-4 border-b border-border flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="relative w-full max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <input 
+                type="text" 
+                placeholder="Rechercher par nom, numéro, email ou tag..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 rounded-xl border border-input bg-background text-xs sm:text-sm focus:outline-none focus:border-primary transition-shadow"
+              />
+            </div>
+            <div className="text-xs text-muted-foreground self-end sm:self-auto flex items-center gap-2">
+              <span>{filteredContacts.length} contact{filteredContacts.length > 1 ? 's' : ''}</span>
+              {selectedTagId && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedTagId(null)}
+                  className="text-primary hover:underline font-semibold"
+                >
+                  (Effacer filtre)
+                </button>
+              )}
+            </div>
           </div>
-          <div className="text-xs text-muted-foreground self-end sm:self-auto">
-            {filteredContacts.length} contact{filteredContacts.length > 1 ? 's' : ''}
-          </div>
+
+          {/* Tag filters strip */}
+          {availableTags.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 pb-0.5">
+              <button
+                type="button"
+                onClick={() => setSelectedTagId(null)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all shrink-0',
+                  !selectedTagId
+                    ? 'bg-foreground text-background font-semibold shadow-xs'
+                    : 'bg-secondary text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                <span>Tous les contacts</span>
+                <span className="text-[10px] opacity-70">({contacts.length})</span>
+              </button>
+              {availableTags.map((tag) => {
+                const isSelected = selectedTagId === tag.id
+                const count = tagCounts.get(tag.id) || 0
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => setSelectedTagId(isSelected ? null : tag.id)}
+                    style={{
+                      backgroundColor: isSelected ? tag.color : `${tag.color}15`,
+                      color: isSelected ? '#ffffff' : tag.color,
+                      borderColor: `${tag.color}35`,
+                    }}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-all shrink-0 border',
+                      isSelected && 'shadow-xs font-semibold'
+                    )}
+                    title={`Filtrer par le tag ${tag.name}`}
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: isSelected ? '#ffffff' : tag.color }}
+                    />
+                    <span>{tag.name}</span>
+                    <span className="text-[10px] opacity-80">({count})</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         <div className="overflow-x-auto w-full">
@@ -326,7 +472,7 @@ export default function ContactsPage() {
                 <Users className="w-6 h-6 text-muted-foreground" />
               </div>
               <h3 className="text-base font-semibold text-foreground mb-1">Aucun contact trouvé</h3>
-              <p className="text-xs text-muted-foreground max-w-sm">Vous n'avez pas encore de contacts, ou aucun ne correspond à votre recherche.</p>
+              <p className="text-xs text-muted-foreground max-w-sm">Vous n'avez pas encore de contacts, ou aucun ne correspond à vos filtres.</p>
             </div>
           ) : (
             <table className="w-full min-w-[640px] text-left text-sm text-muted-foreground">
@@ -344,10 +490,32 @@ export default function ContactsPage() {
                   <tr key={contact.id} className="hover:bg-secondary/80 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold shrink-0">
                           {contact.name ? contact.name.charAt(0).toUpperCase() : <Users className="w-5 h-5" />}
                         </div>
-                        <span className="font-semibold text-foreground">{contact.name || 'Inconnu'}</span>
+                        <div className="min-w-0">
+                          <span className="font-semibold text-foreground block truncate">{contact.name || 'Inconnu'}</span>
+                          {contact.tags && contact.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {contact.tags.map(tag => (
+                                <button
+                                  key={tag.id}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    setSelectedTagId(selectedTagId === tag.id ? null : tag.id)
+                                  }}
+                                  style={{ backgroundColor: `${tag.color}15`, color: tag.color, borderColor: `${tag.color}35` }}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-medium hover:opacity-80 transition-opacity"
+                                  title={`Filtrer par le tag ${tag.name}`}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: tag.color }} />
+                                  <span>{tag.name}</span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 space-y-1">
@@ -377,6 +545,7 @@ export default function ContactsPage() {
                           setEditName(contact.name || '')
                           setEditPhone(contact.phone)
                           setEditEmail(contact.email || '')
+                          setEditSelectedTags(contact.tags ? contact.tags.map(t => t.id) : [])
                         }}
                         className="px-3 py-1.5 text-xs font-medium text-[#fe5105] bg-[#fe5105]/10 rounded-md hover:bg-[#fe5105]/20 transition-colors"
                       >
@@ -428,6 +597,47 @@ export default function ContactsPage() {
                   placeholder="jean@exemple.com"
                 />
               </div>
+
+              {availableTags.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5">
+                    <TagIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Tags du contact</span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 p-2 rounded-xl border border-border bg-muted/20">
+                    {availableTags.map((tag) => {
+                      const isSelected = newSelectedTags.includes(tag.id)
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => {
+                            setNewSelectedTags(prev => 
+                              isSelected ? prev.filter(id => id !== tag.id) : [...prev, tag.id]
+                            )
+                          }}
+                          style={{
+                            backgroundColor: isSelected ? tag.color : `${tag.color}15`,
+                            color: isSelected ? '#ffffff' : tag.color,
+                            borderColor: `${tag.color}35`,
+                          }}
+                          className={cn(
+                            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border',
+                            isSelected && 'font-semibold shadow-xs'
+                          )}
+                        >
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ backgroundColor: isSelected ? '#ffffff' : tag.color }}
+                          />
+                          <span>{tag.name}</span>
+                          {isSelected && <Check className="w-3 h-3 ml-0.5" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
               
               <div className="pt-4 flex justify-end gap-3">
                 <button 
@@ -487,6 +697,47 @@ export default function ContactsPage() {
                   placeholder="jean@exemple.com"
                 />
               </div>
+
+              {availableTags.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5 flex items-center gap-1.5">
+                    <TagIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Tags du contact</span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5 p-2 rounded-xl border border-border bg-muted/20">
+                    {availableTags.map((tag) => {
+                      const isSelected = editSelectedTags.includes(tag.id)
+                      return (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => {
+                            setEditSelectedTags(prev => 
+                              isSelected ? prev.filter(id => id !== tag.id) : [...prev, tag.id]
+                            )
+                          }}
+                          style={{
+                            backgroundColor: isSelected ? tag.color : `${tag.color}15`,
+                            color: isSelected ? '#ffffff' : tag.color,
+                            borderColor: `${tag.color}35`,
+                          }}
+                          className={cn(
+                            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all border',
+                            isSelected && 'font-semibold shadow-xs'
+                          )}
+                        >
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            style={{ backgroundColor: isSelected ? '#ffffff' : tag.color }}
+                          />
+                          <span>{tag.name}</span>
+                          {isSelected && <Check className="w-3 h-3 ml-0.5" />}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
               
               <div className="pt-4 flex justify-end gap-3">
                 <button 

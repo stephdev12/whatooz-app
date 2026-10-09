@@ -1,8 +1,8 @@
 'use client'
 
 import { formatRelativeTime, cn } from '@/lib/utils'
-import { MessageSquare, Search, Loader2, Plus, X, Send } from 'lucide-react'
-import { useState } from 'react'
+import { MessageSquare, Search, Loader2, Plus, X, Send, Tag as TagIcon } from 'lucide-react'
+import { useState, useMemo } from 'react'
 import type { Conversation } from '@/app/dashboard/inbox/page'
 import { useOrganization } from '@/hooks/use-organization'
 
@@ -23,6 +23,7 @@ export function ConversationList({
 }: ConversationListProps) {
   const { activeOrganization } = useOrganization()
   const [search, setSearch] = useState('')
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
   const [showNewModal, setShowNewModal] = useState(false)
   const [phone, setPhone] = useState('')
   const [msgType, setMsgType] = useState<'template' | 'text'>('template')
@@ -30,11 +31,43 @@ export function ConversationList({
   const [sending, setSending] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  const filtered = conversations.filter(
-    (c) =>
-      c.contact_name?.toLowerCase().includes(search.toLowerCase()) ||
-      c.contact_phone?.includes(search)
-  )
+  // Derive all unique tags with count from conversation contacts
+  const availableTags = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; color: string; count: number }>()
+    for (const c of conversations) {
+      if (c.contact?.tags && Array.isArray(c.contact.tags)) {
+        for (const t of c.contact.tags) {
+          if (t && t.id) {
+            const existing = map.get(t.id)
+            if (existing) {
+              existing.count++
+            } else {
+              map.set(t.id, { id: t.id, name: t.name, color: t.color, count: 1 })
+            }
+          }
+        }
+      }
+    }
+    return Array.from(map.values())
+  }, [conversations])
+
+  const filtered = useMemo(() => {
+    const s = search.trim().toLowerCase()
+    return conversations.filter((c) => {
+      const matchesSearch =
+        !s ||
+        (c.contact_name?.toLowerCase().includes(s) ?? false) ||
+        (c.contact_phone?.includes(s) ?? false) ||
+        (c.last_message_text?.toLowerCase().includes(s) ?? false) ||
+        Boolean(c.contact?.tags && c.contact.tags.some((t) => t.name.toLowerCase().includes(s)))
+
+      const matchesTag =
+        !selectedTagId ||
+        Boolean(c.contact?.tags && c.contact.tags.some((t) => t.id === selectedTagId))
+
+      return matchesSearch && matchesTag
+    })
+  }, [conversations, search, selectedTagId])
 
   async function handleStartConversation(e: React.FormEvent) {
     e.preventDefault()
@@ -122,10 +155,56 @@ export function ConversationList({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Rechercher..."
+            placeholder="Rechercher nom, numéro ou tag..."
             className="w-full rounded-lg border border-border bg-input py-2 pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105]"
           />
         </div>
+
+        {/* Tag Filters Strip */}
+        {availableTags.length > 0 && (
+          <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <button
+              type="button"
+              onClick={() => setSelectedTagId(null)}
+              className={cn(
+                'inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all shrink-0',
+                !selectedTagId
+                  ? 'bg-foreground text-background font-semibold shadow-xs'
+                  : 'bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground'
+              )}
+            >
+              <span>Tous</span>
+              <span className="text-[10px] opacity-70">({conversations.length})</span>
+            </button>
+            {availableTags.map((tag) => {
+              const isSelected = selectedTagId === tag.id
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => setSelectedTagId(isSelected ? null : tag.id)}
+                  style={{
+                    backgroundColor: isSelected ? tag.color : `${tag.color}15`,
+                    color: isSelected ? '#ffffff' : tag.color,
+                    borderColor: `${tag.color}35`,
+                  }}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all shrink-0 border',
+                    isSelected && 'shadow-xs font-semibold'
+                  )}
+                  title={`Filtrer par ${tag.name}`}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ backgroundColor: isSelected ? '#ffffff' : tag.color }}
+                  />
+                  <span>{tag.name}</span>
+                  <span className="text-[10px] opacity-80">({tag.count})</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       {/* List */}
@@ -170,8 +249,13 @@ export function ConversationList({
                         {convo.contact.tags.map(tag => (
                           <span 
                             key={tag.id}
-                            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setSelectedTagId(selectedTagId === tag.id ? null : tag.id)
+                            }}
+                            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium cursor-pointer hover:opacity-80 transition-opacity"
                             style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+                            title={`Filtrer par le tag ${tag.name}`}
                           >
                             {tag.name}
                           </span>
