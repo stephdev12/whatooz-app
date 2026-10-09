@@ -6,8 +6,8 @@ import { usePathname } from 'next/navigation'
 import {
   Sparkles,
   MessageSquare,
-  Bot,
-  ShoppingCart,
+  FileText,
+  Zap,
   ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -26,14 +26,14 @@ const bottomNavItems = [
     icon: MessageSquare,
   },
   {
-    label: 'Agents',
-    href: '/dashboard/agents',
-    icon: Bot,
+    label: 'Templates',
+    href: '/dashboard/templates',
+    icon: FileText,
   },
   {
-    label: 'Commandes',
-    href: '/dashboard/orders',
-    icon: ShoppingCart,
+    label: 'Automation',
+    href: '/dashboard/automations',
+    icon: Zap,
   },
   {
     label: 'Équipe',
