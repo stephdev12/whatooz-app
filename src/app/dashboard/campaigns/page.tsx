@@ -66,6 +66,7 @@ export default function CampaignsPage() {
   const [search, setSearch] = useState('')
   const [filterTab, setFilterTab] = useState<'all' | 'direct' | 'scheduled' | 'draft' | 'completed'>('all')
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [dispatchingId, setDispatchingId] = useState<string | null>(null)
   
   const supabase = createClient()
   const { activeOrganization } = useOrganization()
@@ -80,6 +81,9 @@ export default function CampaignsPage() {
   const fetchCampaigns = async () => {
     setLoading(true)
     try {
+      // Trigger background check for any scheduled campaigns whose time has arrived
+      fetch('/api/whatsapp/campaigns/cron').catch(() => {})
+
       const { data, error } = await supabase
         .from('broadcast_campaigns')
         .select('*')
@@ -92,6 +96,26 @@ export default function CampaignsPage() {
       console.error('Failed to load campaigns:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDispatchNow = async (id: string, name: string) => {
+    if (!confirm(`Lancer immédiatement la diffusion de la campagne "${name}" ?`)) return
+    setDispatchingId(id)
+    try {
+      const res = await fetch(`/api/whatsapp/campaigns/${id}/dispatch`, {
+        method: 'POST'
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "Erreur lors de l'envoi de la campagne")
+      }
+      await fetchCampaigns()
+    } catch (err: any) {
+      console.error('Erreur lancement campagne:', err)
+      alert(err.message || 'Impossible de lancer cette campagne')
+    } finally {
+      setDispatchingId(null)
     }
   }
 
@@ -490,6 +514,21 @@ export default function CampaignsPage() {
 
                     {/* Column 6: Actions */}
                     <div className="col-span-1 flex items-center justify-end gap-1">
+                      {c.status !== 'sending' && (
+                        <button
+                          type="button"
+                          onClick={() => handleDispatchNow(c.id, c.name)}
+                          disabled={dispatchingId === c.id}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-[#fe5105] hover:bg-[#fe5105]/10 transition-colors"
+                          title="Lancer immédiatement"
+                        >
+                          {dispatchingId === c.id ? (
+                            <RefreshCw className="w-4 h-4 animate-spin text-[#fe5105]" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleDelete(c.id, c.name)}
@@ -544,15 +583,32 @@ export default function CampaignsPage() {
                       <span className="text-muted-foreground">
                         Envoyés : <strong className="text-foreground">{c.stats?.sent || 0}</strong> • Délivrés : <strong className="text-foreground">{c.stats?.delivered || 0}</strong>
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(c.id, c.name)}
-                        disabled={deletingId === c.id}
-                        className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 transition-colors"
-                        title="Supprimer la campagne"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-1">
+                        {c.status !== 'sending' && (
+                          <button
+                            type="button"
+                            onClick={() => handleDispatchNow(c.id, c.name)}
+                            disabled={dispatchingId === c.id}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-[#fe5105] transition-colors"
+                            title="Lancer immédiatement"
+                          >
+                            {dispatchingId === c.id ? (
+                              <RefreshCw className="w-4 h-4 animate-spin text-[#fe5105]" />
+                            ) : (
+                              <Play className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(c.id, c.name)}
+                          disabled={deletingId === c.id}
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-500 transition-colors"
+                          title="Supprimer la campagne"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
