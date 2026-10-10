@@ -1,0 +1,15 @@
+name: Scheduled Campaigns Cron
+
+on:
+  schedule:
+    # Run every 5 minutes
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  cron:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Whatooz Campaigns Cron Endpoint
+        run: |
+          curl -s -f https://whatooz.space/api/whatsapp/campaigns/cron || true
