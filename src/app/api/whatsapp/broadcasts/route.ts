@@ -706,16 +706,20 @@ export async function POST(request: Request) {
               }
 
               if (convoId) {
-                await supabaseAdmin
+                const { error: msgInsertErr } = await supabaseAdmin
                   .from('messages')
                   .insert({
                     conversation_id: convoId,
+                    organization_id: organizationId,
                     direction: 'outbound',
                     message_type: 'template',
                     content_text: `[Campagne: ${name}] Template: ${templateName}`,
                     status: 'sent',
                     wamid: sendResult?.messageId || null,
                   })
+                if (msgInsertErr) {
+                  console.warn('Could not persist outbound campaign message:', msgInsertErr)
+                }
               }
             } catch (persistErr) {
               console.warn('Could not persist outbound campaign message:', persistErr)
