@@ -106,7 +106,7 @@ export function buildComponentsForContact(
           mediaLink = resolveMappingValue(mapping, contact, '', orgName)
         }
         if (!mediaLink || !mediaLink.startsWith('http')) {
-          mediaLink = comp.example?.header_url?.[0] || ''
+          mediaLink = comp.example?.header_handle?.[0] || comp.example?.header_url?.[0] || ''
         }
         if (!mediaLink || !mediaLink.startsWith('http')) {
           if (mediaType === 'image') {
@@ -136,7 +136,7 @@ export function buildComponentsForContact(
           mediaLink = resolveMappingValue(mapping, contact, '', orgName)
         }
         if (!mediaLink || !mediaLink.startsWith('http')) {
-          mediaLink = comp.example?.header_url?.[0] || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+          mediaLink = comp.example?.header_handle?.[0] || comp.example?.header_url?.[0] || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
         }
 
         const docFilename =
@@ -286,7 +286,7 @@ export function buildComponentsForContact(
               link = resolveMappingValue(mapping, contact, '', orgName)
             }
             if (!link || !link.startsWith('http')) {
-              link = cHeader.example?.header_url?.[0] || ''
+              link = cHeader.example?.header_handle?.[0] || cHeader.example?.header_url?.[0] || ''
             }
             if (!link || !link.startsWith('http')) {
               if (mediaType === 'image') {

@@ -25,6 +25,7 @@ import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
 import { usePlanAccess } from '@/hooks/use-plan-access'
 import { cn } from '@/lib/utils'
+import { MediaUploadInput } from '@/components/ui/media-upload-input'
 
 interface ContactItem {
   id: string
@@ -224,6 +225,8 @@ export default function NewCampaignPage() {
       buttonText?: string
       defaultSource: string
       defaultFallback: string
+      isMedia?: boolean
+      mediaKind?: 'image' | 'video' | 'document'
     }> = []
 
     selectedTemplate.components.forEach((comp: any) => {
@@ -249,28 +252,32 @@ export default function NewCampaignPage() {
           })
         } else if (['IMAGE', 'VIDEO'].includes(format)) {
           const labelFormat = format === 'IMAGE' ? 'Image' : 'Vidéo'
-          const exampleUrl = comp.example?.header_url?.[0] || ''
+          const exampleUrl = comp.example?.header_handle?.[0] || comp.example?.header_url?.[0] || ''
           items.push({
             key: 'header_media_url',
             componentType: 'header',
             componentTypeLabel: `En-tête (${labelFormat})`,
             placeholder: `URL ${labelFormat}`,
             label: `Lien de l'${labelFormat.toLowerCase()} d'en-tête (HTTPS)`,
-            contextText: exampleUrl ? `Exemple : ${exampleUrl}` : `Ce modèle requiert un lien ${labelFormat.toLowerCase()} HTTPS direct`,
+            contextText: exampleUrl ? `Média officiel Meta détecté` : `Ce modèle requiert un média ${labelFormat.toLowerCase()}`,
             defaultSource: 'custom',
             defaultFallback: exampleUrl || (format === 'IMAGE' ? 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80' : 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'),
+            isMedia: true,
+            mediaKind: format === 'IMAGE' ? 'image' : 'video',
           })
         } else if (format === 'DOCUMENT') {
-          const exampleUrl = comp.example?.header_url?.[0] || ''
+          const exampleUrl = comp.example?.header_handle?.[0] || comp.example?.header_url?.[0] || ''
           items.push({
             key: 'header_media_url',
             componentType: 'header',
             componentTypeLabel: 'En-tête (Document)',
             placeholder: 'URL Document PDF',
             label: 'Lien du document PDF (HTTPS)',
-            contextText: exampleUrl ? `Exemple : ${exampleUrl}` : 'Lien HTTPS direct vers votre fichier PDF',
+            contextText: exampleUrl ? `Document officiel Meta détecté` : 'Lien HTTPS direct vers votre fichier PDF',
             defaultSource: 'custom',
             defaultFallback: exampleUrl || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+            isMedia: true,
+            mediaKind: 'document',
           })
           items.push({
             key: 'header_document_filename',
@@ -398,16 +405,18 @@ export default function NewCampaignPage() {
             const cardFormat = (cardHeader.format || 'IMAGE').toUpperCase()
             if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(cardFormat)) {
               const labelFormat = cardFormat === 'IMAGE' ? 'Image' : cardFormat === 'VIDEO' ? 'Vidéo' : 'Document'
-              const exampleUrl = cardHeader.example?.header_url?.[0] || ''
+              const exampleUrl = cardHeader.example?.header_handle?.[0] || cardHeader.example?.header_url?.[0] || ''
               items.push({
                 key: `card_${cardIdx}_media_url`,
                 componentType: 'header',
                 componentTypeLabel: `Carte #${cardIdx + 1} (${labelFormat})`,
                 placeholder: `URL ${labelFormat}`,
                 label: `Carte #${cardIdx + 1} : Lien de l'${labelFormat.toLowerCase()}`,
-                contextText: exampleUrl ? `Exemple : ${exampleUrl}` : `Média requis pour la carte #${cardIdx + 1}`,
+                contextText: exampleUrl ? `Média officiel Meta détecté` : `Média requis pour la carte #${cardIdx + 1}`,
                 defaultSource: 'custom',
                 defaultFallback: exampleUrl || 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80',
+                isMedia: true,
+                mediaKind: cardFormat === 'IMAGE' ? 'image' : cardFormat === 'VIDEO' ? 'video' : 'document',
               })
             }
           }
@@ -993,21 +1002,29 @@ export default function NewCampaignPage() {
 
               <div className="max-w-xl mx-auto sm:mx-0 p-3.5 rounded-2xl bg-background border border-border/60 shadow-xs space-y-2.5 font-sans text-xs">
                 {/* Standard Media Header (IMAGE / VIDEO) */}
-                {templateHeaderComponent && ['IMAGE', 'VIDEO'].includes((templateHeaderComponent.format || '').toUpperCase()) && (
-                  <div className="w-full h-32 rounded-xl bg-muted/60 border border-border/50 flex flex-col items-center justify-center text-muted-foreground overflow-hidden relative">
-                    {templateHeaderComponent.example?.header_url?.[0] ? (
-                      <img 
-                        src={templateHeaderComponent.example.header_url[0]} 
-                        alt="Aperçu d'en-tête" 
-                        className="w-full h-full object-cover" 
-                      />
-                    ) : (
-                      <span className="text-[11px] font-medium flex items-center gap-1.5">
-                        {templateHeaderComponent.format === 'IMAGE' ? '🖼️ Image d\'en-tête dynamique' : '▶ Vidéo d\'en-tête (MP4)'}
-                      </span>
-                    )}
-                  </div>
-                )}
+                {templateHeaderComponent && ['IMAGE', 'VIDEO'].includes((templateHeaderComponent.format || '').toUpperCase()) && (() => {
+                  const headerMediaUrl =
+                    variableMappings['header_media_url']?.customText ||
+                    variableMappings['header_media_url']?.fallback ||
+                    templateHeaderComponent.example?.header_handle?.[0] ||
+                    templateHeaderComponent.example?.header_url?.[0]
+
+                  return (
+                    <div className="w-full h-36 rounded-xl bg-muted/60 border border-border/50 flex flex-col items-center justify-center text-muted-foreground overflow-hidden relative">
+                      {headerMediaUrl ? (
+                        <img 
+                          src={headerMediaUrl} 
+                          alt="Aperçu d'en-tête" 
+                          className="w-full h-full object-cover" 
+                        />
+                      ) : (
+                        <span className="text-[11px] font-medium flex items-center gap-1.5">
+                          {templateHeaderComponent.format === 'IMAGE' ? '🖼️ Image d\'en-tête dynamique' : '▶ Vidéo d\'en-tête (MP4)'}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })()}
 
                 {/* Document Header Preview */}
                 {templateHeaderComponent && (templateHeaderComponent.format || '').toUpperCase() === 'DOCUMENT' && (
@@ -1066,7 +1083,11 @@ export default function NewCampaignPage() {
                         const cardHeader = card.components?.find((c: any) => c.type?.toUpperCase() === 'HEADER')
                         const cardBody = card.components?.find((c: any) => c.type?.toUpperCase() === 'BODY')
                         const cardButtons = card.components?.find((c: any) => c.type?.toUpperCase() === 'BUTTONS')
-                        const imgUrl = cardHeader?.example?.header_url?.[0]
+                        const imgUrl =
+                          variableMappings[`card_${idx}_media_url`]?.customText ||
+                          variableMappings[`card_${idx}_media_url`]?.fallback ||
+                          cardHeader?.example?.header_handle?.[0] ||
+                          cardHeader?.example?.header_url?.[0]
 
                         return (
                           <div 
@@ -1143,6 +1164,49 @@ export default function NewCampaignPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {detectedTemplateVariables.map((v) => {
                   const mapping = variableMappings[v.key] || { source: v.defaultSource, fallback: v.defaultFallback }
+
+                  if (v.isMedia) {
+                    return (
+                      <div key={v.key} className="p-4 rounded-xl border border-border bg-card/60 space-y-3 col-span-1 md:col-span-2 shadow-xs">
+                        <div className="flex items-center justify-between gap-2 pb-2 border-b border-border/40">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border bg-purple-500/10 text-purple-600 border-purple-500/20">
+                              {v.componentTypeLabel}
+                            </span>
+                            <span className="font-mono text-xs font-bold text-foreground">
+                              {v.label}
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-emerald-600 font-medium">
+                            ☁️ Hébergement WhatsApp sécurisé
+                          </span>
+                        </div>
+
+                        <MediaUploadInput
+                          value={mapping.customText || mapping.fallback || ''}
+                          onChange={(url) => {
+                            setVariableMappings((prev) => ({
+                              ...prev,
+                              [v.key]: {
+                                ...prev[v.key],
+                                source: 'custom',
+                                customText: url,
+                                fallback: url,
+                              },
+                            }))
+                          }}
+                          mediaType={v.mediaKind || 'image'}
+                          placeholder="https://..."
+                          helperText={
+                            v.defaultFallback
+                              ? "L'image officielle associée à votre modèle WhatsApp est sélectionnée par défaut. Vous pouvez la remplacer en téléversant un nouveau fichier."
+                              : "Téléversez un fichier directement depuis votre appareil ou saisissez un lien direct."
+                          }
+                        />
+                      </div>
+                    )
+                  }
+
                   return (
                     <div key={v.key} className="p-3.5 rounded-xl border border-border bg-muted/20 space-y-2.5">
                       <div className="flex items-center justify-between gap-2">

@@ -674,9 +674,12 @@ export async function POST(request: NextRequest) {
                                const format = (cHeader.format || 'IMAGE').toUpperCase()
                                if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
                                  const mediaType = format.toLowerCase()
-                                 let link = cHeader.example?.header_url?.[0] || 'https://picsum.photos/600/400.jpg'
-                                 if (mediaType === 'video') link = cHeader.example?.header_url?.[0] || 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
-                                 else if (mediaType === 'document') link = cHeader.example?.header_url?.[0] || 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+                                 let link = cHeader.example?.header_handle?.[0] || cHeader.example?.header_url?.[0]
+                                 if (!link || !link.startsWith('http')) {
+                                   if (mediaType === 'image') link = 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80'
+                                   else if (mediaType === 'video') link = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
+                                   else link = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
+                                 }
                                  cardComponents.push({ type: 'header', parameters: [{ type: mediaType, [mediaType]: { link } }] })
                                } else if (format === 'TEXT' && (cHeader.example?.header_text?.length || cHeader.text?.includes('{{1}}'))) {
                                  cardComponents.push({ type: 'header', parameters: [{ type: 'text', text: '-' }] })
@@ -702,9 +705,9 @@ export async function POST(request: NextRequest) {
                           if (headerComp) {
                             if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp?.format)) {
                               const mediaType = headerComp.format.toLowerCase()
-                              let link = headerImageUrl || headerComp.example?.header_url?.[0]
+                              let link = headerImageUrl || headerComp.example?.header_handle?.[0] || headerComp.example?.header_url?.[0]
                               if (!link || !link.startsWith('http')) {
-                                  if (mediaType === 'image') link = 'https://picsum.photos/600/400.jpg'
+                                  if (mediaType === 'image') link = 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80'
                                   else if (mediaType === 'video') link = 'http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'
                                   else link = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'
                               }

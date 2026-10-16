@@ -101,12 +101,13 @@ export default function TemplatesPage() {
               const headerComp = card.components?.find((c: any) => c.type === 'HEADER');
               if (headerComp?.format && ['IMAGE', 'VIDEO'].includes(headerComp.format)) {
                 const mediaType = headerComp.format.toLowerCase()
+                const mediaLink = headerComp.example?.header_handle?.[0] || headerComp.example?.header_url?.[0] || (mediaType === 'video' ? 'https://www.w3schools.com/html/mov_bbb.mp4' : 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80')
                 cardComps.push({
                   type: 'header',
                   parameters: [
                     {
                       type: mediaType,
-                      [mediaType]: { link: mediaType === 'video' ? 'https://www.w3schools.com/html/mov_bbb.mp4' : 'https://www.w3schools.com/w3images/lights.jpg' }
+                      [mediaType]: { link: mediaLink }
                     }
                   ]
                 })
@@ -247,12 +248,13 @@ export default function TemplatesPage() {
             const headerComp = metaComponents.find((c: any) => c.type === 'HEADER');
             if (headerComp?.format && ['IMAGE', 'VIDEO', 'DOCUMENT'].includes(headerComp.format)) {
               const mediaType = headerComp.format.toLowerCase();
+              const mediaLink = headerComp.example?.header_handle?.[0] || headerComp.example?.header_url?.[0] || (mediaType === 'video' ? 'https://www.w3schools.com/html/mov_bbb.mp4' : mediaType === 'document' ? 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf' : 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80')
               components.push({
                 type: 'header',
                 parameters: [
                   {
                     type: mediaType,
-                    [mediaType]: { link: mediaType === 'video' ? 'https://www.w3schools.com/html/mov_bbb.mp4' : 'https://www.w3schools.com/w3images/lights.jpg' }
+                    [mediaType]: { link: mediaLink }
                   }
                 ]
               })
