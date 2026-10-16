@@ -61,22 +61,6 @@ export function WhatoozLogo({
           />
         )}
       </div>
-
-      {showText && (
-        <span
-          className={cn(
-            'font-bold tracking-tight leading-none',
-            currentSize.text,
-            isDarkOnly
-              ? 'text-white'
-              : isLightOnly
-                ? 'text-zinc-900'
-                : 'text-foreground'
-          )}
-        >
-          whatooz
-        </span>
-      )}
     </div>
   )
 }

@@ -1243,8 +1243,8 @@ export default function NewCampaignPage() {
                         }}
                         className="w-full px-2.5 py-1.5 border border-input bg-background rounded-lg text-xs outline-none focus:border-primary"
                       >
-                        <option value="contact_first_name">👤 Prénom uniquement (ex: Jean)</option>
-                        <option value="contact_name">👤 Nom complet du contact (ex: Jean Dupont)</option>
+                        <option value="contact_first_name">👤 Prénom uniquement</option>
+                        <option value="contact_name">👤 Nom complet du contact</option>
                         <option value="contact_phone">📱 Numéro WhatsApp du contact</option>
                         <option value="organization_name">🏢 Nom de votre entreprise</option>
                         <option value="custom">✏️ Texte statique personnalisé</option>

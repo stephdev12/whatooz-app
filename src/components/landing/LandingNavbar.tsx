@@ -32,17 +32,14 @@ export function LandingNavbar({ isAuthenticated, onOpenApp }: LandingNavbarProps
         }`}
       >
         {/* Left: Brand Logo */}
-        <Link href="/" className="flex items-center gap-2 select-none group">
-          <div className="relative w-7 h-7 rounded-lg overflow-hidden border border-white/15 bg-black/60 p-0.5">
+        <Link href="/" className="flex items-center select-none group" aria-label="Accueil">
+          <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-white/15 bg-black/60 p-0.5">
             <img
               src="/images/whatooz_emblem.jpg"
-              alt="Whatooz Logo"
+              alt="Logo"
               className="w-full h-full object-cover rounded-md group-hover:scale-105 transition-transform"
             />
           </div>
-          <span className="font-semibold text-sm sm:text-base tracking-tight text-white">
-            Whatooz
-          </span>
         </Link>
 
         {/* Center: Desktop Navigation Links */}

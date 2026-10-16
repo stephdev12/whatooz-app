@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useOrganization } from '@/hooks/use-organization'
-import { RotateCcw, Sparkles } from 'lucide-react'
+import { CoolIcon } from '@/components/icons/coolicon'
 import LoadingState from '@/components/chat/LoadingState'
 import ThinkingState from '@/components/chat/ThinkingState'
 import StreamingText, { StreamingToken, StreamingSource } from '@/components/chat/StreamingText'
@@ -226,7 +226,7 @@ export default function DashboardPage() {
           className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
           title="Nouveau chat"
         >
-          <RotateCcw className="size-3.5" />
+          <CoolIcon name="arrow-reload-02" size={14} duotone={true} />
           <span className="hidden sm:inline">Nouveau chat</span>
         </button>
       </header>

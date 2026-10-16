@@ -275,7 +275,7 @@ export function TemplateBuilder({ initialData, onChange, errors = {} }: Template
                 <div key={v.position} className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <span className="text-sm font-mono bg-background px-2 py-1 rounded border min-w-[50px] text-center">{"{{"}{v.position}{"}}"}</span>
                   <Input 
-                    placeholder="Valeur d'exemple (ex: Jean)" 
+                    placeholder="Valeur d'exemple (ex: Prénom)" 
                     value={v.example || ''}
                     onChange={e => handleVariableExampleChange(i, e.target.value)}
                     className="flex-1 bg-background"

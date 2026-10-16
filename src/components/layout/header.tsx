@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { WhatoozLogo } from '@/components/ui/whatooz-logo'
-import { LogOut, Moon, Sun, Settings, Menu, X, ChevronDown } from 'lucide-react'
+import { Moon, Sun, ChevronDown } from 'lucide-react'
+import { CoolIcon } from '@/components/icons/coolicon'
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -59,7 +60,7 @@ export function Header() {
             onClick={() => setMobileMenuOpen(true)}
             className="flex h-8 w-8 items-center justify-center rounded-md border border-black/[0.06] dark:border-white/[0.08] bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
           >
-            <Menu className="h-4 w-4" />
+            <CoolIcon name="hamburger-md" size={16} duotone={true} />
           </button>
           <Link href="/dashboard" className="flex items-center">
             <WhatoozLogo size="sm" showText={false} />
@@ -77,7 +78,7 @@ export function Header() {
             className="flex h-8 w-8 items-center justify-center rounded-full border border-black/[0.06] dark:border-white/[0.08] bg-secondary/50 text-muted-foreground hover:text-foreground transition-colors"
             title="Paramètres"
           >
-            <Settings className="h-4 w-4" />
+            <CoolIcon name="settings" size={16} duotone={true} />
           </Link>
 
           {/* Theme switcher */}
@@ -104,7 +105,7 @@ export function Header() {
             title="Se déconnecter"
             className="flex h-8 w-8 sm:h-auto sm:w-auto items-center justify-center gap-1.5 rounded-full sm:px-3 sm:py-1.5 text-xs text-muted-foreground transition-all hover:bg-destructive/10 hover:text-destructive"
           >
-            <LogOut className="h-3.5 w-3.5" />
+            <CoolIcon name="arrow-right-sm" size={14} duotone={true} />
             <span className="hidden sm:inline font-medium">Quitter</span>
           </button>
         </div>
@@ -120,12 +121,12 @@ export function Header() {
           <div className="relative w-[285px] max-w-[85vw] bg-card h-full shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
             {/* Drawer Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
-              <WhatoozLogo size="sm" showText={true} />
+              <WhatoozLogo size="sm" showText={false} />
               <button 
                 onClick={() => setMobileMenuOpen(false)}
                 className="p-1.5 text-muted-foreground hover:text-foreground rounded-full hover:bg-secondary transition-colors"
               >
-                <X className="w-5 h-5" />
+                <CoolIcon name="close-md" size={18} duotone={true} />
               </button>
             </div>
             
@@ -260,7 +261,20 @@ export function Header() {
                                     : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'
                                 )}
                               >
-                                <span className="truncate">{child.label}</span>
+                                <div className="flex items-center gap-2 truncate">
+                                  {child.iconName && (
+                                    <CoolIcon
+                                      name={child.iconName}
+                                      size={14}
+                                      duotone={true}
+                                      className={cn(
+                                        'shrink-0 transition-opacity',
+                                        isChildActive ? 'text-[#fe5105]' : 'opacity-70'
+                                      )}
+                                    />
+                                  )}
+                                  <span className="truncate">{child.label}</span>
+                                </div>
 
                                 {/* Unread count or custom badge */}
                                 {showUnread && (

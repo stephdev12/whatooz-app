@@ -573,7 +573,7 @@ export default function ContactsPage() {
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                  placeholder="Jean Dupont"
+                  placeholder="Nom complet"
                 />
               </div>
               <div>
@@ -594,7 +594,7 @@ export default function ContactsPage() {
                   value={newEmail}
                   onChange={e => setNewEmail(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-border focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
-                  placeholder="jean@exemple.com"
+                  placeholder="email@domaine.com"
                 />
               </div>
 
@@ -673,7 +673,7 @@ export default function ContactsPage() {
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-border bg-input focus:outline-none focus:ring-2 focus:ring-[#fe5105] focus:border-[#fe5105] text-sm text-foreground"
-                  placeholder="Jean Dupont"
+                  placeholder="Nom complet"
                 />
               </div>
               <div>
@@ -694,7 +694,7 @@ export default function ContactsPage() {
                   value={editEmail}
                   onChange={e => setEditEmail(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg border border-border bg-input focus:outline-none focus:ring-2 focus:ring-[#fe5105] focus:border-[#fe5105] text-sm text-foreground"
-                  placeholder="jean@exemple.com"
+                  placeholder="email@domaine.com"
                 />
               </div>
 

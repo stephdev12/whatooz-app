@@ -6,27 +6,24 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { WhatoozLogo } from '@/components/ui/whatooz-logo'
 import {
-  Sparkles,
-  Bot,
-  Wrench,
-  MessageSquare,
-  Users,
-  Box,
-  ShoppingCart,
-  Workflow,
-  Zap,
-  FileText,
-  CreditCard,
-  Settings,
-  Building2,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Layers,
-  Inbox,
-  ShieldCheck,
 } from 'lucide-react'
+import {
+  CoolChatIcon,
+  CoolAgentsIcon,
+  CoolWhatsappIcon,
+  CoolCommerceIcon,
+  CoolContactsIcon,
+  CoolWalletIcon,
+  CoolOrgIcon,
+  CoolAdminIcon,
+  CoolBuildingIcon,
+  CoolIcon,
+  type CoolIconKey,
+} from '@/components/icons/coolicon'
 import { useOrganization } from '@/hooks/use-organization'
 import { useUnreadCount } from '@/hooks/use-unread-count'
 import { useAuth } from '@/hooks/use-auth'
@@ -38,12 +35,13 @@ export interface NavChildItem {
   exact?: boolean
   badge?: string | number
   badgeVariant?: 'orange' | 'green' | 'default'
+  iconName?: CoolIconKey
 }
 
 export interface NavTreeItem {
   id: string
   label: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: React.ComponentType<{ className?: string; size?: number | string }>
   href?: string
   exact?: boolean
   badge?: string | number
@@ -57,67 +55,77 @@ export const navTree: NavTreeItem[] = [
     label: 'Chat',
     href: '/dashboard',
     exact: true,
-    icon: Sparkles,
+    icon: CoolChatIcon,
   },
   {
     id: 'agents',
     label: 'Agents',
-    icon: Bot,
+    icon: CoolAgentsIcon,
     children: [
       {
         label: 'Agents Spécialisés',
         href: '/dashboard/agents',
         exact: true,
+        iconName: 'settings-future',
       },
       {
         label: 'Outils & Permissions',
         href: '/dashboard/agents/tools',
+        iconName: 'slider-01',
       },
     ],
   },
   {
     id: 'whatsapp',
     label: 'WhatsApp',
-    icon: MessageSquare,
+    icon: CoolWhatsappIcon,
     children: [
       {
         label: 'Inbox',
         href: '/dashboard/inbox',
+        iconName: 'mail',
       },
       {
         label: 'Flows',
         href: '/dashboard/flows',
+        iconName: 'layers',
       },
       {
         label: 'Templates',
         href: '/dashboard/templates',
+        iconName: 'file-document',
       },
       {
         label: 'Campagnes',
         href: '/dashboard/campaigns',
+        iconName: 'chat-dots',
       },
       {
         label: 'Automations',
         href: '/dashboard/automations',
+        iconName: 'star',
       },
     ],
   },
   {
     id: 'commerce',
     label: 'Commerce',
-    icon: ShoppingCart,
+    icon: CoolCommerceIcon,
     children: [
       {
         label: 'Commandes',
         href: '/dashboard/orders',
+        iconName: 'shopping-cart-01',
       },
       {
         label: 'Produits',
         href: '/dashboard/products',
+        iconName: 'shopping-bag-01',
       },
       {
         label: 'Catalogue',
         href: '/dashboard/catalog',
+        iconName: 'more-grid-big',
       },
     ],
   },
@@ -125,26 +133,28 @@ export const navTree: NavTreeItem[] = [
     id: 'contacts',
     label: 'Contacts',
     href: '/dashboard/contacts',
-    icon: Users,
+    icon: CoolContactsIcon,
   },
   {
     id: 'wallet',
     label: 'Portefeuille',
     href: '/dashboard/wallet',
-    icon: CreditCard,
+    icon: CoolWalletIcon,
   },
   {
     id: 'organization',
     label: 'Organisation',
-    icon: Settings,
+    icon: CoolOrgIcon,
     children: [
       {
         label: 'Équipe & Rôles',
         href: '/dashboard/team',
+        iconName: 'user-check',
       },
       {
         label: 'Paramètres',
         href: '/dashboard/settings',
+        iconName: 'settings',
       },
     ],
   },
@@ -188,7 +198,7 @@ export function getEffectiveNavTree(isAdmin: boolean): NavTreeItem[] {
       label: 'Administration',
       href: '/dashboard/admin',
       exact: true,
-      icon: ShieldCheck,
+      icon: CoolAdminIcon,
       badge: 'Admin',
       badgeVariant: 'orange',
     },
@@ -256,7 +266,7 @@ export function Sidebar() {
         )}
       >
         <Link href="/dashboard" className="flex items-center min-h-[32px]">
-          <WhatoozLogo size="sm" showText={!isCollapsed} />
+          <WhatoozLogo size="sm" showText={false} />
         </Link>
 
         {/* Minimalist Switcher */}
@@ -270,7 +280,7 @@ export function Sidebar() {
           >
             <div className="flex items-center gap-2 overflow-hidden">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#fe5105]/10 text-[#fe5105]">
-                <Building2 className="h-4 w-4" />
+                <CoolBuildingIcon className="h-4 w-4" size={16} />
               </div>
               {!isCollapsed && (
                 <div className="flex flex-col overflow-hidden">
@@ -457,7 +467,20 @@ export function Sidebar() {
                               : 'text-muted-foreground hover:text-foreground hover:bg-black/[0.03] dark:hover:bg-white/[0.03]'
                           )}
                         >
-                          <span className="truncate">{child.label}</span>
+                          <div className="flex items-center gap-2 truncate">
+                            {child.iconName && (
+                              <CoolIcon
+                                name={child.iconName}
+                                size={14}
+                                duotone={true}
+                                className={cn(
+                                  'shrink-0 transition-opacity',
+                                  isChildActive ? 'text-[#fe5105]' : 'opacity-70'
+                                )}
+                              />
+                            )}
+                            <span className="truncate">{child.label}</span>
+                          </div>
 
                           {/* Dynamic Badges */}
                           {showUnread && (

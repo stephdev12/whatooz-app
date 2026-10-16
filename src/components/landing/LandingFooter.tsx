@@ -10,17 +10,14 @@ export function LandingFooter() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-10 lg:gap-14 pb-14 border-b border-white/8">
           {/* Brand Info */}
           <div className="md:col-span-5 space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/15 bg-black/60 p-0.5">
+            <div className="flex items-center">
+              <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/15 bg-black/60 p-0.5">
                 <img
                   src="/images/whatooz_emblem.jpg"
-                  alt="Whatooz"
+                  alt="Logo"
                   className="w-full h-full object-cover rounded-md"
                 />
               </div>
-              <span className="font-semibold text-base tracking-tight text-white">
-                Whatooz
-              </span>
             </div>
 
             <p className="text-zinc-400 text-xs leading-relaxed max-w-sm">

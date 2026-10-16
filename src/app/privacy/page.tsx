@@ -18,11 +18,10 @@ export default function PrivacyPolicyPage() {
             <ArrowLeft className="h-4 w-4" />
             Retour à l&apos;accueil
           </Link>
-          <div className="flex items-center gap-2 font-bold text-foreground">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#fe5105] text-white font-black text-base shadow-sm">
-              W
+          <div className="flex items-center">
+            <div className="w-8 h-8 rounded-lg overflow-hidden border border-border/40 shadow-xs">
+              <img src="/images/whatooz_emblem.jpg" alt="Logo" className="w-full h-full object-cover" />
             </div>
-            <span>Whatooz</span>
           </div>
         </div>
       </header>

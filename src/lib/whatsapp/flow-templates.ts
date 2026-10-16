@@ -237,7 +237,7 @@ export const PREBUILT_FLOW_TEMPLATES: PrebuiltFlowTemplate[] = [
             label: 'Nom et Prénom',
             type: 'TextInput',
             required: true,
-            placeholder: 'Ex: Marc Dupont',
+            placeholder: 'Nom et prénom',
           },
           {
             id: 'f_entreprise',

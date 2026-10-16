@@ -8,6 +8,7 @@ import { LabelInput } from '@/components/ui/bencho/LabelInput'
 import { useAuth } from '@/hooks/use-auth'
 import { useOrganization } from '@/hooks/use-organization'
 import { ShieldCheck, ArrowRight, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { CoolIcon } from '@/components/icons/coolicon'
 
 function JoinContent() {
   const router = useRouter()
@@ -78,7 +79,7 @@ function JoinContent() {
         <div className="flex flex-col items-center text-center space-y-3">
           <WhatoozLogo size="md" />
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#fe5105]/10 text-[#fe5105] text-xs font-semibold">
-            <ShieldCheck className="w-3.5 h-3.5" />
+            <CoolIcon name="shield-check" size={14} duotone={true} />
             <span>Rejoindre un espace d'entreprise</span>
           </div>
           <h1 className="text-xl font-bold font-heading">

@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { Mail, Lock, ArrowRight, Loader2, ArrowLeft } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { CoolIcon } from '@/components/icons/coolicon'
 
 import { WhatoozLogo } from '@/components/ui/whatooz-logo'
 
@@ -41,7 +42,7 @@ export default function LoginPage() {
       {/* Left side: Branding / Marketing (Hidden on mobile) */}
       <div className="hidden lg:flex flex-1 flex-col justify-between rounded-[32px] bg-gradient-to-br from-[#fe5105]/10 via-[#fe5105]/5 to-transparent p-12 relative overflow-hidden">
         <Link href="/" className="relative z-10 flex items-center gap-2">
-          <WhatoozLogo size="sm" showText={true} />
+          <WhatoozLogo size="sm" showText={false} />
         </Link>
         
         <div className="relative z-10 max-w-lg mb-12">
@@ -60,13 +61,13 @@ export default function LoginPage() {
           href="/"
           className="absolute top-4 left-4 lg:hidden flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors bg-card px-3 py-1.5 rounded-full border border-border"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <CoolIcon name="arrow-left-sm" size={16} duotone={true} />
           Accueil
         </Link>
 
         <div className="w-full max-w-sm space-y-8">
           <div className="lg:hidden flex justify-center mb-8">
-            <WhatoozLogo size="sm" showText={true} />
+            <WhatoozLogo size="sm" showText={false} />
           </div>
 
           <div>
@@ -88,13 +89,13 @@ export default function LoginPage() {
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <CoolIcon name="mail" size={16} duotone={true} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="vous@exemple.com"
+                  placeholder="adresse@exemple.com"
                   required
                   className="w-full rounded-lg border border-border bg-input py-2.5 pl-10 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
                 />
@@ -110,7 +111,7 @@ export default function LoginPage() {
                 Mot de passe
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <CoolIcon name="lock" size={16} duotone={true} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
                   id="password"
                   type="password"
@@ -141,7 +142,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   Se connecter
-                  <ArrowRight className="h-4 w-4" />
+                  <CoolIcon name="arrow-right-sm" size={16} duotone={true} />
                 </>
               )}
             </button>
