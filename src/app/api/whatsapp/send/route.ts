@@ -235,19 +235,37 @@ export async function POST(request: NextRequest) {
         const resolvedHeaderImageUrl = headerImageUrl || defaultHeaderImage
         const resolvedFooterText = footerText || defaultFooter
 
+        const targetMetaFlowId =
+          flowRow?.meta_flow_id && /^\d+$/.test(flowRow.meta_flow_id)
+            ? flowRow.meta_flow_id
+            : /^\d+$/.test(flowId)
+              ? flowId
+              : null
+
+        if (!targetMetaFlowId) {
+          return NextResponse.json(
+            {
+              error:
+                "Ce flux WhatsApp n'a pas encore d'identifiant Meta valide ou n'est pas synchronisé. Veuillez d'abord l'enregistrer dans le Flow Builder.",
+            },
+            { status: 400 }
+          )
+        }
+
         try {
           result = await sendFlowMessage({
             phoneNumberId,
             accessToken,
             to,
-            flowId,
-            flowToken: `${flowId}_${Date.now()}`,
+            flowId: targetMetaFlowId,
+            flowToken: `${targetMetaFlowId}_${Date.now()}`,
             flowCta: resolvedFlowCta,
             bodyText: resolvedBodyText,
             headerText: resolvedHeaderText,
             headerImageUrl: resolvedHeaderImageUrl,
             footerText: resolvedFooterText,
             screen: targetScreen,
+            mode: flowRow?.status === 'DRAFT' ? 'draft' : undefined,
           })
         } catch (sendErr: any) {
           // If Meta reports that the specified screen is not allowed, auto-retry with allowed screen!
@@ -258,14 +276,15 @@ export async function POST(request: NextRequest) {
               phoneNumberId,
               accessToken,
               to,
-              flowId,
-              flowToken: `${flowId}_${Date.now()}`,
+              flowId: targetMetaFlowId,
+              flowToken: `${targetMetaFlowId}_${Date.now()}`,
               flowCta: resolvedFlowCta,
               bodyText: resolvedBodyText,
               headerText: resolvedHeaderText,
               headerImageUrl: resolvedHeaderImageUrl,
               footerText: resolvedFooterText,
               screen: match[1],
+              mode: flowRow?.status === 'DRAFT' ? 'draft' : undefined,
             })
           } else {
             throw sendErr

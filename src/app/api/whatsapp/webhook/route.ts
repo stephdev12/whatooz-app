@@ -8,6 +8,8 @@ import {
   sendFlowMessage,
   listTemplates,
   markAsTyping,
+  listWabaFlows,
+  createWabaFlow,
 } from '@/lib/whatsapp/meta-api'
 import { SasPayService } from '@/lib/payments/saspay'
 import { AgentAssignmentResolver } from '@/lib/agents/AgentAssignmentResolver'
@@ -573,12 +575,13 @@ export async function POST(request: NextRequest) {
           if (automations && automations.length > 0) {
             const { data: userConfig } = await supabaseAdmin
               .from('whatsapp_config')
-              .select('access_token_encrypted, phone_number_id')
+              .select('access_token_encrypted, phone_number_id, waba_id')
               .eq('organization_id', organizationId)
               .maybeSingle()
 
             if (userConfig?.access_token_encrypted) {
               const accessToken = decrypt(userConfig.access_token_encrypted)
+              const wabaId = userConfig.waba_id
               const normalizedInput = contentText.trim().toUpperCase()
 
               for (const auto of automations) {
@@ -813,11 +816,12 @@ export async function POST(request: NextRequest) {
                     })
                   } else if (auto.action_type === 'send_flow' && payload.flow_id) {
                     let flowScreen: string | undefined = payload.screen
-                    let targetMetaFlowId = payload.flow_id
+                    let targetMetaFlowId: string | null = null
+                    let flowStatus = 'PUBLISHED'
 
                     const { data: flowRow } = await supabaseAdmin
                       .from('whatsapp_flows')
-                      .select('flow_json, meta_flow_id')
+                      .select('id, name, flow_json, meta_flow_id, status, categories')
                       .or(`id.eq.${payload.flow_id},meta_flow_id.eq.${payload.flow_id}`)
                       .maybeSingle()
 
@@ -825,31 +829,93 @@ export async function POST(request: NextRequest) {
                       if (!flowScreen) {
                         flowScreen = flowRow?.flow_json?.screens?.[0]?.id
                       }
-                      targetMetaFlowId = flowRow.meta_flow_id || payload.flow_id
+                      if (flowRow.status) {
+                        flowStatus = flowRow.status
+                      }
+                      if (flowRow.meta_flow_id && /^\d+$/.test(flowRow.meta_flow_id)) {
+                        targetMetaFlowId = flowRow.meta_flow_id
+                      }
                     }
 
-                    const sendRes = await sendFlowMessage({
-                      phoneNumberId,
-                      accessToken,
-                      to: customerPhone,
-                      flowId: targetMetaFlowId,
-                      flowToken: `${targetMetaFlowId}_${Date.now()}`,
-                      flowCta: replaceVariables(payload.flow_cta || 'Ouvrir le formulaire'),
-                      bodyText: replaceVariables(payload.body_text || 'Veuillez remplir le formulaire ci-dessous :'),
-                      headerText: payload.header_text ? replaceVariables(payload.header_text) : undefined,
-                      footerText: payload.footer_text ? replaceVariables(payload.footer_text) : undefined,
-                      screen: flowScreen,
-                    })
+                    if (!targetMetaFlowId && /^\d+$/.test(payload.flow_id)) {
+                      targetMetaFlowId = payload.flow_id
+                    }
 
-                    outboundText = `[WhatsApp Flow: ${replaceVariables(payload.flow_cta || 'Formulaire')}]`
+                    // Auto-sync / link to Meta if missing numeric ID
+                    if (!targetMetaFlowId && flowRow && wabaId && accessToken) {
+                      try {
+                        const metaFlows = await listWabaFlows({ wabaId, accessToken })
+                        const matching = metaFlows.find((mf) => mf.name === flowRow.name)
+                        if (matching) {
+                          targetMetaFlowId = matching.id
+                          flowStatus = matching.status || flowStatus
+                          await supabaseAdmin
+                            .from('whatsapp_flows')
+                            .update({ meta_flow_id: matching.id, status: flowStatus })
+                            .eq('id', flowRow.id)
+                        } else if (flowRow.flow_json?.screens?.length > 0) {
+                          const { _ui_meta, ...metaCleanJson } = flowRow.flow_json
+                          const created = await createWabaFlow({
+                            wabaId,
+                            accessToken,
+                            name: flowRow.name,
+                            categories: flowRow.categories || ['OTHER'],
+                            flowJson: metaCleanJson,
+                            publish: false,
+                          })
+                          if (created?.id) {
+                            targetMetaFlowId = created.id
+                            flowStatus = 'DRAFT'
+                            await supabaseAdmin
+                              .from('whatsapp_flows')
+                              .update({ meta_flow_id: created.id, status: 'DRAFT' })
+                              .eq('id', flowRow.id)
+                          }
+                        }
+                      } catch (autoSyncErr) {
+                        console.warn('[Webhook Automations] Could not auto-sync Flow to Meta:', autoSyncErr)
+                      }
+                    }
+
+                    let sendStatus: 'sent' | 'failed' = 'sent'
+                    let wamid: string | undefined
+
+                    if (!targetMetaFlowId) {
+                      console.error(`[Webhook Automations] Flow "${payload.flow_id}" has no valid Meta Flow ID. Skipping Meta API call.`)
+                      outboundText = `[Erreur Flow: Le flux "${flowRow?.name || payload.flow_id}" n'est pas encore synchronisé avec un identifiant Meta valide]`
+                      sendStatus = 'failed'
+                    } else {
+                      try {
+                        const sendRes = await sendFlowMessage({
+                          phoneNumberId,
+                          accessToken,
+                          to: customerPhone,
+                          flowId: targetMetaFlowId,
+                          flowToken: `${targetMetaFlowId}_${Date.now()}`,
+                          flowCta: replaceVariables(payload.flow_cta || 'Ouvrir le formulaire'),
+                          bodyText: replaceVariables(payload.body_text || 'Veuillez remplir le formulaire ci-dessous :'),
+                          headerText: payload.header_text ? replaceVariables(payload.header_text) : undefined,
+                          footerText: payload.footer_text ? replaceVariables(payload.footer_text) : undefined,
+                          screen: flowScreen,
+                          mode: flowStatus === 'DRAFT' ? 'draft' : undefined,
+                        })
+                        wamid = sendRes.messageId
+                        outboundText = `[WhatsApp Flow: ${replaceVariables(payload.flow_cta || 'Formulaire')}]`
+                      } catch (sendErr: any) {
+                        console.error('[Webhook Automations] sendFlowMessage error:', sendErr)
+                        outboundText = `[Erreur d'envoi du Flow: ${sendErr.message || 'Erreur Meta inconnue'}]`
+                        sendStatus = 'failed'
+                      }
+                    }
+
                     await supabaseAdmin.from('messages').insert({
                       conversation_id: conversationId,
                       organization_id: organizationId,
                       direction: 'outbound',
                       message_type: 'interactive',
                       content_text: outboundText,
-                      wamid: sendRes.messageId,
-                      status: 'sent',
+                      wamid,
+                      status: sendStatus,
                     })
                   } else if ((auto.action_type === 'send_message' || auto.action_type === 'send_text') && payload.text) {
                     const finalMsg = replaceVariables(payload.text)

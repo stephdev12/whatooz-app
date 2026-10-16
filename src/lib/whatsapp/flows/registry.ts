@@ -16,6 +16,7 @@ export type ComponentType =
   | 'TextArea'
   | 'CheckboxGroup'
   | 'RadioButtons'
+  | 'RadioButtonsGroup'
   | 'Dropdown'
   | 'DatePicker'
   | 'OptIn'
@@ -37,6 +38,7 @@ export const COMPONENT_MIN_VERSION: Record<ComponentType, FlowVersion> = {
   TextArea: '2.1',
   CheckboxGroup: '2.1',
   RadioButtons: '2.1',
+  RadioButtonsGroup: '2.1',
   Dropdown: '2.1',
   DatePicker: '2.1',
   OptIn: '2.1',

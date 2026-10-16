@@ -791,7 +791,25 @@ export function sanitizeMetaFlowJson(jsonObj: any): any {
       continue
     }
 
+    if (key === 'data_source') {
+      result['data-source'] = sanitizeMetaFlowJson(value)
+      continue
+    }
+
     result[key] = sanitizeMetaFlowJson(value)
+  }
+
+  // Normalize component types to match strict Meta schema
+  if (result.type === 'RadioButtons' || result.type === 'Radio') {
+    result.type = 'RadioButtonsGroup'
+  }
+
+  // Ensure selection components have compliant data-source array
+  if (['RadioButtonsGroup', 'CheckboxGroup', 'Dropdown'].includes(result.type)) {
+    if (!result['data-source'] && result.options) {
+      result['data-source'] = sanitizeMetaFlowJson(result.options)
+      delete result.options
+    }
   }
 
   // Second pass on top-level Flow JSON: ensure navigate actions have matching fields in the target screen's data model
@@ -1055,6 +1073,7 @@ export interface SendFlowMessageArgs {
   screen?: string
   flowToken?: string
   flowActionPayload?: Record<string, unknown>
+  mode?: 'draft' | 'published'
 }
 
 /**
@@ -1074,9 +1093,14 @@ export async function sendFlowMessage(args: SendFlowMessageArgs): Promise<MetaSe
     screen = 'INIT',
     flowToken = `flow_${Date.now()}`,
     flowActionPayload,
+    mode,
   } = args
 
-  const createPayload = (targetScreen: string) => {
+  if (!flowId || !/^\d+$/.test(flowId)) {
+    throw new Error(`ID de Flow WhatsApp invalide ("${flowId}"). Un identifiant numérique fourni par Meta est requis pour l'envoi.`)
+  }
+
+  const createPayload = (targetScreen: string, targetMode?: 'draft' | 'published') => {
     const interactive: Record<string, unknown> = {
       type: 'flow',
       body: { text: bodyText },
@@ -1092,6 +1116,7 @@ export async function sendFlowMessage(args: SendFlowMessageArgs): Promise<MetaSe
             screen: targetScreen,
             ...flowActionPayload,
           },
+          ...(targetMode ? { mode: targetMode } : mode ? { mode } : {}),
         },
       },
     }
@@ -1128,10 +1153,11 @@ export async function sendFlowMessage(args: SendFlowMessageArgs): Promise<MetaSe
   })
 
   if (!response.ok) {
-    // Check if Meta specifies the exact allowed screen (e.g. "Allowed screen name is: QUESTION_ONE")
     try {
       const errorJson = await response.clone().json()
       const errorStr = JSON.stringify(errorJson)
+
+      // 1. Check if Meta specifies the exact allowed screen (e.g. "Allowed screen name is: QUESTION_ONE")
       const match = errorStr.match(/Allowed screen name is:\s*([A-Za-z0-9_]+)/i)
       if (match && match[1] && match[1] !== screen) {
         console.log(`[sendFlowMessage] Auto-recovering: Meta requires screen "${match[1]}" (was "${screen}"). Retrying...`)
@@ -1142,6 +1168,17 @@ export async function sendFlowMessage(args: SendFlowMessageArgs): Promise<MetaSe
             'Content-Type': 'application/json',
           },
           body: createPayload(match[1]),
+        })
+      } else if (!mode && (errorStr.toLowerCase().includes('draft') || errorStr.toLowerCase().includes('mode'))) {
+        // 2. Check if Meta requires mode: 'draft' because the flow is in draft status
+        console.log(`[sendFlowMessage] Auto-recovering: Retrying flow with mode: "draft"...`)
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: createPayload(screen, 'draft'),
         })
       }
     } catch {

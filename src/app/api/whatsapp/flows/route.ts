@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
 
   // Auto-import flows from Meta (e.g. created in Meta Flow Builder) that are not in local database
   for (const mf of metaFlows) {
-    const existing = allFlows.find((lf) => lf.meta_flow_id === mf.id)
+    const existing = allFlows.find((lf) => lf.meta_flow_id === mf.id || (!lf.meta_flow_id && lf.name === mf.name))
     if (!existing) {
       try {
         let liveFlowJson: any = { version: '7.3', screens: [] }
@@ -101,7 +101,14 @@ export async function GET(request: NextRequest) {
       } catch (importErr) {
         console.warn('[Flows GET] Could not auto-sync Meta flow:', mf.name, importErr)
       }
-    } else if (!existing.flow_json?.screens?.length && accessToken) {
+    } else if (!existing.meta_flow_id) {
+      // Local flow had no meta_flow_id yet, link it now!
+      await supabaseAdmin
+        .from('whatsapp_flows')
+        .update({ meta_flow_id: mf.id, status: mf.status })
+        .eq('id', existing.id)
+      existing.meta_flow_id = mf.id
+      existing.status = mf.status
       // Flow exists locally but has empty screens (e.g. was previously imported).
       // We cannot easily fetch flow_json from Meta without downloading the asset.
       // And even if we could, our visual builder requires `_visualState`.
@@ -339,6 +346,7 @@ export async function PATCH(request: NextRequest) {
 
   // Sync to Meta API
   let metaFlowId = flowRow.meta_flow_id
+  let publishedSuccessfully = false
   if (flowJson) {
     const { data: config } = await supabaseAdmin
       .from('whatsapp_config')
@@ -384,9 +392,10 @@ export async function PATCH(request: NextRequest) {
       if (publish && metaFlowId) {
         try {
           await publishWabaFlow({ flowId: metaFlowId, accessToken })
+          publishedSuccessfully = true
           console.log('[Flows PATCH] Successfully published flow on Meta:', metaFlowId)
         } catch (pubErr) {
-          console.warn('[Flows PATCH] Meta publication attempt failed:', pubErr)
+          console.warn('[Flows PATCH] Meta publication attempt failed (flow remains DRAFT):', pubErr)
         }
       }
     }
@@ -400,9 +409,9 @@ export async function PATCH(request: NextRequest) {
   if (metaFlowId && metaFlowId !== flowRow.meta_flow_id) {
     updatePayload.meta_flow_id = metaFlowId
   }
-  if (publish) {
+  if (publishedSuccessfully) {
     updatePayload.status = 'PUBLISHED'
-  } else if (metaFlowId && metaFlowId !== flowRow.meta_flow_id) {
+  } else if (metaFlowId && flowRow.status !== 'PUBLISHED') {
     updatePayload.status = 'DRAFT'
   }
   if (name) updatePayload.name = name

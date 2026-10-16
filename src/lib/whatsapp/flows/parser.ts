@@ -216,7 +216,7 @@ export class FlowJsonSerializer {
   
   private static serializeComponent(comp: VisualComponent, idMap: Record<string, string>, screen: VisualScreen, completePayload: Record<string, string>): Record<string, any> {
     const metaComp: Record<string, any> = {
-      type: comp.type,
+      type: comp.type === 'RadioButtons' ? 'RadioButtonsGroup' : comp.type,
     };
     
     if (comp.label) metaComp.label = comp.label;
@@ -232,7 +232,7 @@ export class FlowJsonSerializer {
     }
     
     // Ensure data-source is present for selection components
-    if (['Dropdown', 'RadioButtons', 'CheckboxGroup'].includes(comp.type)) {
+    if (['Dropdown', 'RadioButtons', 'RadioButtonsGroup', 'CheckboxGroup'].includes(comp.type)) {
       if (comp.options && comp.options.length > 0) {
         metaComp['data-source'] = comp.options;
       } else {
@@ -321,11 +321,11 @@ export class FlowJsonSerializer {
   private static deserializeComponent(c: any): VisualComponent {
     return {
        id: c.name || `comp_${Math.random().toString(36).substr(2, 9)}`,
-       type: c.type,
+       type: c.type === 'RadioButtonsGroup' ? 'RadioButtons' : c.type,
        label: c.label || c.text, // depending on component type
        name: c.name,
        required: c.required,
-       options: c.data_source,
+       options: c['data-source'] || c.data_source || c.options,
        // we skip deep action parsing in the fallback for now
     };
   }
