@@ -54,7 +54,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
 
       {/* Main Content Area (The "Island") */}
       <div className={cn(
-        "flex flex-1 flex-col overflow-hidden transition-all duration-300 min-w-0",
+        "flex flex-1 flex-col overflow-hidden transition-all duration-300 min-w-0 min-h-0 h-full",
         !isBuilderRoute ? "bg-card md:my-3 md:mr-3 md:rounded-[32px] md:border md:border-border md:shadow-sm" : ""
       )}>
         {/* Unified Header */}
@@ -62,7 +62,7 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
 
         {/* Scrollable Dashboard View */}
         <main className={cn(
-           "flex-1 overflow-x-hidden flex flex-col relative min-w-0",
+           "flex-1 overflow-x-hidden flex flex-col relative min-w-0 min-h-0 h-full",
            isBuilderRoute
              ? "p-0 overflow-hidden"
              : isInboxRoute

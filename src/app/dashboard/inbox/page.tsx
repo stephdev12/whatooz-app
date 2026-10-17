@@ -6,7 +6,8 @@ import { useAuth } from '@/hooks/use-auth'
 import { useOrganization } from '@/hooks/use-organization'
 import { ConversationList } from '@/components/inbox/conversation-list'
 import { ChatThread } from '@/components/inbox/chat-thread'
-import { MessageSquare, Inbox, User as UserIcon, HelpCircle, CheckCircle2, PanelRightOpen, PanelRightClose, X } from 'lucide-react'
+import { CoolIcon } from '@/components/icons/coolicon'
+import { PanelRightOpen, PanelRightClose, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ContactSidebar } from '@/components/inbox/contact-sidebar'
 
@@ -251,7 +252,7 @@ export default function InboxPage() {
   })
 
   return (
-    <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+    <div className="flex flex-col md:flex-row flex-1 min-h-0 h-full w-full overflow-hidden">
       {selectedConvoId && (
         <style jsx global>{`
           @media (max-width: 1024px) {
@@ -268,74 +269,74 @@ export default function InboxPage() {
       )}>
         <button 
           onClick={() => setFilter('all')}
-          className={cn("p-2 rounded-xl transition-all flex items-center gap-1 text-xs", filter === 'all' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
+          className={cn("p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs", filter === 'all' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
           title="Toutes"
         >
-          <Inbox className="w-4 h-4" />
+          <CoolIcon name="mail" size={15} duotone={true} />
           Toutes
         </button>
         <button 
           onClick={() => setFilter('mine')}
-          className={cn("p-2 rounded-xl transition-all flex items-center gap-1 text-xs", filter === 'mine' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
+          className={cn("p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs", filter === 'mine' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
           title="Mes assignations"
         >
-          <UserIcon className="w-4 h-4" />
+          <CoolIcon name="user-01" size={15} duotone={true} />
           Moi
         </button>
         <button 
           onClick={() => setFilter('unassigned')}
-          className={cn("p-2 rounded-xl transition-all flex items-center gap-1 text-xs", filter === 'unassigned' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
+          className={cn("p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs", filter === 'unassigned' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
           title="Non assignées"
         >
-          <HelpCircle className="w-4 h-4" />
+          <CoolIcon name="circle-help" size={15} duotone={true} />
           Non assignées
         </button>
         <button 
           onClick={() => setFilter('closed')}
-          className={cn("p-2 rounded-xl transition-all flex items-center gap-1 text-xs", filter === 'closed' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
+          className={cn("p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs", filter === 'closed' ? "bg-black text-white dark:bg-card dark:text-black font-medium" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
           title="Fermées"
         >
-          <CheckCircle2 className="w-4 h-4" />
+          <CoolIcon name="circle-check" size={15} duotone={true} />
           Fermées
         </button>
       </div>
 
       {/* Desktop Filters Sidebar (Thin) */}
-      <div className="hidden md:flex w-16 md:w-20 shrink-0 border-r border-border bg-muted/20 flex-col items-center py-4 gap-4">
+      <div className="hidden md:flex w-16 md:w-20 shrink-0 h-full border-r border-border bg-muted/20 flex-col items-center py-4 gap-4">
         <button 
           onClick={() => setFilter('all')}
           className={cn("p-3 rounded-xl transition-all", filter === 'all' ? "bg-black text-white dark:bg-card dark:text-black" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
           title="Toutes"
         >
-          <Inbox className="w-5 h-5" />
+          <CoolIcon name="mail" size={20} duotone={true} />
         </button>
         <button 
           onClick={() => setFilter('mine')}
           className={cn("p-3 rounded-xl transition-all", filter === 'mine' ? "bg-black text-white dark:bg-card dark:text-black" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
           title="Mes assignations"
         >
-          <UserIcon className="w-5 h-5" />
+          <CoolIcon name="user-01" size={20} duotone={true} />
         </button>
         <button 
           onClick={() => setFilter('unassigned')}
           className={cn("p-3 rounded-xl transition-all", filter === 'unassigned' ? "bg-black text-white dark:bg-card dark:text-black" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
           title="Non assignées"
         >
-          <HelpCircle className="w-5 h-5" />
+          <CoolIcon name="circle-help" size={20} duotone={true} />
         </button>
         <button 
           onClick={() => setFilter('closed')}
           className={cn("p-3 rounded-xl transition-all", filter === 'closed' ? "bg-black text-white dark:bg-card dark:text-black" : "text-muted-foreground hover:bg-black/5 dark:hover:bg-card/5")}
           title="Fermées"
         >
-          <CheckCircle2 className="w-5 h-5" />
+          <CoolIcon name="circle-check" size={20} duotone={true} />
         </button>
       </div>
 
       {/* Conversation list */}
       <div
         className={cn(
-          'w-full md:w-80 shrink-0 md:border-r border-border bg-background flex flex-col',
+          'w-full md:w-80 md:shrink-0 md:border-r border-border bg-background flex flex-col flex-1 min-h-0 h-full overflow-hidden',
           selectedConvoId ? 'hidden md:flex' : 'flex'
         )}
       >
@@ -351,13 +352,13 @@ export default function InboxPage() {
       {/* Chat area */}
       <div
         className={cn(
-          'flex-1 flex-col overflow-hidden',
+          'flex-1 flex-col overflow-hidden min-h-0 h-full',
           selectedConvoId ? 'flex' : 'hidden md:flex'
         )}
       >
         {selectedConvo ? (
-          <div className="flex h-full w-full relative">
-            <div className="flex-1 min-w-0 flex flex-col">
+          <div className="flex h-full min-h-0 w-full relative overflow-hidden">
+            <div className="flex-1 min-w-0 min-h-0 h-full flex flex-col overflow-hidden">
               <ChatThread
                 conversation={selectedConvo}
                 messages={messages}
@@ -398,7 +399,7 @@ export default function InboxPage() {
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground p-6 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#fe5105]/10 text-[#fe5105]">
-              <MessageSquare className="h-8 w-8" />
+              <CoolIcon name="chat-dots" size={32} duotone={true} />
             </div>
             <div>
               <p className="text-base font-semibold text-foreground">Votre boîte de réception WhatsApp</p>

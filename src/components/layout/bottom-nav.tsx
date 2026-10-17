@@ -3,42 +3,43 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import {
-  Sparkles,
-  MessageSquare,
-  FileText,
-  Zap,
-  ShieldCheck,
-} from 'lucide-react'
+import { CoolIcon, type CoolIconKey } from '@/components/icons/coolicon'
 import { cn } from '@/lib/utils'
 import { useUnreadCount } from '@/hooks/use-unread-count'
 
-const bottomNavItems = [
+interface BottomNavItem {
+  label: string
+  href: string
+  exact?: boolean
+  iconName: CoolIconKey
+}
+
+const bottomNavItems: BottomNavItem[] = [
   {
     label: 'Chat',
     href: '/dashboard',
     exact: true,
-    icon: Sparkles,
+    iconName: 'chat-conversation',
   },
   {
     label: 'Inbox',
     href: '/dashboard/inbox',
-    icon: MessageSquare,
+    iconName: 'mail',
   },
   {
     label: 'Templates',
     href: '/dashboard/templates',
-    icon: FileText,
+    iconName: 'file-document',
   },
   {
     label: 'Automation',
     href: '/dashboard/automations',
-    icon: Zap,
+    iconName: 'star',
   },
   {
     label: 'Équipe',
     href: '/dashboard/team',
-    icon: ShieldCheck,
+    iconName: 'users',
   },
 ]
 
@@ -66,10 +67,15 @@ export function BottomNav({ className }: { className?: string }) {
               )}
             >
               <div className="relative">
-                <item.icon className={cn(
-                  'h-4 w-4 transition-all duration-300 ease-out group-active:-translate-y-1.5 group-active:scale-110', 
-                  isActive ? 'text-white' : 'text-muted-foreground'
-                )} />
+                <CoolIcon
+                  name={item.iconName}
+                  size={18}
+                  duotone={true}
+                  className={cn(
+                    'transition-all duration-300 ease-out group-active:-translate-y-1.5 group-active:scale-110', 
+                    isActive ? 'text-white' : 'text-muted-foreground'
+                  )}
+                />
                 {item.href === '/dashboard/inbox' && unreadCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 flex h-3 min-w-[12px] items-center justify-center rounded-full bg-red-500 px-0.5 text-[8px] font-bold text-white shadow-sm border border-card">
                     {unreadCount > 99 ? '99+' : unreadCount}

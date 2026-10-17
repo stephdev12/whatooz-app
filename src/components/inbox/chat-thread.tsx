@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { CoolIcon } from '@/components/icons/coolicon'
 import {
   Send,
   Loader2,
@@ -336,9 +337,9 @@ export function ChatThread({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Chat header */}
-      <div className="flex items-center gap-2 sm:gap-3 border-b border-border bg-background px-3 sm:px-4 py-2.5 sm:py-3">
+      <div className="shrink-0 flex items-center gap-2 sm:gap-3 border-b border-border bg-background px-3 sm:px-4 py-2.5 sm:py-3">
         {onBack && (
           <button
             type="button"
@@ -346,7 +347,7 @@ export function ChatThread({
             className="md:hidden rounded-lg p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground -ml-1 mr-0.5 shrink-0"
             title="Retour aux discussions"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <CoolIcon name="arrow-left-sm" size={18} duotone={true} />
           </button>
         )}
         <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-[#fe5105]/10 text-sm font-semibold text-[#fe5105]">
@@ -472,7 +473,7 @@ export function ChatThread({
 
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto overscroll-contain bg-background p-3 sm:p-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-background p-3 sm:p-4">
         <div className="mx-auto max-w-2xl space-y-3">
           {messages.length === 0 && (
             <p className="text-center text-sm text-muted-foreground py-10">
@@ -619,7 +620,7 @@ export function ChatThread({
             {sending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <CoolIcon name="arrow-right-sm" size={16} duotone={true} />
             )}
           </button>
         </form>

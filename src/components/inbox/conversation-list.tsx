@@ -1,7 +1,8 @@
 'use client'
 
 import { formatRelativeTime, cn } from '@/lib/utils'
-import { MessageSquare, Search, Loader2, Plus, X, Send, Tag as TagIcon } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { CoolIcon } from '@/components/icons/coolicon'
 import { useState, useMemo } from 'react'
 import type { Conversation } from '@/app/dashboard/inbox/page'
 import { useOrganization } from '@/hooks/use-organization'
@@ -127,12 +128,12 @@ export function ConversationList({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       {/* Header */}
-      <div className="border-b border-border px-4 py-3">
+      <div className="shrink-0 border-b border-border px-4 py-3">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-            <MessageSquare className="h-5 w-5 text-[#fe5105]" />
+            <CoolIcon name="chat-dots" size={18} duotone={true} className="text-[#fe5105]" />
             Inbox
           </h2>
           <button
@@ -140,17 +141,17 @@ export function ConversationList({
               setErrorMsg('')
               setShowNewModal(true)
             }}
-            className="flex items-center gap-1 rounded-lg bg-[#fe5105] px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#fe5105]/90"
+            className="flex items-center gap-1.5 rounded-lg bg-[#fe5105] px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[#fe5105]/90"
             title="Démarrer une conversation"
           >
-            <Plus className="h-4 w-4" />
+            <CoolIcon name="add-plus" size={14} duotone={true} />
             Nouveau
           </button>
         </div>
 
         {/* Search */}
         <div className="relative mt-3">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <CoolIcon name="search-magnifying-glass" size={15} duotone={true} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <input
             type="text"
             value={search}
@@ -208,7 +209,7 @@ export function ConversationList({
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-20 md:pb-6">
         {loading ? (
           <div className="flex items-center justify-center py-10">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -226,7 +227,7 @@ export function ConversationList({
               key={convo.id}
               onClick={() => onSelect(convo.id)}
               className={cn(
-                'flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left transition-colors hover:bg-secondary/50',
+                'flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left transition-colors hover:bg-secondary/50 shrink-0',
                 selectedId === convo.id && 'bg-accent'
               )}
             >
@@ -297,7 +298,7 @@ export function ConversationList({
                 onClick={() => setShowNewModal(false)}
                 className="rounded-lg p-1 text-muted-foreground hover:bg-secondary"
               >
-                <X className="h-5 w-5" />
+                <CoolIcon name="close-sm" size={16} duotone={true} />
               </button>
             </div>
 
@@ -395,7 +396,7 @@ export function ConversationList({
                   {sending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <Send className="h-4 w-4" />
+                    <CoolIcon name="arrow-right-sm" size={15} duotone={true} />
                   )}
                   Envoyer
                 </button>
