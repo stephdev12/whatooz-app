@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Canvas } from '@/components/automations/builder/canvas'
 import { BuilderNode, BuilderEdge } from '@/components/automations/builder/types'
-import { ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Play } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useOrganization } from '@/hooks/use-organization'
+import { toast } from 'sonner'
 
 export default function AutomationBuilderPage() {
   const router = useRouter()
@@ -26,6 +27,35 @@ export default function AutomationBuilderPage() {
     if (!activeOrganization) return
 
     if (isNew) {
+      // Default starter workflow for new automation
+      const initialTrigger: BuilderNode = {
+        id: 'node-trigger-init',
+        type: 'triggerNode',
+        position: { x: 120, y: 180 },
+        data: {
+          label: 'Déclencheur',
+          triggerType: 'keyword',
+          triggerValue: '',
+        },
+      }
+      const initialAction: BuilderNode = {
+        id: 'node-action-init',
+        type: 'actionNode',
+        position: { x: 440, y: 180 },
+        data: {
+          label: 'Envoyer un message',
+          actionType: 'send_message',
+          actionPayload: { text: 'Bonjour {{contact.name}} ! Comment pouvons-nous vous aider ?' },
+        },
+      }
+      const initialEdge: BuilderEdge = {
+        id: 'edge-init',
+        source: 'node-trigger-init',
+        target: 'node-action-init',
+        type: 'smoothstep',
+      }
+      setNodes([initialTrigger, initialAction])
+      setEdges([initialEdge])
       setLoading(false)
       return
     }
@@ -41,9 +71,44 @@ export default function AutomationBuilderPage() {
         .single()
 
       if (data) {
-        setAutomationName(data.name)
-        setNodes(data.nodes || [])
-        setEdges(data.edges || [])
+        setAutomationName(data.name || 'Workflow sans titre')
+        
+        if (data.nodes && Array.isArray(data.nodes) && data.nodes.length > 0) {
+          setNodes(data.nodes)
+          setEdges(data.edges || [])
+        } else {
+          // Synthesize visual nodes for legacy automations
+          const synthesizedTrigger: BuilderNode = {
+            id: 'legacy-trigger',
+            type: 'triggerNode',
+            position: { x: 120, y: 180 },
+            data: {
+              label: 'Déclencheur',
+              triggerType: (data.trigger_type || 'keyword') as any,
+              triggerValue: data.trigger_value || '',
+            },
+          }
+          const synthesizedAction: BuilderNode = {
+            id: 'legacy-action',
+            type: 'actionNode',
+            position: { x: 440, y: 180 },
+            data: {
+              label: data.name || 'Action',
+              actionType: (data.action_type === 'send_text' ? 'send_message' : data.action_type || 'send_message') as any,
+              actionPayload: data.action_payload || {},
+              templateId: data.action_payload?.template_name || data.action_payload?.templateId,
+              flowId: data.action_payload?.flow_id,
+            },
+          }
+          const synthesizedEdge: BuilderEdge = {
+            id: 'legacy-edge',
+            source: 'legacy-trigger',
+            target: 'legacy-action',
+            type: 'smoothstep',
+          }
+          setNodes([synthesizedTrigger, synthesizedAction])
+          setEdges([synthesizedEdge])
+        }
       }
       setLoading(false)
     }
@@ -150,6 +215,21 @@ export default function AutomationBuilderPage() {
             message: (actionNode.data as any).paymentMessage || '',
             amount: (actionNode.data as any).paymentAmount || null
           }
+        } else if (actionNode.data.actionType === 'add_tag' || actionNode.data.actionType === 'remove_tag') {
+          action_type = actionNode.data.actionType
+          action_payload = {
+            tagName: (actionNode.data.actionPayload as any)?.tagName || ''
+          }
+        } else if (actionNode.data.actionType === 'assign_agent') {
+          action_type = 'assign_agent'
+          action_payload = {
+            agentId: (actionNode.data.actionPayload as any)?.agentId || ''
+          }
+        } else if (actionNode.data.actionType === 'ai_agent') {
+          action_type = 'ai_agent'
+          action_payload = {
+            prompt: (actionNode.data.actionPayload as any)?.prompt || ''
+          }
         }
       }
 
@@ -170,11 +250,13 @@ export default function AutomationBuilderPage() {
           .select()
           .single()
         
+        if (error) throw error
+        toast.success('Workflow créé avec succès !')
         if (data) {
           router.replace(`/dashboard/automations/builder/${data.id}`)
         }
       } else {
-        await supabase
+        const { error } = await supabase
           .from('automations')
           .update({
             name: automationName,
@@ -184,11 +266,16 @@ export default function AutomationBuilderPage() {
             trigger_value,
             action_type,
             action_payload,
+            updated_at: new Date().toISOString(),
           })
           .eq('id', automationId)
+
+        if (error) throw error
+        toast.success('Workflow sauvegardé avec succès !')
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err)
+      toast.error(err.message || 'Erreur lors de la sauvegarde du workflow')
     } finally {
       setSaving(false)
     }

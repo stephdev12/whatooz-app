@@ -1,6 +1,6 @@
 import React from 'react'
 import { Handle, Position } from '@xyflow/react'
-import { Split, MoreHorizontal } from 'lucide-react'
+import { GitBranch, Check, X } from 'lucide-react'
 import { ConditionNodeData } from '../types'
 
 interface ConditionNodeProps {
@@ -11,73 +11,120 @@ interface ConditionNodeProps {
 export function ConditionNode({ data, selected }: ConditionNodeProps) {
   const getSubtitle = () => {
     switch (data.conditionType) {
-      case 'equals': return 'Est égal à'
-      case 'not_equals': return 'N\'est pas égal à'
-      case 'contains': return 'Contient'
-      case 'not_contains': return 'Ne contient pas'
-      case 'greater_than': return 'Supérieur à'
-      case 'less_than': return 'Inférieur à'
-      case 'exists': return 'Existe'
-      case 'empty': return 'Est vide'
-      default: return 'Condition'
+      case 'equals':
+        return 'Est égal à'
+      case 'not_equals':
+        return 'Différent de'
+      case 'contains':
+        return 'Contient'
+      case 'not_contains':
+        return 'Ne contient pas'
+      case 'starts_with':
+        return 'Commence par'
+      case 'ends_with':
+        return 'Se termine par'
+      case 'greater_than':
+        return 'Supérieur à'
+      case 'less_than':
+        return 'Inférieur à'
+      case 'empty':
+        return 'Est vide'
+      case 'not_empty':
+        return 'N\'est pas vide'
+      default:
+        return 'Condition'
     }
   }
 
+  const field = data.conditionField || 'message.text'
+
   return (
     <div
-      className={`relative min-w-[240px] bg-white dark:bg-slate-900 rounded-xl shadow-sm border ${
-        selected ? 'border-primary ring-1 ring-primary/20 shadow-md' : 'border-slate-200 dark:border-slate-800'
-      } transition-all`}
+      className={`relative min-w-[260px] max-w-[320px] bg-card rounded-xl shadow-sm border ${
+        selected
+          ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-lg'
+          : 'border-border hover:border-border/80'
+      } transition-all duration-150 select-none`}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="w-3 h-3 bg-slate-200 border-2 border-white dark:border-slate-900 dark:bg-slate-700 -ml-1.5"
+        className="!w-3 !h-3 !bg-muted-foreground/40 hover:!bg-purple-500 !border-2 !border-background rounded-full -ml-1.5 transition-colors"
       />
-      
-      {/* Node Header */}
-      <div className="flex items-center justify-between p-3 border-b border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-2">
-          <div className="text-slate-500 dark:text-slate-400">
-            <Split className="w-4 h-4" />
+
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-border/60 bg-purple-500/5 rounded-t-xl">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="p-1 rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0">
+            <GitBranch className="w-4 h-4" />
           </div>
-          <h3 className="text-sm font-medium text-slate-800 dark:text-slate-200">{data.label || 'Condition'}</h3>
+          <h3 className="text-xs font-semibold text-foreground truncate">
+            {data.label || 'Condition Si / Sinon'}
+          </h3>
         </div>
-        <button className="text-slate-400 hover:text-slate-600 transition-colors">
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
+        <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-600 dark:text-purple-400 shrink-0 ml-2">
+          Branche
+        </span>
       </div>
-      
-      {/* Node Body */}
-      <div className="p-3 bg-slate-50 dark:bg-slate-950/50 rounded-b-xl space-y-1.5">
-        <div className="flex justify-between items-center text-[10px]">
-          <span className="text-slate-500 font-medium uppercase tracking-wider">Type</span>
-          <span className="text-slate-700 dark:text-slate-300 font-medium">{getSubtitle()}</span>
+
+      {/* Body */}
+      <div className="p-3 space-y-1.5 text-[11px]">
+        <div className="flex justify-between items-center text-muted-foreground">
+          <span className="text-[10px] uppercase font-medium tracking-wider">Test</span>
+          <span className="font-mono text-[10px] text-foreground bg-muted px-1.5 py-0.5 rounded truncate max-w-[170px]">
+            {field}
+          </span>
         </div>
-        
-        {data.conditionType !== 'exists' && data.conditionType !== 'empty' && (
-          <div className="flex justify-between items-start text-[10px] gap-4">
-            <span className="text-slate-500 font-medium uppercase tracking-wider flex-shrink-0">Valeur</span>
-            <span className="text-slate-700 dark:text-slate-300 truncate text-right">
-              {data.conditionValue || '-'}
+
+        <div className="flex justify-between items-center text-muted-foreground">
+          <span className="text-[10px] uppercase font-medium tracking-wider">Règle</span>
+          <span className="font-medium text-foreground truncate max-w-[170px] text-right">
+            {getSubtitle()}
+          </span>
+        </div>
+
+        {data.conditionType !== 'empty' && data.conditionType !== 'not_empty' && (
+          <div className="pt-1 border-t border-border/40 flex justify-between items-center">
+            <span className="text-[10px] uppercase font-medium tracking-wider text-muted-foreground">
+              Valeur
+            </span>
+            <span className="font-semibold text-foreground bg-primary/10 text-primary px-2 py-0.5 rounded text-[11px] truncate max-w-[160px]">
+              {data.conditionValue || '""'}
             </span>
           </div>
         )}
       </div>
 
-      {/* Two outputs for condition: True / False */}
-      <Handle
-        type="source"
-        id="true"
-        position={Position.Right}
-        className="w-3 h-3 bg-emerald-500 border-2 border-white dark:border-slate-900 -mr-1.5 top-1/3"
-      />
-      <Handle
-        type="source"
-        id="false"
-        position={Position.Right}
-        className="w-3 h-3 bg-red-500 border-2 border-white dark:border-slate-900 -mr-1.5 top-2/3"
-      />
+      {/* Branch Indicators and Handles on the right */}
+      <div className="border-t border-border/40 px-3 py-2 bg-muted/10 rounded-b-xl flex flex-col gap-2">
+        {/* TRUE BRANCH */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+            <Check className="w-3 h-3" />
+            <span>VRAI (Si valide)</span>
+          </div>
+          <Handle
+            type="source"
+            id="true"
+            position={Position.Right}
+            className="!w-3 !h-3 !bg-emerald-500 !border-2 !border-background rounded-full -mr-1.5 hover:scale-125 transition-transform"
+          />
+        </div>
+
+        {/* FALSE BRANCH */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-600 dark:text-rose-400">
+            <X className="w-3 h-3" />
+            <span>FAUX (Sinon)</span>
+          </div>
+          <Handle
+            type="source"
+            id="false"
+            position={Position.Right}
+            className="!w-3 !h-3 !bg-rose-500 !border-2 !border-background rounded-full -mr-1.5 hover:scale-125 transition-transform"
+          />
+        </div>
+      </div>
     </div>
   )
 }
