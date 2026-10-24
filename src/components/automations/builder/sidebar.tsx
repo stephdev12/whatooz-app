@@ -17,6 +17,10 @@ import {
   Search,
   Sparkles,
   GitBranch,
+  Send,
+  Table,
+  Calendar,
+  FileText,
 } from 'lucide-react'
 
 interface BlockItem {
@@ -233,11 +237,51 @@ const BLOCKS: BlockItem[] = [
   {
     nodeType: 'actionNode',
     subType: 'http_request',
-    label: 'Requête HTTP (Webhook)',
-    description: 'Appeler une API REST externe (POST, GET, PUT)',
+    label: 'Requête HTTP (Webhook & API)',
+    description: 'Appel API REST externe avec Auth, Headers & Body',
     icon: Globe,
     iconColor: 'text-emerald-500',
     iconBg: 'bg-emerald-500/10 dark:bg-emerald-500/20',
+    category: 'integrations',
+  },
+  {
+    nodeType: 'actionNode',
+    subType: 'telegram_message',
+    label: 'Telegram Bot',
+    description: 'Envoyer une alerte ou un message dans un canal Telegram',
+    icon: Send,
+    iconColor: 'text-sky-500',
+    iconBg: 'bg-sky-500/10 dark:bg-sky-500/20',
+    category: 'integrations',
+  },
+  {
+    nodeType: 'actionNode',
+    subType: 'google_sheets',
+    label: 'Google Sheets',
+    description: 'Ajouter ou consulter des lignes dans un tableur Google',
+    icon: Table,
+    iconColor: 'text-emerald-600',
+    iconBg: 'bg-emerald-600/10 dark:bg-emerald-600/20',
+    category: 'integrations',
+  },
+  {
+    nodeType: 'actionNode',
+    subType: 'google_calendar',
+    label: 'Google Calendar',
+    description: 'Créer un événement ou programmer un rendez-vous',
+    icon: Calendar,
+    iconColor: 'text-blue-600',
+    iconBg: 'bg-blue-600/10 dark:bg-blue-600/20',
+    category: 'integrations',
+  },
+  {
+    nodeType: 'actionNode',
+    subType: 'notion',
+    label: 'Notion',
+    description: 'Créer une page ou synchroniser un lead dans Notion',
+    icon: FileText,
+    iconColor: 'text-slate-800 dark:text-slate-200',
+    iconBg: 'bg-slate-500/10 dark:bg-slate-500/20',
     category: 'integrations',
   },
 ]
@@ -248,7 +292,7 @@ const CATEGORIES = [
   { key: 'logic', label: 'Logique & Flux', badge: 'Control' },
   { key: 'commerce', label: 'E-commerce & SasPay', badge: 'Pay' },
   { key: 'crm', label: 'CRM & Contacts', badge: 'CRM' },
-  { key: 'integrations', label: 'IA & Webhooks', badge: 'Ext' },
+  { key: 'integrations', label: 'Intégrations & Outils', badge: 'Apps' },
 ]
 
 export function Sidebar() {

@@ -189,7 +189,65 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
           newNode.data = {
             ...newNode.data,
             actionType: 'http_request',
-            actionPayload: { method: 'POST', url: '', body: '' },
+            actionPayload: {
+              method: 'POST',
+              url: '',
+              authType: 'none',
+              contentType: 'json',
+              body: '',
+              queryParams: [],
+              headersList: [],
+            },
+          }
+        } else if (subtype === 'telegram_message') {
+          newNode.data = {
+            ...newNode.data,
+            actionType: 'telegram_message',
+            actionPayload: {
+              telegramOperation: 'send_message',
+              telegramBotToken: '',
+              telegramChatId: '',
+              telegramText: 'Notification Whatooz: Nouveau prospect {{ contact.name }} ({{ contact.phone }})',
+              telegramParseMode: 'HTML',
+            },
+          }
+        } else if (subtype === 'google_sheets') {
+          newNode.data = {
+            ...newNode.data,
+            actionType: 'google_sheets',
+            actionPayload: {
+              sheetsOperation: 'append_row',
+              sheetsAuthMode: 'webhook_url',
+              sheetsSpreadsheetId: '',
+              sheetsSheetName: 'Feuille 1',
+              sheetsRowData: '{\n  "Date": "{{ now }}",\n  "Nom": "{{ contact.name }}",\n  "Telephone": "{{ contact.phone }}"\n}',
+            },
+          }
+        } else if (subtype === 'google_calendar') {
+          newNode.data = {
+            ...newNode.data,
+            actionType: 'google_calendar',
+            actionPayload: {
+              calendarOperation: 'create_event',
+              calendarId: 'primary',
+              calendarSummary: 'Rendez-vous Whatooz: {{ contact.name }}',
+              calendarDescription: 'Rendez-vous automatique planifié via WhatsApp pour {{ contact.phone }}',
+              calendarStartTime: '',
+              calendarEndTime: '',
+              calendarAttendeeEmail: '',
+            },
+          }
+        } else if (subtype === 'notion') {
+          newNode.data = {
+            ...newNode.data,
+            actionType: 'notion',
+            actionPayload: {
+              notionOperation: 'create_page',
+              notionApiKey: '',
+              notionDatabaseId: '',
+              notionPageTitle: 'Lead: {{ contact.name }}',
+              notionPropertiesJson: '{\n  "Téléphone": "{{ contact.phone }}",\n  "Origine": "WhatsApp"\n}',
+            },
           }
         } else {
           newNode.data = {

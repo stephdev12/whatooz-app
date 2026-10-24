@@ -37,6 +37,9 @@ export function interpolateVariables(text: string, context: WorkflowExecutionCon
     if (trimmed === 'contact.id') return context.contact?.id || ''
     if (trimmed === 'message.text') return context.message?.text || ''
     if (trimmed === 'message.id') return context.message?.id || ''
+    if (trimmed === 'now') return new Date().toISOString()
+    if (trimmed === 'date') return new Date().toLocaleDateString('fr-FR')
+    if (trimmed === 'time') return new Date().toLocaleTimeString('fr-FR')
 
     // 2. Flow response variables: {{ flow.response.some_key }}
     if (trimmed.startsWith('flow.response.') && context.flowResponse) {
@@ -483,38 +486,486 @@ export async function executeActionNode(
         throw new Error(`URL HTTP manquante pour le nœud ${node.id}`)
       }
 
-      const url = interpolateVariables(rawUrl, context)
-      const rawBody = payload.body || data.body
-      let body: string | undefined
+      let url = interpolateVariables(rawUrl, context)
 
-      if (rawBody && method !== 'GET') {
-        body = interpolateVariables(rawBody, context)
+      // Query parameters
+      const queryParams = new URLSearchParams()
+      if (Array.isArray(payload.queryParams)) {
+        for (const q of payload.queryParams) {
+          if (q.key) {
+            queryParams.append(
+              interpolateVariables(q.key, context),
+              interpolateVariables(q.value, context)
+            )
+          }
+        }
       }
 
+      // Authentication
       const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/plain, */*',
         ...(payload.headers || {}),
       }
 
-      const res = await fetch(url, {
-        method,
-        headers,
-        body,
-      })
+      const authType = payload.authType || 'none'
+      if (authType === 'bearer') {
+        const token = interpolateVariables(payload.authToken || '', context)
+        if (token) headers['Authorization'] = `Bearer ${token}`
+      } else if (authType === 'basic') {
+        const u = interpolateVariables(payload.authUsername || '', context)
+        const p = interpolateVariables(payload.authPassword || '', context)
+        const base64 = Buffer.from(`${u}:${p}`).toString('base64')
+        headers['Authorization'] = `Basic ${base64}`
+      } else if (authType === 'header') {
+        const hName = interpolateVariables(payload.authHeaderName || '', context)
+        const hVal = interpolateVariables(payload.authHeaderValue || '', context)
+        if (hName) headers[hName] = hVal
+      } else if (authType === 'query') {
+        const qName = interpolateVariables(payload.authQueryName || '', context)
+        const qVal = interpolateVariables(payload.authQueryValue || '', context)
+        if (qName) queryParams.append(qName, qVal)
+      }
 
-      const responseText = await res.text()
-      let responseData: any = responseText
+      // Additional custom headers from list
+      if (Array.isArray(payload.headersList)) {
+        for (const h of payload.headersList) {
+          if (h.key) {
+            headers[interpolateVariables(h.key, context)] = interpolateVariables(h.value, context)
+          }
+        }
+      }
+
+      // Append query params to URL if any
+      const queryString = queryParams.toString()
+      if (queryString) {
+        url = url.includes('?') ? `${url}&${queryString}` : `${url}?${queryString}`
+      }
+
+      // Request body
+      let body: any = undefined
+      const contentType = payload.contentType || 'json'
+
+      if (method !== 'GET' && method !== 'HEAD') {
+        const rawBody = payload.body || data.body
+        if (rawBody) {
+          const interpolatedBody = interpolateVariables(rawBody, context)
+          if (contentType === 'json') {
+            headers['Content-Type'] = 'application/json'
+            try {
+              body = JSON.stringify(JSON.parse(interpolatedBody))
+            } catch {
+              body = interpolatedBody
+            }
+          } else if (contentType === 'form') {
+            headers['Content-Type'] = 'application/x-www-form-urlencoded'
+            body = interpolatedBody
+          } else {
+            body = interpolatedBody
+          }
+        }
+      }
+
+      const timeoutMs = payload.timeoutMs || 15000
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+
       try {
-        responseData = JSON.parse(responseText)
-      } catch {
-        // Non-JSON response
+        const res = await fetch(url, {
+          method,
+          headers,
+          body,
+          signal: controller.signal,
+        })
+        clearTimeout(timeoutId)
+
+        const responseText = await res.text()
+        let responseData: any = responseText
+        try {
+          responseData = JSON.parse(responseText)
+        } catch {
+          // Keep string
+        }
+
+        const resHeaders: Record<string, string> = {}
+        res.headers.forEach((v, k) => {
+          resHeaders[k] = v
+        })
+
+        return {
+          status: res.status,
+          statusText: res.statusText,
+          ok: res.ok,
+          headers: resHeaders,
+          data: responseData,
+        }
+      } catch (err: any) {
+        clearTimeout(timeoutId)
+        if (err.name === 'AbortError') {
+          throw new Error(`Délai d'attente dépassé (timeout ${timeoutMs}ms) pour la requête HTTP vers ${url}`)
+        }
+        throw err
+      }
+    }
+
+    case 'telegram_message': {
+      const botToken = interpolateVariables(payload.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN || '', context).trim()
+      const chatId = interpolateVariables(payload.telegramChatId || '', context).trim()
+      const operation = payload.telegramOperation || 'send_message'
+
+      if (!botToken) {
+        throw new Error(`Token Telegram Bot manquant pour le nœud ${node.id}`)
+      }
+      if (!chatId) {
+        throw new Error(`ID de chat Telegram manquant pour le nœud ${node.id}`)
       }
 
-      return {
-        status: res.status,
-        ok: res.ok,
-        data: responseData,
+      const baseUrl = `https://api.telegram.org/bot${botToken}`
+
+      if (operation === 'send_message') {
+        const rawText = payload.telegramText || data.text || ''
+        const text = interpolateVariables(rawText, context)
+        const parseMode = payload.telegramParseMode !== 'None' ? (payload.telegramParseMode || 'HTML') : undefined
+
+        const res = await fetch(`${baseUrl}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text,
+            ...(parseMode ? { parse_mode: parseMode } : {}),
+          }),
+        })
+
+        const dataRes = await res.json()
+        if (!dataRes.ok) {
+          throw new Error(`Erreur Telegram: ${dataRes.description || res.statusText}`)
+        }
+        return dataRes
+      } else if (operation === 'send_photo') {
+        const photoUrl = interpolateVariables(payload.telegramMediaUrl || '', context)
+        const caption = interpolateVariables(payload.telegramCaption || '', context)
+        const parseMode = payload.telegramParseMode !== 'None' ? (payload.telegramParseMode || 'HTML') : undefined
+
+        const res = await fetch(`${baseUrl}/sendPhoto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            photo: photoUrl,
+            caption,
+            ...(parseMode ? { parse_mode: parseMode } : {}),
+          }),
+        })
+
+        const dataRes = await res.json()
+        if (!dataRes.ok) {
+          throw new Error(`Erreur Telegram (Photo): ${dataRes.description || res.statusText}`)
+        }
+        return dataRes
+      } else if (operation === 'send_document') {
+        const docUrl = interpolateVariables(payload.telegramMediaUrl || '', context)
+        const caption = interpolateVariables(payload.telegramCaption || '', context)
+
+        const res = await fetch(`${baseUrl}/sendDocument`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            document: docUrl,
+            caption,
+          }),
+        })
+
+        const dataRes = await res.json()
+        if (!dataRes.ok) {
+          throw new Error(`Erreur Telegram (Document): ${dataRes.description || res.statusText}`)
+        }
+        return dataRes
       }
+
+      throw new Error(`Opération Telegram inconnue: ${operation}`)
+    }
+
+    case 'google_sheets': {
+      const operation = payload.sheetsOperation || 'append_row'
+      const authMode = payload.sheetsAuthMode || 'webhook_url'
+      const spreadsheetId = interpolateVariables(payload.sheetsSpreadsheetId || '', context).trim()
+      const sheetName = interpolateVariables(payload.sheetsSheetName || 'Feuille 1', context).trim()
+
+      if (authMode === 'webhook_url') {
+        const webhookUrl = interpolateVariables(payload.sheetsWebhookUrl || '', context).trim()
+        if (!webhookUrl) {
+          throw new Error(`URL Webhook Google Apps Script manquante pour le nœud ${node.id}`)
+        }
+
+        const rawData = payload.sheetsRowData || '{}'
+        const interpolatedData = interpolateVariables(rawData, context)
+        let parsedData: any
+        try {
+          parsedData = JSON.parse(interpolatedData)
+        } catch {
+          parsedData = { value: interpolatedData }
+        }
+
+        const res = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: operation,
+            spreadsheetId,
+            sheetName,
+            data: parsedData,
+            contact: context.contact,
+            timestamp: new Date().toISOString(),
+          }),
+        })
+
+        const responseText = await res.text()
+        let responseData: any = responseText
+        try {
+          responseData = JSON.parse(responseText)
+        } catch {}
+
+        return {
+          success: res.ok,
+          status: res.status,
+          data: responseData,
+        }
+      } else {
+        // Direct Google Sheets API v4
+        const token = interpolateVariables(payload.sheetsApiKeyOrToken || process.env.GOOGLE_SHEETS_TOKEN || '', context).trim()
+        if (!token) {
+          throw new Error(`Token d'accès Google Sheets manquant pour le nœud ${node.id}`)
+        }
+        if (!spreadsheetId) {
+          throw new Error(`ID du tableur Google Spreadsheet manquant pour le nœud ${node.id}`)
+        }
+
+        const range = sheetName || 'A1'
+
+        if (operation === 'append_row') {
+          const rawData = payload.sheetsRowData || '[]'
+          const interpolated = interpolateVariables(rawData, context)
+          let rowValues: any[] = []
+          try {
+            const parsed = JSON.parse(interpolated)
+            rowValues = Array.isArray(parsed) ? parsed : Object.values(parsed)
+          } catch {
+            rowValues = interpolated.split(',').map((s) => s.trim())
+          }
+
+          const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`
+          const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              values: [rowValues],
+            }),
+          })
+
+          const dataRes = await res.json()
+          if (!res.ok) {
+            throw new Error(`Google Sheets API Error (${res.status}): ${dataRes.error?.message || res.statusText}`)
+          }
+          return dataRes
+        } else if (operation === 'read_rows') {
+          const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`
+          const res = await fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          })
+
+          const dataRes = await res.json()
+          if (!res.ok) {
+            throw new Error(`Google Sheets API Error (${res.status}): ${dataRes.error?.message || res.statusText}`)
+          }
+          return dataRes
+        } else if (operation === 'clear') {
+          const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}:clear`
+          const res = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          })
+
+          const dataRes = await res.json()
+          return dataRes
+        }
+      }
+
+      return { success: true }
+    }
+
+    case 'google_calendar': {
+      const token = interpolateVariables(payload.calendarAuthToken || process.env.GOOGLE_CALENDAR_TOKEN || '', context).trim()
+      if (!token) {
+        throw new Error(`Token d'accès Google Calendar manquant pour le nœud ${node.id}`)
+      }
+
+      const calendarId = interpolateVariables(payload.calendarId || 'primary', context).trim()
+      const operation = payload.calendarOperation || 'create_event'
+      const baseUrl = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`
+
+      if (operation === 'create_event') {
+        const summary = interpolateVariables(payload.calendarSummary || 'Rendez-vous Whatooz', context)
+        const description = interpolateVariables(payload.calendarDescription || '', context)
+        const startTimeRaw = interpolateVariables(payload.calendarStartTime || '', context).trim()
+        const endTimeRaw = interpolateVariables(payload.calendarEndTime || '', context).trim()
+        const attendeeEmail = interpolateVariables(payload.calendarAttendeeEmail || '', context).trim()
+
+        const startDateTime = startTimeRaw ? new Date(startTimeRaw).toISOString() : new Date(Date.now() + 3600000).toISOString()
+        const endDateTime = endTimeRaw ? new Date(endTimeRaw).toISOString() : new Date(Date.now() + 7200000).toISOString()
+
+        const eventPayload: any = {
+          summary,
+          description,
+          start: { dateTime: startDateTime },
+          end: { dateTime: endDateTime },
+        }
+
+        if (attendeeEmail) {
+          eventPayload.attendees = [{ email: attendeeEmail }]
+        }
+
+        const res = await fetch(baseUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(eventPayload),
+        })
+
+        const dataRes = await res.json()
+        if (!res.ok) {
+          throw new Error(`Google Calendar API Error (${res.status}): ${dataRes.error?.message || res.statusText}`)
+        }
+        return dataRes
+      } else if (operation === 'list_events') {
+        const res = await fetch(`${baseUrl}?maxResults=10&singleEvents=true&orderBy=startTime`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        const dataRes = await res.json()
+        if (!res.ok) {
+          throw new Error(`Google Calendar API Error: ${dataRes.error?.message || res.statusText}`)
+        }
+        return dataRes
+      }
+
+      throw new Error(`Opération Google Calendar inconnue: ${operation}`)
+    }
+
+    case 'notion': {
+      const apiKey = interpolateVariables(payload.notionApiKey || process.env.NOTION_API_KEY || '', context).trim()
+      if (!apiKey) {
+        throw new Error(`Clé API Notion manquante pour le nœud ${node.id}`)
+      }
+
+      const operation = payload.notionOperation || 'create_page'
+      const headers = {
+        'Authorization': `Bearer ${apiKey}`,
+        'Notion-Version': '2022-06-28',
+        'Content-Type': 'application/json',
+      }
+
+      if (operation === 'create_page') {
+        const databaseId = interpolateVariables(payload.notionDatabaseId || '', context).trim()
+        const pageTitle = interpolateVariables(payload.notionPageTitle || `Lead: ${context.contact.name || context.contact.phone}`, context)
+        const rawProps = payload.notionPropertiesJson || '{}'
+        const interpolatedProps = interpolateVariables(rawProps, context)
+
+        let customProperties: Record<string, any> = {}
+        try {
+          customProperties = JSON.parse(interpolatedProps)
+        } catch {}
+
+        const pagePayload: any = {
+          parent: databaseId ? { database_id: databaseId } : undefined,
+          properties: {
+            Name: {
+              title: [{ text: { content: pageTitle } }],
+            },
+            ...customProperties,
+          },
+        }
+
+        if (!databaseId) {
+          throw new Error(`Database ID Notion manquant pour créer une page`)
+        }
+
+        const res = await fetch('https://api.notion.com/v1/pages', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(pagePayload),
+        })
+
+        const dataRes = await res.json()
+        if (!res.ok) {
+          throw new Error(`Notion API Error (${res.status}): ${dataRes.message || res.statusText}`)
+        }
+        return dataRes
+      } else if (operation === 'append_block') {
+        const pageOrBlockId = interpolateVariables(payload.notionPageId || '', context).trim()
+        const content = interpolateVariables(payload.notionContent || '', context)
+
+        if (!pageOrBlockId) {
+          throw new Error(`ID de page ou bloc Notion manquant`)
+        }
+
+        const blockPayload = {
+          children: [
+            {
+              object: 'block',
+              type: 'paragraph',
+              paragraph: {
+                rich_text: [{ type: 'text', text: { content } }],
+              },
+            },
+          ],
+        }
+
+        const res = await fetch(`https://api.notion.com/v1/blocks/${pageOrBlockId}/children`, {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify(blockPayload),
+        })
+
+        const dataRes = await res.json()
+        if (!res.ok) {
+          throw new Error(`Notion API Error: ${dataRes.message || res.statusText}`)
+        }
+        return dataRes
+      } else if (operation === 'query_database') {
+        const databaseId = interpolateVariables(payload.notionDatabaseId || '', context).trim()
+        if (!databaseId) {
+          throw new Error(`Database ID Notion manquant`)
+        }
+
+        const res = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ page_size: 10 }),
+        })
+
+        const dataRes = await res.json()
+        if (!res.ok) {
+          throw new Error(`Notion API Error: ${dataRes.message || res.statusText}`)
+        }
+        return dataRes
+      }
+
+      throw new Error(`Opération Notion non supportée: ${operation}`)
     }
 
     default:

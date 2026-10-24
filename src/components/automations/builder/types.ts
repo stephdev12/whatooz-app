@@ -27,6 +27,10 @@ export type ActionType =
   | 'assign_agent'
   | 'ai_agent'
   | 'http_request'
+  | 'telegram_message'
+  | 'google_sheets'
+  | 'google_calendar'
+  | 'notion'
 
 export type ConditionOperator =
   | 'equals'
@@ -92,6 +96,56 @@ export interface ActionNodeData extends BaseNodeData {
     url?: string
     headers?: Record<string, string>
     body?: string
+    // Advanced HTTP Request Options (n8n-grade)
+    authType?: 'none' | 'bearer' | 'basic' | 'header' | 'query'
+    authToken?: string
+    authUsername?: string
+    authPassword?: string
+    authHeaderName?: string
+    authHeaderValue?: string
+    authQueryName?: string
+    authQueryValue?: string
+    queryParams?: Array<{ key: string; value: string }>
+    headersList?: Array<{ key: string; value: string }>
+    contentType?: 'json' | 'form' | 'raw'
+    timeoutMs?: number
+
+    // Telegram Node Options
+    telegramOperation?: 'send_message' | 'send_photo' | 'send_document'
+    telegramBotToken?: string
+    telegramChatId?: string
+    telegramText?: string
+    telegramMediaUrl?: string
+    telegramCaption?: string
+    telegramParseMode?: 'HTML' | 'Markdown' | 'None'
+
+    // Google Sheets Node Options
+    sheetsOperation?: 'append_row' | 'read_rows' | 'clear'
+    sheetsAuthMode?: 'api_key_or_token' | 'webhook_url'
+    sheetsSpreadsheetId?: string
+    sheetsSheetName?: string
+    sheetsApiKeyOrToken?: string
+    sheetsWebhookUrl?: string
+    sheetsRowData?: string // JSON or columns
+
+    // Google Calendar Node Options
+    calendarOperation?: 'create_event' | 'list_events'
+    calendarAuthToken?: string
+    calendarId?: string
+    calendarSummary?: string
+    calendarDescription?: string
+    calendarStartTime?: string
+    calendarEndTime?: string
+    calendarAttendeeEmail?: string
+
+    // Notion Node Options
+    notionOperation?: 'create_page' | 'append_block' | 'query_database'
+    notionApiKey?: string
+    notionDatabaseId?: string
+    notionPageId?: string
+    notionPageTitle?: string
+    notionPropertiesJson?: string
+    notionContent?: string
   }
 }
 

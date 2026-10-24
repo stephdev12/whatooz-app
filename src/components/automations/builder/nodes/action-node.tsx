@@ -11,6 +11,10 @@ import {
   UserCheck,
   Bot,
   Globe,
+  Send,
+  Table,
+  Calendar,
+  FileText,
 } from 'lucide-react'
 import { ActionNodeData } from '../types'
 
@@ -44,6 +48,14 @@ export function ActionNode({ data, selected }: ActionNodeProps) {
         return <Bot className="w-4 h-4 text-amber-500" />
       case 'http_request':
         return <Globe className="w-4 h-4 text-emerald-500" />
+      case 'telegram_message':
+        return <Send className="w-4 h-4 text-sky-500" />
+      case 'google_sheets':
+        return <Table className="w-4 h-4 text-emerald-600" />
+      case 'google_calendar':
+        return <Calendar className="w-4 h-4 text-blue-600" />
+      case 'notion':
+        return <FileText className="w-4 h-4 text-slate-700 dark:text-slate-300" />
       default:
         return <MessageSquare className="w-4 h-4 text-blue-500" />
     }
@@ -76,7 +88,15 @@ export function ActionNode({ data, selected }: ActionNodeProps) {
       case 'ai_agent':
         return 'Agent IA Whatooz'
       case 'http_request':
-        return 'Requête HTTP'
+        return 'Requête HTTP (API)'
+      case 'telegram_message':
+        return 'Telegram Bot'
+      case 'google_sheets':
+        return 'Google Sheets'
+      case 'google_calendar':
+        return 'Google Calendar'
+      case 'notion':
+        return 'Notion Database'
       default:
         return 'Action'
     }
@@ -110,6 +130,14 @@ export function ActionNode({ data, selected }: ActionNodeProps) {
         return payload.prompt ? `Consigne: ${payload.prompt.slice(0, 30)}...` : 'Instructions IA'
       case 'http_request':
         return payload.url ? `${payload.method || 'POST'} ${payload.url}` : 'URL Webhook...'
+      case 'telegram_message':
+        return payload.telegramText ? `${payload.telegramOperation || 'Message'}: ${payload.telegramText.slice(0, 30)}...` : 'Message Telegram...'
+      case 'google_sheets':
+        return payload.sheetsSpreadsheetId ? `Tableur: ${payload.sheetsOperation || 'Ajouter'} -> ${payload.sheetsSheetName || 'Feuille 1'}` : 'Google Sheets (Feuille / Colonnes)...'
+      case 'google_calendar':
+        return payload.calendarSummary ? `Agenda: ${payload.calendarSummary}` : 'Google Calendar (Événement)...'
+      case 'notion':
+        return payload.notionPageTitle || payload.notionDatabaseId ? `Notion: ${payload.notionPageTitle || payload.notionDatabaseId}` : 'Notion (Page / Item)...'
       default:
         return '-'
     }

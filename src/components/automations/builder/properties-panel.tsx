@@ -17,6 +17,14 @@ import {
   Sparkles,
   ArrowRight,
   GitBranch,
+  Plus,
+  Trash,
+  Globe,
+  Send,
+  Table,
+  Calendar,
+  FileText,
+  Key,
 } from 'lucide-react'
 
 interface PropertiesPanelProps {
@@ -298,9 +306,13 @@ export function PropertiesPanel({
                   <option value="remove_tag">Retirer un Tag CRM</option>
                   <option value="assign_agent">Assigner à un Conseiller</option>
                 </optgroup>
-                <optgroup label="IA & Intégrations">
+                <optgroup label="Intégrations & Outils">
                   <option value="ai_agent">Agent IA Whatooz</option>
                   <option value="http_request">Requête HTTP (Webhook / API)</option>
+                  <option value="telegram_message">Telegram Bot</option>
+                  <option value="google_sheets">Google Sheets</option>
+                  <option value="google_calendar">Google Calendar</option>
+                  <option value="notion">Notion</option>
                 </optgroup>
               </select>
             </div>
@@ -560,58 +572,737 @@ export function PropertiesPanel({
               </div>
             )}
 
-            {/* HTTP REQUEST */}
+            {/* HTTP REQUEST (n8n-style) */}
             {selectedNode.data.actionType === 'http_request' && (
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-foreground">Méthode HTTP</label>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <div className="w-1/3 space-y-1">
+                    <label className="text-xs font-semibold text-foreground">Méthode</label>
+                    <select
+                      className="w-full px-2.5 py-1.5 border border-border bg-background text-foreground rounded-lg text-xs font-semibold"
+                      value={
+                        ((selectedNode.data.actionPayload as any)?.method as string) || 'POST'
+                      }
+                      onChange={(e) =>
+                        handleChange('actionPayload', {
+                          ...((selectedNode.data.actionPayload as any) || {}),
+                          method: e.target.value,
+                        })
+                      }
+                    >
+                      <option value="GET">GET</option>
+                      <option value="POST">POST</option>
+                      <option value="PUT">PUT</option>
+                      <option value="PATCH">PATCH</option>
+                      <option value="DELETE">DELETE</option>
+                    </select>
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <label className="text-xs font-semibold text-foreground">URL Endpoint</label>
+                    <input
+                      type="url"
+                      placeholder="https://api.monsite.com/v1/resource"
+                      className="w-full px-2.5 py-1.5 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                      value={((selectedNode.data.actionPayload as any)?.url as string) || ''}
+                      onChange={(e) =>
+                        handleChange('actionPayload', {
+                          ...((selectedNode.data.actionPayload as any) || {}),
+                          url: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                </div>
+
+                {/* Authentication mode */}
+                <div className="p-3 bg-muted/30 border border-border rounded-xl space-y-2.5">
+                  <div className="flex items-center gap-1.5">
+                    <Key className="w-3.5 h-3.5 text-muted-foreground" />
+                    <label className="text-xs font-semibold text-foreground">Authentification</label>
+                  </div>
                   <select
-                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                    className="w-full px-2.5 py-1.5 border border-border bg-background text-foreground rounded-lg text-xs"
                     value={
-                      ((selectedNode.data.actionPayload as any)?.method as string) || 'POST'
+                      ((selectedNode.data.actionPayload as any)?.authType as string) || 'none'
                     }
                     onChange={(e) =>
                       handleChange('actionPayload', {
                         ...((selectedNode.data.actionPayload as any) || {}),
-                        method: e.target.value,
+                        authType: e.target.value,
                       })
                     }
                   >
-                    <option value="POST">POST</option>
-                    <option value="GET">GET</option>
-                    <option value="PUT">PUT</option>
+                    <option value="none">Aucune authentification</option>
+                    <option value="bearer">Bearer Token (Authorization: Bearer ...)</option>
+                    <option value="basic">Basic Auth (Utilisateur & Mot de passe)</option>
+                    <option value="header">Header Personnalisé (ex: X-API-Key)</option>
+                    <option value="query">Paramètre Query (ex: ?api_key=...)</option>
+                  </select>
+
+                  {((selectedNode.data.actionPayload as any)?.authType === 'bearer') && (
+                    <div className="space-y-1 pt-1">
+                      <label className="text-[11px] text-muted-foreground">Bearer Token</label>
+                      <input
+                        type="password"
+                        placeholder="eyJhbGciOi..."
+                        className="w-full px-2.5 py-1.5 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                        value={((selectedNode.data.actionPayload as any)?.authToken as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            authToken: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  )}
+
+                  {((selectedNode.data.actionPayload as any)?.authType === 'basic') && (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-muted-foreground">Nom d'utilisateur</label>
+                        <input
+                          type="text"
+                          placeholder="admin"
+                          className="w-full px-2.5 py-1.5 border border-border bg-background text-foreground rounded-lg text-xs"
+                          value={((selectedNode.data.actionPayload as any)?.authUsername as string) || ''}
+                          onChange={(e) =>
+                            handleChange('actionPayload', {
+                              ...((selectedNode.data.actionPayload as any) || {}),
+                              authUsername: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-muted-foreground">Mot de passe</label>
+                        <input
+                          type="password"
+                          placeholder="••••••••"
+                          className="w-full px-2.5 py-1.5 border border-border bg-background text-foreground rounded-lg text-xs"
+                          value={((selectedNode.data.actionPayload as any)?.authPassword as string) || ''}
+                          onChange={(e) =>
+                            handleChange('actionPayload', {
+                              ...((selectedNode.data.actionPayload as any) || {}),
+                              authPassword: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {((selectedNode.data.actionPayload as any)?.authType === 'header') && (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-muted-foreground">Nom du Header</label>
+                        <input
+                          type="text"
+                          placeholder="X-API-KEY"
+                          className="w-full px-2.5 py-1.5 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                          value={((selectedNode.data.actionPayload as any)?.authHeaderName as string) || ''}
+                          onChange={(e) =>
+                            handleChange('actionPayload', {
+                              ...((selectedNode.data.actionPayload as any) || {}),
+                              authHeaderName: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-muted-foreground">Valeur secrète</label>
+                        <input
+                          type="password"
+                          placeholder="secret_token..."
+                          className="w-full px-2.5 py-1.5 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                          value={((selectedNode.data.actionPayload as any)?.authHeaderValue as string) || ''}
+                          onChange={(e) =>
+                            handleChange('actionPayload', {
+                              ...((selectedNode.data.actionPayload as any) || {}),
+                              authHeaderValue: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {((selectedNode.data.actionPayload as any)?.authType === 'query') && (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-muted-foreground">Nom Paramètre</label>
+                        <input
+                          type="text"
+                          placeholder="api_key"
+                          className="w-full px-2.5 py-1.5 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                          value={((selectedNode.data.actionPayload as any)?.authQueryName as string) || ''}
+                          onChange={(e) =>
+                            handleChange('actionPayload', {
+                              ...((selectedNode.data.actionPayload as any) || {}),
+                              authQueryName: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[11px] text-muted-foreground">Valeur</label>
+                        <input
+                          type="password"
+                          placeholder="token123"
+                          className="w-full px-2.5 py-1.5 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                          value={((selectedNode.data.actionPayload as any)?.authQueryValue as string) || ''}
+                          onChange={(e) =>
+                            handleChange('actionPayload', {
+                              ...((selectedNode.data.actionPayload as any) || {}),
+                              authQueryValue: e.target.value,
+                            })
+                          }
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Body configuration (if not GET) */}
+                {((selectedNode.data.actionPayload as any)?.method !== 'GET') && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-foreground">Type de Corps</label>
+                      <select
+                        className="px-2 py-1 border border-border bg-background text-foreground rounded-md text-[11px]"
+                        value={((selectedNode.data.actionPayload as any)?.contentType as string) || 'json'}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            contentType: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="json">JSON (application/json)</option>
+                        <option value="form">Form Data / URL Encoded</option>
+                        <option value="raw">Texte brut</option>
+                      </select>
+                    </div>
+
+                    <VariableTextarea
+                      rows={4}
+                      placeholder={`{\n  "phone": "{{ contact.phone }}",\n  "name": "{{ contact.name }}",\n  "timestamp": "{{ now }}"\n}`}
+                      className="font-mono text-[11px]"
+                      value={((selectedNode.data.actionPayload as any)?.body as string) || ''}
+                      onChange={(e) =>
+                        handleChange('actionPayload', {
+                          ...((selectedNode.data.actionPayload as any) || {}),
+                          body: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+
+                {/* Timeout */}
+                <div className="space-y-1">
+                  <label className="text-[11px] text-muted-foreground">Délai d'expiration (Timeout ms)</label>
+                  <input
+                    type="number"
+                    placeholder="15000"
+                    className="w-full px-2.5 py-1.5 border border-border bg-background text-foreground rounded-lg text-xs"
+                    value={((selectedNode.data.actionPayload as any)?.timeoutMs as number) || 15000}
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        timeoutMs: parseInt(e.target.value, 10) || 15000,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* TELEGRAM BOT */}
+            {selectedNode.data.actionType === 'telegram_message' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Opération Telegram</label>
+                  <select
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                    value={
+                      ((selectedNode.data.actionPayload as any)?.telegramOperation as string) || 'send_message'
+                    }
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        telegramOperation: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="send_message">Envoyer un Message Texte</option>
+                    <option value="send_photo">Envoyer une Photo / Image</option>
+                    <option value="send_document">Envoyer un Document / Fichier</option>
                   </select>
                 </div>
+
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-foreground">URL de destination</label>
+                  <label className="text-xs font-semibold text-foreground">Token du Bot Telegram</label>
                   <input
-                    type="url"
-                    placeholder="https://api.monsite.com/webhook"
+                    type="password"
+                    placeholder="123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ..."
                     className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
-                    value={((selectedNode.data.actionPayload as any)?.url as string) || ''}
+                    value={((selectedNode.data.actionPayload as any)?.telegramBotToken as string) || ''}
                     onChange={(e) =>
                       handleChange('actionPayload', {
                         ...((selectedNode.data.actionPayload as any) || {}),
-                        url: e.target.value,
+                        telegramBotToken: e.target.value,
                       })
                     }
                   />
+                  <p className="text-[10px] text-muted-foreground">
+                    Obtenu via @BotFather sur Telegram.
+                  </p>
                 </div>
+
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-foreground">Corps JSON</label>
-                  <VariableTextarea
-                    rows={3}
-                    placeholder={`{\n  "phone": "{{ contact.phone }}",\n  "nom": "{{ contact.name }}"\n}`}
-                    className="font-mono text-[11px]"
-                    value={((selectedNode.data.actionPayload as any)?.body as string) || ''}
+                  <label className="text-xs font-semibold text-foreground">ID du Chat / Canal</label>
+                  <input
+                    type="text"
+                    placeholder="-100123456789 ou {{ contact.phone }}"
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                    value={((selectedNode.data.actionPayload as any)?.telegramChatId as string) || ''}
                     onChange={(e) =>
                       handleChange('actionPayload', {
                         ...((selectedNode.data.actionPayload as any) || {}),
-                        body: e.target.value,
+                        telegramChatId: e.target.value,
                       })
                     }
                   />
                 </div>
+
+                {((selectedNode.data.actionPayload as any)?.telegramOperation === 'send_message' ||
+                  !(selectedNode.data.actionPayload as any)?.telegramOperation) && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-foreground">Texte du message</label>
+                    <VariableTextarea
+                      rows={4}
+                      placeholder="🚨 <b>Nouvelle notification Whatooz</b>&#10;Client: {{ contact.name }}&#10;Numéro: {{ contact.phone }}&#10;Message: {{ message.text }}"
+                      className="text-xs"
+                      value={((selectedNode.data.actionPayload as any)?.telegramText as string) || ''}
+                      onChange={(e) =>
+                        handleChange('actionPayload', {
+                          ...((selectedNode.data.actionPayload as any) || {}),
+                          telegramText: e.target.value,
+                        })
+                      }
+                    />
+                  </div>
+                )}
+
+                {((selectedNode.data.actionPayload as any)?.telegramOperation === 'send_photo' ||
+                  (selectedNode.data.actionPayload as any)?.telegramOperation === 'send_document') && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">URL du média</label>
+                      <input
+                        type="url"
+                        placeholder="https://monsite.com/image.jpg"
+                        className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                        value={((selectedNode.data.actionPayload as any)?.telegramMediaUrl as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            telegramMediaUrl: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Légende (Caption)</label>
+                      <input
+                        type="text"
+                        placeholder="Document pour {{ contact.name }}"
+                        className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                        value={((selectedNode.data.actionPayload as any)?.telegramCaption as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            telegramCaption: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* GOOGLE SHEETS */}
+            {selectedNode.data.actionType === 'google_sheets' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Opération</label>
+                  <select
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                    value={
+                      ((selectedNode.data.actionPayload as any)?.sheetsOperation as string) || 'append_row'
+                    }
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        sheetsOperation: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="append_row">Ajouter une nouvelle ligne (Append)</option>
+                    <option value="read_rows">Lire des lignes / plage (Read)</option>
+                    <option value="clear">Vider une plage (Clear)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Mode de Connexion</label>
+                  <select
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                    value={
+                      ((selectedNode.data.actionPayload as any)?.sheetsAuthMode as string) || 'webhook_url'
+                    }
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        sheetsAuthMode: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="webhook_url">Webhook Google Apps Script (Simple & Gratuit)</option>
+                    <option value="api_key_or_token">API Google Sheets v4 (Bearer Token)</option>
+                  </select>
+                </div>
+
+                {((selectedNode.data.actionPayload as any)?.sheetsAuthMode === 'webhook_url' ||
+                  !(selectedNode.data.actionPayload as any)?.sheetsAuthMode) && (
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-foreground">URL Webhook Apps Script</label>
+                    <input
+                      type="url"
+                      placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                      className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                      value={((selectedNode.data.actionPayload as any)?.sheetsWebhookUrl as string) || ''}
+                      onChange={(e) =>
+                        handleChange('actionPayload', {
+                          ...((selectedNode.data.actionPayload as any) || {}),
+                          sheetsWebhookUrl: e.target.value,
+                        })
+                      }
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Déployez une application Web Google Apps Script et collez son URL ici.
+                    </p>
+                  </div>
+                )}
+
+                {((selectedNode.data.actionPayload as any)?.sheetsAuthMode === 'api_key_or_token') && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Token OAuth / Bearer</label>
+                      <input
+                        type="password"
+                        placeholder="ya29.a0AfH6SM..."
+                        className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                        value={((selectedNode.data.actionPayload as any)?.sheetsApiKeyOrToken as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            sheetsApiKeyOrToken: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">ID du Tableur (Spreadsheet ID)</label>
+                      <input
+                        type="text"
+                        placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms"
+                        className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                        value={((selectedNode.data.actionPayload as any)?.sheetsSpreadsheetId as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            sheetsSpreadsheetId: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Nom de la feuille / Onglet</label>
+                  <input
+                    type="text"
+                    placeholder="Feuille 1"
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                    value={((selectedNode.data.actionPayload as any)?.sheetsSheetName as string) || 'Feuille 1'}
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        sheetsSheetName: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-foreground">Colonnes & Données (JSON)</label>
+                  <VariableTextarea
+                    rows={4}
+                    placeholder={`{\n  "Date": "{{ now }}",\n  "Nom": "{{ contact.name }}",\n  "Téléphone": "{{ contact.phone }}"\n}`}
+                    className="font-mono text-[11px]"
+                    value={((selectedNode.data.actionPayload as any)?.sheetsRowData as string) || ''}
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        sheetsRowData: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* GOOGLE CALENDAR */}
+            {selectedNode.data.actionType === 'google_calendar' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Opération</label>
+                  <select
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                    value={
+                      ((selectedNode.data.actionPayload as any)?.calendarOperation as string) || 'create_event'
+                    }
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        calendarOperation: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="create_event">Créer un événement / rendez-vous</option>
+                    <option value="list_events">Consulter les prochains événements</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Token OAuth Google Calendar</label>
+                  <input
+                    type="password"
+                    placeholder="ya29.a0AfH6SM..."
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                    value={((selectedNode.data.actionPayload as any)?.calendarAuthToken as string) || ''}
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        calendarAuthToken: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">ID du Calendrier</label>
+                  <input
+                    type="text"
+                    placeholder="primary (ou adresse email de l'agenda)"
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                    value={((selectedNode.data.actionPayload as any)?.calendarId as string) || 'primary'}
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        calendarId: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                {((selectedNode.data.actionPayload as any)?.calendarOperation === 'create_event' ||
+                  !(selectedNode.data.actionPayload as any)?.calendarOperation) && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Titre de l'événement</label>
+                      <input
+                        type="text"
+                        placeholder="Rendez-vous Whatooz : {{ contact.name }}"
+                        className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                        value={((selectedNode.data.actionPayload as any)?.calendarSummary as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            calendarSummary: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Date & Heure de début</label>
+                      <input
+                        type="text"
+                        placeholder="2026-10-24T14:00:00Z ou {{ flow.response.date }}"
+                        className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                        value={((selectedNode.data.actionPayload as any)?.calendarStartTime as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            calendarStartTime: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Email du participant</label>
+                      <input
+                        type="email"
+                        placeholder="client@email.com ou {{ flow.response.email }}"
+                        className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                        value={((selectedNode.data.actionPayload as any)?.calendarAttendeeEmail as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            calendarAttendeeEmail: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* NOTION */}
+            {selectedNode.data.actionType === 'notion' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Opération Notion</label>
+                  <select
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                    value={
+                      ((selectedNode.data.actionPayload as any)?.notionOperation as string) || 'create_page'
+                    }
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        notionOperation: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="create_page">Créer une page dans une base (Database Item)</option>
+                    <option value="append_block">Ajouter un bloc à une page (Append Block)</option>
+                    <option value="query_database">Consulter une base de données (Query)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Clé API d'Intégration Notion</label>
+                  <input
+                    type="password"
+                    placeholder="secret_ABC123xyz..."
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                    value={((selectedNode.data.actionPayload as any)?.notionApiKey as string) || ''}
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        notionApiKey: e.target.value,
+                      })
+                    }
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Créée sur notion.so/my-integrations. N'oubliez pas d'inviter l'intégration dans votre base !
+                  </p>
+                </div>
+
+                {((selectedNode.data.actionPayload as any)?.notionOperation === 'create_page' ||
+                  !(selectedNode.data.actionPayload as any)?.notionOperation) && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">ID de la Base Notion</label>
+                      <input
+                        type="text"
+                        placeholder="32 caractères alphanumériques"
+                        className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                        value={((selectedNode.data.actionPayload as any)?.notionDatabaseId as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            notionDatabaseId: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Titre de la page</label>
+                      <input
+                        type="text"
+                        placeholder="Nouveau contact : {{ contact.name }}"
+                        className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                        value={((selectedNode.data.actionPayload as any)?.notionPageTitle as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            notionPageTitle: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-semibold text-foreground">Propriétés additionnelles (JSON)</label>
+                      <VariableTextarea
+                        rows={3}
+                        placeholder={`{\n  "Téléphone": { "phone_number": "{{ contact.phone }}" }\n}`}
+                        className="font-mono text-[11px]"
+                        value={((selectedNode.data.actionPayload as any)?.notionPropertiesJson as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            notionPropertiesJson: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {((selectedNode.data.actionPayload as any)?.notionOperation === 'append_block') && (
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">ID de la Page Notion</label>
+                      <input
+                        type="text"
+                        placeholder="Page ID"
+                        className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                        value={((selectedNode.data.actionPayload as any)?.notionPageId as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            notionPageId: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Contenu à ajouter</label>
+                      <VariableTextarea
+                        rows={3}
+                        placeholder="Note ajoutée pour {{ contact.name }} : {{ message.text }}"
+                        value={((selectedNode.data.actionPayload as any)?.notionContent as string) || ''}
+                        onChange={(e) =>
+                          handleChange('actionPayload', {
+                            ...((selectedNode.data.actionPayload as any) || {}),
+                            notionContent: e.target.value,
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
