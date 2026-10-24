@@ -588,22 +588,32 @@ export async function POST(request: NextRequest) {
 
               for (const auto of automations) {
                 let shouldTrigger = false
-                if (auto.trigger_type === 'keyword' && auto.trigger_value) {
-                  const keyword = auto.trigger_value.trim().toUpperCase()
-                  if (normalizedInput === keyword || normalizedInput.includes(keyword)) {
+
+                // Extract trigger from canvas nodes or legacy fields
+                const triggerNode = Array.isArray(auto.nodes) ? auto.nodes.find((n: any) => n.type === 'triggerNode') : null
+                const effectiveTriggerType = triggerNode?.data?.triggerType || auto.trigger_type || 'keyword'
+                const effectiveTriggerValue = triggerNode?.data?.triggerValue !== undefined ? triggerNode.data.triggerValue : auto.trigger_value
+
+                if (effectiveTriggerType === 'keyword') {
+                  if (!effectiveTriggerValue || !effectiveTriggerValue.trim()) {
+                    // Empty keyword trigger = triggers on any incoming text message
                     shouldTrigger = true
+                  } else {
+                    const keyword = effectiveTriggerValue.trim().toUpperCase()
+                    if (normalizedInput === keyword || normalizedInput.includes(keyword)) {
+                      shouldTrigger = true
+                    }
                   }
-                } else if (auto.trigger_type === 'first_message' && isFirstMessage) {
+                } else if (effectiveTriggerType === 'first_message' && isFirstMessage) {
                   shouldTrigger = true
-                } else if (auto.trigger_type === 'flow_completed' && flowResponseData) {
+                } else if (effectiveTriggerType === 'flow_completed' && flowResponseData) {
                   // If a specific flow ID is required, check if flowToken starts with it
-                  // e.g. flowToken = "123456789_1790089697715" and auto.trigger_value = "123456789"
-                  if (!auto.trigger_value) {
+                  if (!effectiveTriggerValue) {
                     shouldTrigger = true
-                  } else if (flowToken && flowToken.startsWith(auto.trigger_value)) {
+                  } else if (flowToken && flowToken.startsWith(effectiveTriggerValue)) {
                     shouldTrigger = true
                   }
-                } else if (auto.trigger_type === 'order_created' && msg.type === 'order') {
+                } else if (effectiveTriggerType === 'order_created' && msg.type === 'order') {
                   shouldTrigger = true
                 }
 

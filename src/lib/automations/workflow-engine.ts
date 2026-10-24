@@ -154,10 +154,20 @@ export async function executeActionNode(
   const data = node.data as any
   const actionType = data.actionType
   const payload = data.actionPayload || {}
-  const recipientPhone = context.contact.phone
+  const recipientPhone = context.contact?.phone || ''
 
-  if (!recipientPhone) {
-    throw new Error(`Aucun numéro de téléphone destinataire fourni pour le nœud ${node.id}`)
+  const whatsappActions = [
+    'send_message',
+    'send_template',
+    'send_flow',
+    'send_product',
+    'send_product_list',
+    'send_product_carousel',
+    'send_catalog',
+  ]
+
+  if (whatsappActions.includes(actionType) && !recipientPhone) {
+    throw new Error(`Aucun numéro de téléphone destinataire fourni pour le nœud WhatsApp ${node.id}`)
   }
 
   console.log(`[Workflow Engine] Executing node "${data.label || node.id}" (Type: ${actionType}) for ${recipientPhone}`)
@@ -368,31 +378,126 @@ export async function executeActionNode(
     }
 
     case 'create_saspay_payment': {
-      const amount = payload.amount || data.paymentAmount || 1000
-      const message = interpolateVariables(payload.message || data.paymentMessage || `Veuillez régler votre paiement de {{ amount }} FCFA via ce lien :`, context)
+      // 1. Resolve amount (fixed or variable)
+      let rawAmount = payload.amount || payload.paymentAmount || data.paymentAmount
+      if (!rawAmount && context.order?.total_amount) {
+        rawAmount = context.order.total_amount
+      } else if (!rawAmount && context.order?.total) {
+        rawAmount = context.order.total
+      } else if (!rawAmount && context.flowResponse?.amount) {
+        rawAmount = context.flowResponse.amount
+      }
       
-      // Generate SasPay checkout link via internal payment API or direct payload
-      const checkoutUrl = `https://saspay.me/pay?org=${context.organizationId}&amount=${amount}&ref=${encodeURIComponent(recipientPhone)}`
-      const fullText = `${message}\n\n👉 Lien de paiement : ${checkoutUrl}`
+      const resolvedAmountStr = interpolateVariables(String(rawAmount || '1000'), context).trim()
+      const numericAmount = Math.max(100, Math.round(parseFloat(resolvedAmountStr) || 1000))
 
-      const res = await sendTextMessage({
-        phoneNumberId: config.phoneNumberId,
-        accessToken: config.accessToken,
-        to: recipientPhone,
-        text: fullText,
-      })
+      // 2. Resolve credentials & parameters
+      const apiKey = (payload.apiKey || payload.saspayApiKey || process.env.SASPAY_API_KEY || '').trim()
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://whatooz.space'
+      const returnUrl = payload.returnUrl || `${baseUrl}/shop`
+      const rawDescription = payload.description || payload.paymentDescription || `Paiement WhatsApp - ${context.contact.name || recipientPhone}`
+      const description = interpolateVariables(rawDescription, context)
 
-      if (!context.variables) context.variables = {}
-      context.variables.payment_url = checkoutUrl
-      context.variables.payment_amount = amount
-
-      try {
-        await logOutboundMessage(context, fullText, 'text', res.messageId)
-      } catch (err) {
-        console.error('[Workflow Engine] Failed to log outbound payment in DB:', err)
+      if (!apiKey || apiKey === 'sk_live_votre_cle_secrete_saspay') {
+        throw new Error(
+          `Clé API SasPay non configurée. Veuillez renseigner votre clé secrète SasPay (sk_live_...) dans la configuration du bloc de paiement ou définir SASPAY_API_KEY.`
+        )
       }
 
-      return { ...res, checkoutUrl, amount }
+      // 3. Call REAL SasPay Checkout Session API
+      console.log(`[Workflow Engine] Creating SasPay session: ${numericAmount} XOF for ${recipientPhone}`)
+      const saspayResponse = await fetch('https://api.saspay.me/api/v1/checkout-sessions/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: numericAmount.toString(),
+          currency: 'XOF',
+          description,
+          customer_email: context.flowResponse?.email || context.variables?.email || 'client@whatooz.com',
+          customer_name: context.contact.name || recipientPhone || 'Client Whatooz',
+          customer_phone: recipientPhone || undefined,
+          return_url: returnUrl,
+          metadata: {
+            organization_id: context.organizationId,
+            contact_phone: recipientPhone,
+            automation_id: context.automationId,
+            order_id: context.order?.id,
+          },
+        }),
+      })
+
+      const saspayData = await saspayResponse.json().catch(() => ({}))
+
+      if (!saspayResponse.ok) {
+        const errorDetail = saspayData.error?.detail || saspayData.message || saspayData.detail || JSON.stringify(saspayData)
+        throw new Error(`Erreur API SasPay (${saspayResponse.status}): ${errorDetail}`)
+      }
+
+      const checkoutUrl = saspayData.data?.checkout_url || saspayData.checkout_url
+      const sessionId = saspayData.data?.id || saspayData.id
+
+      if (!checkoutUrl) {
+        throw new Error(`SasPay n'a pas retourné de lien de paiement valide: ${JSON.stringify(saspayData)}`)
+      }
+
+      // 4. Record transaction in database
+      try {
+        await supabaseAdmin.from('payment_transactions').insert({
+          organization_id: context.organizationId,
+          order_id: context.order?.id || null,
+          provider: 'saspay',
+          provider_transaction_id: sessionId,
+          payment_link: checkoutUrl,
+          amount: numericAmount,
+          currency: 'XOF',
+          status: 'pending',
+          customer_phone: recipientPhone || null,
+          metadata: {
+            source: 'automation_builder',
+            automation_id: context.automationId,
+          },
+        })
+      } catch (txErr) {
+        console.error('[Workflow Engine] Failed to record payment_transactions in DB:', txErr)
+      }
+
+      // 5. Expose variables for subsequent nodes
+      if (!context.variables) context.variables = {}
+      context.variables.payment_url = checkoutUrl
+      context.variables.checkout_url = checkoutUrl
+      context.variables.amount = numericAmount
+      context.variables.payment_amount = numericAmount
+
+      // 6. Build and send WhatsApp message with REAL link
+      const rawMsg = payload.message || payload.paymentMessage || data.paymentMessage || `Veuillez régler votre paiement de {{ amount }} FCFA via ce lien sécurisé :`
+      const resolvedMsg = interpolateVariables(rawMsg, context)
+      const fullText = `${resolvedMsg}\n\n👉 Lien de paiement sécurisé : ${checkoutUrl}`
+
+      let res: any = { checkoutUrl, sessionId, amount: numericAmount }
+
+      if (recipientPhone && config.accessToken && config.phoneNumberId) {
+        res = await sendTextMessage({
+          phoneNumberId: config.phoneNumberId,
+          accessToken: config.accessToken,
+          to: recipientPhone,
+          text: fullText,
+        })
+        try {
+          await logOutboundMessage(context, fullText, 'text', res.messageId)
+        } catch (err) {
+          console.error('[Workflow Engine] Failed to log outbound payment in DB:', err)
+        }
+      }
+
+      return {
+        ...res,
+        checkoutUrl,
+        sessionId,
+        amount: numericAmount,
+      }
     }
 
     case 'add_tag': {
@@ -609,74 +714,134 @@ export async function executeActionNode(
 
     case 'telegram_message': {
       const botToken = interpolateVariables(payload.telegramBotToken || process.env.TELEGRAM_BOT_TOKEN || '', context).trim()
-      const chatId = interpolateVariables(payload.telegramChatId || '', context).trim()
+      const rawChatId = interpolateVariables(payload.telegramChatId || '', context).trim()
       const operation = payload.telegramOperation || 'send_message'
 
       if (!botToken) {
-        throw new Error(`Token Telegram Bot manquant pour le nœud ${node.id}`)
+        throw new Error(
+          `Token Telegram Bot manquant pour le nœud ${node.id}. Renseignez votre token de bot obtenu via @BotFather sur Telegram.`
+        )
       }
-      if (!chatId) {
-        throw new Error(`ID de chat Telegram manquant pour le nœud ${node.id}`)
+      if (!rawChatId) {
+        throw new Error(
+          `ID de chat Telegram manquant pour le nœud ${node.id}. Renseignez l'identifiant du chat, groupe ou canal destinataire (ex: -100123456789 ou votre ID personnel via @userinfobot).`
+        )
+      }
+
+      // Sanitize chatId (support t.me links and whitespace)
+      let cleanChatId = rawChatId.trim()
+      if (cleanChatId.startsWith('https://t.me/')) {
+        cleanChatId = '@' + cleanChatId.replace('https://t.me/', '').replace('/', '')
+      } else if (cleanChatId.startsWith('t.me/')) {
+        cleanChatId = '@' + cleanChatId.replace('t.me/', '').replace('/', '')
       }
 
       const baseUrl = `https://api.telegram.org/bot${botToken}`
 
       if (operation === 'send_message') {
-        const rawText = payload.telegramText || data.text || ''
+        const defaultText = `🚨 <b>Notification Whatooz</b>\n👤 Client : ${context.contact.name || 'Inconnu'}\n📱 Téléphone : ${context.contact.phone || 'N/A'}\n💬 Message : ${context.message?.text || 'Déclenchement du workflow'}`
+        const rawText = payload.telegramText || data.text || defaultText
         const text = interpolateVariables(rawText, context)
-        const parseMode = payload.telegramParseMode !== 'None' ? (payload.telegramParseMode || 'HTML') : undefined
+        const parseMode = payload.telegramParseMode && payload.telegramParseMode !== 'None' ? payload.telegramParseMode : 'HTML'
 
-        const res = await fetch(`${baseUrl}/sendMessage`, {
+        // First try with parse_mode
+        let res = await fetch(`${baseUrl}/sendMessage`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            chat_id: chatId,
+            chat_id: cleanChatId,
             text,
             ...(parseMode ? { parse_mode: parseMode } : {}),
           }),
         })
 
-        const dataRes = await res.json()
+        let dataRes = await res.json().catch(() => ({}))
+
+        // If entity parsing failed (e.g. unclosed HTML tags or special characters like < > &), retry in plain text
+        if (!dataRes.ok && parseMode && dataRes.description?.toLowerCase().includes('parse')) {
+          console.warn('[Workflow Engine] Telegram entity parsing failed, retrying without parse_mode...')
+          res = await fetch(`${baseUrl}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: cleanChatId,
+              text,
+            }),
+          })
+          dataRes = await res.json().catch(() => ({}))
+        }
+
         if (!dataRes.ok) {
-          throw new Error(`Erreur Telegram: ${dataRes.description || res.statusText}`)
+          let extraTip = ''
+          if (dataRes.error_code === 400 && dataRes.description?.includes('chat not found')) {
+            extraTip = ' Astuce: Assurez-vous d\'avoir cliqué sur /start dans le bot depuis ce compte Telegram, ou d\'avoir ajouté le bot comme administrateur du canal/groupe.'
+          } else if (dataRes.error_code === 403) {
+            extraTip = ' Astuce: Le bot a été bloqué par ce compte ou n\'a pas l\'autorisation d\'envoyer des messages dans ce canal.'
+          } else if (dataRes.error_code === 401) {
+            extraTip = ' Astuce: Le token du bot est invalide. Vérifiez le token fourni par @BotFather.'
+          }
+          throw new Error(`Erreur Telegram (${dataRes.error_code || res.status}): ${dataRes.description || res.statusText}.${extraTip}`)
         }
         return dataRes
       } else if (operation === 'send_photo') {
-        const photoUrl = interpolateVariables(payload.telegramMediaUrl || '', context)
+        const photoUrl = interpolateVariables(payload.telegramMediaUrl || '', context).trim()
         const caption = interpolateVariables(payload.telegramCaption || '', context)
-        const parseMode = payload.telegramParseMode !== 'None' ? (payload.telegramParseMode || 'HTML') : undefined
+        const parseMode = payload.telegramParseMode && payload.telegramParseMode !== 'None' ? payload.telegramParseMode : undefined
 
-        const res = await fetch(`${baseUrl}/sendPhoto`, {
+        if (!photoUrl) {
+          throw new Error(`URL de la photo manquante pour le nœud Telegram ${node.id}`)
+        }
+
+        let res = await fetch(`${baseUrl}/sendPhoto`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            chat_id: chatId,
+            chat_id: cleanChatId,
             photo: photoUrl,
-            caption,
+            caption: caption || undefined,
             ...(parseMode ? { parse_mode: parseMode } : {}),
           }),
         })
 
-        const dataRes = await res.json()
+        let dataRes = await res.json().catch(() => ({}))
+
+        // Retry without parse_mode if entity error
+        if (!dataRes.ok && parseMode && dataRes.description?.toLowerCase().includes('parse')) {
+          res = await fetch(`${baseUrl}/sendPhoto`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: cleanChatId,
+              photo: photoUrl,
+              caption: caption || undefined,
+            }),
+          })
+          dataRes = await res.json().catch(() => ({}))
+        }
+
         if (!dataRes.ok) {
           throw new Error(`Erreur Telegram (Photo): ${dataRes.description || res.statusText}`)
         }
         return dataRes
       } else if (operation === 'send_document') {
-        const docUrl = interpolateVariables(payload.telegramMediaUrl || '', context)
+        const docUrl = interpolateVariables(payload.telegramMediaUrl || '', context).trim()
         const caption = interpolateVariables(payload.telegramCaption || '', context)
+
+        if (!docUrl) {
+          throw new Error(`URL du document manquante pour le nœud Telegram ${node.id}`)
+        }
 
         const res = await fetch(`${baseUrl}/sendDocument`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            chat_id: chatId,
+            chat_id: cleanChatId,
             document: docUrl,
-            caption,
+            caption: caption || undefined,
           }),
         })
 
-        const dataRes = await res.json()
+        const dataRes = await res.json().catch(() => ({}))
         if (!dataRes.ok) {
           throw new Error(`Erreur Telegram (Document): ${dataRes.description || res.statusText}`)
         }

@@ -212,9 +212,16 @@ export default function AutomationBuilderPage() {
         } else if (actionNode.data.actionType === 'create_saspay_payment') {
           action_type = 'create_saspay_payment'
           action_payload = {
-            message: (actionNode.data as any).paymentMessage || '',
-            amount: (actionNode.data as any).paymentAmount || null
+            message: (actionNode.data as any).paymentMessage || (actionNode.data.actionPayload as any)?.paymentMessage || '',
+            amount: (actionNode.data as any).paymentAmount || (actionNode.data.actionPayload as any)?.paymentAmount || null,
+            ...((actionNode.data.actionPayload as any) || {})
           }
+        } else if (actionNode.data.actionType === 'telegram_message' ||
+                   actionNode.data.actionType === 'google_sheets' ||
+                   actionNode.data.actionType === 'google_calendar' ||
+                   actionNode.data.actionType === 'notion') {
+          action_type = actionNode.data.actionType
+          action_payload = actionNode.data.actionPayload || {}
         } else if (actionNode.data.actionType === 'add_tag' || actionNode.data.actionType === 'remove_tag') {
           action_type = actionNode.data.actionType
           action_payload = {

@@ -21,7 +21,22 @@ import {
 import '@xyflow/react/dist/style.css'
 import { v4 as uuidv4 } from 'uuid'
 import { useTheme } from 'next-themes'
-import { Menu, X, Save, Maximize, Plus, Trash2 } from 'lucide-react'
+import {
+  Menu,
+  X,
+  Save,
+  Maximize,
+  Plus,
+  Trash2,
+  Play,
+  Loader2,
+  CheckCircle2,
+  AlertTriangle,
+  ExternalLink,
+  RefreshCw,
+} from 'lucide-react'
+import { useOrganization } from '@/hooks/use-organization'
+import { toast } from 'sonner'
 
 import { Sidebar } from './sidebar'
 import { PropertiesPanel } from './properties-panel'
@@ -69,6 +84,54 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
 
   // Mobile sidebar state
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Test Runner state
+  const { activeOrganization } = useOrganization()
+  const [testModalOpen, setTestModalOpen] = useState(false)
+  const [testingWorkflow, setTestingWorkflow] = useState(false)
+  const [testResults, setTestResults] = useState<any[] | null>(null)
+  const [testContactName, setTestContactName] = useState('Stephane')
+  const [testContactPhone, setTestContactPhone] = useState('22501020304')
+  const [testMessageText, setTestMessageText] = useState('Bonjour')
+
+  const handleRunWorkflowTest = async () => {
+    if (!activeOrganization) {
+      toast.error('Aucune organisation active sélectionnée')
+      return
+    }
+    setTestingWorkflow(true)
+    setTestResults(null)
+    try {
+      const res = await fetch('/api/whatsapp/automations/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-organization-id': activeOrganization.id,
+        },
+        body: JSON.stringify({
+          nodes,
+          edges,
+          testContact: { name: testContactName, phone: testContactPhone },
+          testMessage: { text: testMessageText },
+        }),
+      })
+
+      const data = await res.json()
+      if (data.logs) {
+        setTestResults(data.logs)
+      }
+
+      if (data.success) {
+        toast.success('Test du workflow terminé avec succès !')
+      } else {
+        toast.error(data.error || 'Des étapes ont échoué lors de l’exécution.')
+      }
+    } catch (e: any) {
+      toast.error(`Erreur réseau : ${e.message}`)
+    } finally {
+      setTestingWorkflow(false)
+    }
+  }
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -373,6 +436,17 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
             )}
 
             <button
+              onClick={() => {
+                setTestModalOpen(true)
+                setTestResults(null)
+              }}
+              className="flex items-center gap-1.5 bg-secondary text-secondary-foreground border border-border px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-xs hover:bg-secondary/80 transition-all active:scale-95"
+            >
+              <Play className="w-3.5 h-3.5 text-primary" />
+              <span>Tester le flux</span>
+            </button>
+
+            <button
               onClick={handleSave}
               className="flex items-center gap-1.5 bg-primary text-primary-foreground px-4 py-1.5 rounded-lg text-xs font-semibold shadow-sm hover:bg-primary/90 transition-all active:scale-95"
             >
@@ -420,6 +494,169 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
               onDeleteNode={deleteNode}
               onClose={() => setSelectedNodeId(null)}
             />
+          </div>
+        )}
+
+        {/* Workflow Test Modal */}
+        {testModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+            <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden">
+              {/* Modal Header */}
+              <div className="p-4 border-b border-border flex items-center justify-between bg-muted/20">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                    <Play className="w-4 h-4 fill-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground">Tester le Workflow</h3>
+                    <p className="text-xs text-muted-foreground">Simulez l'exécution du flux avec des données tests</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setTestModalOpen(false)}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-4 overflow-y-auto space-y-4 flex-1">
+                {/* Simulated Input Variables */}
+                <div className="p-3 bg-muted/40 border border-border rounded-xl space-y-3">
+                  <span className="text-[11px] font-bold text-foreground uppercase tracking-wider block">
+                    Paramètres de la simulation
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Nom du contact</label>
+                      <input
+                        type="text"
+                        value={testContactName}
+                        onChange={(e) => setTestContactName(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Numéro WhatsApp</label>
+                      <input
+                        type="text"
+                        value={testContactPhone}
+                        onChange={(e) => setTestContactPhone(e.target.value)}
+                        className="w-full px-3 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Message entrant simulé</label>
+                    <input
+                      type="text"
+                      value={testMessageText}
+                      onChange={(e) => setTestMessageText(e.target.value)}
+                      placeholder="Ex: Bonjour, PRIX, COMMANDE..."
+                      className="w-full px-3 py-1.5 text-xs bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+
+                {/* Execution Results */}
+                {testResults && (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">
+                        Journal d'exécution ({testResults.length} étapes)
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {testResults.map((log: any, idx: number) => {
+                        const isSuccess = log.status === 'success'
+                        return (
+                          <div
+                            key={idx}
+                            className={`p-3 rounded-xl border text-xs space-y-1.5 ${
+                              isSuccess
+                                ? 'bg-emerald-500/5 border-emerald-500/20 text-foreground'
+                                : 'bg-rose-500/5 border-rose-500/20 text-rose-700 dark:text-rose-300'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5 font-semibold">
+                                {isSuccess ? (
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                                ) : (
+                                  <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                                )}
+                                <span>Étape {idx + 1} : {log.action || log.nodeType}</span>
+                              </div>
+                              <span
+                                className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${
+                                  isSuccess
+                                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold'
+                                    : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold'
+                                }`}
+                              >
+                                {isSuccess ? 'SUCCÈS' : 'ÉCHEC'}
+                              </span>
+                            </div>
+
+                            {log.error && (
+                              <p className="text-[11px] text-rose-600 dark:text-rose-400 font-mono bg-rose-500/10 p-2 rounded-lg break-words">
+                                {log.error}
+                              </p>
+                            )}
+
+                            {/* Special view for SasPay link */}
+                            {log.output?.checkoutUrl && (
+                              <div className="pt-1">
+                                <a
+                                  href={log.output.checkoutUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-xs"
+                                >
+                                  <span>Tester le lien SasPay généré</span>
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                </a>
+                              </div>
+                            )}
+
+                            {/* Special view for Telegram */}
+                            {log.output?.result?.message_id && (
+                              <p className="text-[10px] text-muted-foreground font-mono">
+                                ✅ Telegram Message ID : {log.output.result.message_id}
+                              </p>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-3.5 border-t border-border bg-muted/20 flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setTestModalOpen(false)}
+                  className="px-3.5 py-1.5 rounded-lg border border-border bg-background hover:bg-muted text-xs font-semibold text-foreground transition-colors"
+                >
+                  Fermer
+                </button>
+                <button
+                  onClick={handleRunWorkflowTest}
+                  disabled={testingWorkflow}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all active:scale-95 disabled:opacity-50 shadow-sm"
+                >
+                  {testingWorkflow ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                  )}
+                  <span>Lancer la simulation</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </ReactFlowProvider>

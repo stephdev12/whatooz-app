@@ -25,7 +25,12 @@ import {
   Calendar,
   FileText,
   Key,
+  Play,
+  Loader2,
+  AlertCircle,
+  CreditCard,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface PropertiesPanelProps {
   selectedNode: BuilderNode
@@ -47,6 +52,51 @@ export function PropertiesPanel({
   const [products, setProducts] = useState<any[]>([])
   const [aiAgents, setAiAgents] = useState<any[]>([])
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
+  const [testingNode, setTestingNode] = useState(false)
+
+  const handleTestSingleNode = async () => {
+    if (!activeOrganization) return
+    setTestingNode(true)
+    try {
+      const res = await fetch('/api/whatsapp/automations/test', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-organization-id': activeOrganization.id,
+        },
+        body: JSON.stringify({
+          singleNode: selectedNode,
+          testContact: { name: 'Client Test', phone: '22501020304' },
+          testMessage: { text: 'Test Whatooz' },
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        if (selectedNode.data.actionType === 'create_saspay_payment') {
+          toast.success(`Lien SasPay généré avec succès !`, {
+            description: `Lien: ${data.output?.checkoutUrl} (${data.output?.amount} FCFA)`,
+            duration: 8000,
+          })
+        } else if (selectedNode.data.actionType === 'telegram_message') {
+          toast.success(`Message Telegram envoyé avec succès !`, {
+            description: `Message ID: ${data.output?.result?.message_id || 'OK'}`,
+            duration: 6000,
+          })
+        } else {
+          toast.success(`Nœud exécuté avec succès !`)
+        }
+      } else {
+        toast.error(`Erreur d'exécution`, {
+          description: data.error || 'Une erreur est survenue lors du test',
+          duration: 9000,
+        })
+      }
+    } catch (e: any) {
+      toast.error(`Erreur réseau: ${e.message}`)
+    } finally {
+      setTestingNode(false)
+    }
+  }
 
   useEffect(() => {
     if (!activeOrganization) return
@@ -443,13 +493,22 @@ export function PropertiesPanel({
 
             {/* SASPAY PAYMENT */}
             {selectedNode.data.actionType === 'create_saspay_payment' && (
-              <div className="space-y-3">
+              <div className="space-y-3.5">
+                <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    <CreditCard className="w-3.5 h-3.5" />
+                    <span>Passerelle SasPay Sécurisée</span>
+                  </div>
+                  <p className="text-[10px] leading-relaxed">
+                    Ce bloc génère une session de paiement officielle SasPay (Wave, Orange Money, MoMo, Carte) et transmet le lien sécurisé au client.
+                  </p>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-foreground">Message d'invitation</label>
-                  <textarea
+                  <VariableTextarea
                     rows={2}
                     placeholder="Voici votre lien sécurisé pour régler votre commande :"
-                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
                     value={
                       ((selectedNode.data.actionPayload as any)?.paymentMessage as string) || ''
                     }
@@ -460,15 +519,28 @@ export function PropertiesPanel({
                       })
                     }
                   />
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {['{{ amount }}', '{{ contact.name }}', '{{ order.id }}'].map((pill) => (
+                      <button
+                        key={pill}
+                        type="button"
+                        onClick={() => appendVariableToPayloadField('paymentMessage', pill)}
+                        className="px-2 py-0.5 rounded-full bg-muted text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border"
+                      >
+                        {pill}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-foreground">
-                    Montant fixe en FCFA (Optionnel)
+                    Montant en FCFA
                   </label>
                   <input
-                    type="number"
-                    placeholder="Laisser vide pour montant dynamique du panier"
-                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                    type="text"
+                    placeholder="Ex: 5000 ou {{ order.total }}"
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-semibold"
                     value={
                       ((selectedNode.data.actionPayload as any)?.paymentAmount as string) || ''
                     }
@@ -479,7 +551,62 @@ export function PropertiesPanel({
                       })
                     }
                   />
+                  <p className="text-[10px] text-muted-foreground">
+                    Montant fixe ou variable dynamique. Si vide, utilise le total du panier WhatsApp.
+                  </p>
                 </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Description du paiement</label>
+                  <input
+                    type="text"
+                    placeholder="Commande {{ contact.name }}"
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
+                    value={
+                      ((selectedNode.data.actionPayload as any)?.paymentDescription as string) || ''
+                    }
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        paymentDescription: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">
+                    Clé API Secrète SasPay (Optionnel)
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="sk_live_... (laisser vide pour la clé globale)"
+                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
+                    value={
+                      ((selectedNode.data.actionPayload as any)?.saspayApiKey as string) || ''
+                    }
+                    onChange={(e) =>
+                      handleChange('actionPayload', {
+                        ...((selectedNode.data.actionPayload as any) || {}),
+                        saspayApiKey: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleTestSingleNode}
+                  disabled={testingNode}
+                  className="w-full mt-2 flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors text-xs font-semibold shadow-xs disabled:opacity-50"
+                >
+                  {testingNode ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Play className="w-3.5 h-3.5" />
+                  )}
+                  <span>Tester la génération de lien SasPay</span>
+                </button>
               </div>
             )}
 
@@ -820,7 +947,19 @@ export function PropertiesPanel({
 
             {/* TELEGRAM BOT */}
             {selectedNode.data.actionType === 'telegram_message' && (
-              <div className="space-y-3">
+              <div className="space-y-3.5">
+                <div className="p-2.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-[11px] text-sky-900 dark:text-sky-200 space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-sky-600 dark:text-sky-400">
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Configuration Telegram</span>
+                  </div>
+                  <ul className="text-[10px] space-y-0.5 list-disc list-inside text-muted-foreground">
+                    <li>1. Créez un bot avec <b>@BotFather</b> et collez son Token.</li>
+                    <li>2. <b>Important :</b> Envoyez <b>/start</b> à votre bot sur Telegram pour autoriser les messages.</li>
+                    <li>3. Obtenez votre Chat ID personnel avec <b>@userinfobot</b> (ou l'ID du groupe).</li>
+                  </ul>
+                </div>
+
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-foreground">Opération Telegram</label>
                   <select
@@ -856,7 +995,7 @@ export function PropertiesPanel({
                     }
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Obtenu via @BotFather sur Telegram.
+                    Format : <code>123456789:AAF_abcdefghij...</code> fourni par @BotFather.
                   </p>
                 </div>
 
@@ -864,7 +1003,7 @@ export function PropertiesPanel({
                   <label className="text-xs font-semibold text-foreground">ID du Chat / Canal</label>
                   <input
                     type="text"
-                    placeholder="-100123456789 ou {{ contact.phone }}"
+                    placeholder="Ex: 123456789 ou -100123456789"
                     className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
                     value={((selectedNode.data.actionPayload as any)?.telegramChatId as string) || ''}
                     onChange={(e) =>
@@ -874,6 +1013,9 @@ export function PropertiesPanel({
                       })
                     }
                   />
+                  <p className="text-[10px] text-muted-foreground">
+                    Écrivez à <b>@userinfobot</b> sur Telegram pour obtenir instantanément votre Id numérique.
+                  </p>
                 </div>
 
                 {((selectedNode.data.actionPayload as any)?.telegramOperation === 'send_message' ||
@@ -892,6 +1034,18 @@ export function PropertiesPanel({
                         })
                       }
                     />
+                    <div className="flex flex-wrap gap-1 pt-1">
+                      {['{{ contact.name }}', '{{ contact.phone }}', '{{ message.text }}', '{{ now }}'].map((pill) => (
+                        <button
+                          key={pill}
+                          type="button"
+                          onClick={() => appendVariableToPayloadField('telegramText', pill)}
+                          className="px-2 py-0.5 rounded-full bg-muted text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border"
+                        >
+                          {pill}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
 
@@ -930,6 +1084,20 @@ export function PropertiesPanel({
                     </div>
                   </div>
                 )}
+
+                <button
+                  type="button"
+                  onClick={handleTestSingleNode}
+                  disabled={testingNode}
+                  className="w-full mt-2 flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-sky-600 text-white hover:bg-sky-700 transition-colors text-xs font-semibold shadow-xs disabled:opacity-50"
+                >
+                  {testingNode ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Send className="w-3.5 h-3.5" />
+                  )}
+                  <span>Tester l'envoi sur Telegram</span>
+                </button>
               </div>
             )}
 
