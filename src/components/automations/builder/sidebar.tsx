@@ -143,8 +143,8 @@ const BLOCKS: BlockItem[] = [
   {
     nodeType: 'actionNode',
     subType: 'create_saspay_payment',
-    label: 'Lien de Paiement SasPay',
-    description: 'Génère un paiement Wave, OM, MoMo ou Carte',
+    label: 'Lien de Paiement Sécurisé',
+    description: 'Paiement Wave, OM, MoMo ou Carte crédité sur Wallet',
     icon: CreditCard,
     iconColor: 'text-emerald-500',
     iconBg: 'bg-emerald-500/10 dark:bg-emerald-500/20',
@@ -290,7 +290,7 @@ const CATEGORIES = [
   { key: 'triggers', label: 'Déclencheurs', badge: 'Start' },
   { key: 'whatsapp', label: 'WhatsApp', badge: 'Actions' },
   { key: 'logic', label: 'Logique & Flux', badge: 'Control' },
-  { key: 'commerce', label: 'E-commerce & SasPay', badge: 'Pay' },
+  { key: 'commerce', label: 'Paiements & Commerce', badge: 'Pay' },
   { key: 'crm', label: 'CRM & Contacts', badge: 'CRM' },
   { key: 'integrations', label: 'Intégrations & Outils', badge: 'Apps' },
 ]
@@ -328,7 +328,7 @@ export function Sidebar() {
             <h2 className="font-semibold text-sm text-foreground">Noeuds du Workflow</h2>
           </div>
           <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-            n8n Style
+            Workflow Pro
           </span>
         </div>
         <p className="text-xs text-muted-foreground">

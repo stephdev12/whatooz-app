@@ -78,7 +78,7 @@ export function ActionNode({ data, selected }: ActionNodeProps) {
       case 'send_catalog':
         return 'Catalogue WhatsApp'
       case 'create_saspay_payment':
-        return 'Paiement SasPay'
+        return 'Lien de Paiement'
       case 'add_tag':
         return 'Ajout de tag CRM'
       case 'remove_tag':
@@ -120,7 +120,7 @@ export function ActionNode({ data, selected }: ActionNodeProps) {
       case 'send_catalog':
         return 'Catalogue complet'
       case 'create_saspay_payment':
-        return payload.amount || payload.paymentAmount ? `${payload.amount || payload.paymentAmount} (Fixe)` : 'Montant dynamique (Panier)'
+        return payload.amount || payload.paymentAmount ? `${payload.amount || payload.paymentAmount} FCFA` : 'Montant dynamique'
       case 'add_tag':
       case 'remove_tag':
         return payload.tagName ? `Tag: #${payload.tagName}` : 'Tag non défini'

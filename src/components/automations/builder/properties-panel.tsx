@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import { BuilderNode } from './types'
+import React, { useEffect, useState, useMemo } from 'react'
+import { BuilderNode, BuilderEdge } from './types'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
 import { VariableTextarea } from '@/components/ui/variable-textarea'
@@ -32,8 +32,101 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
+export interface FlowVariableItem {
+  name: string
+  label: string
+  flowName?: string
+  expression: string
+}
+
+function VariableChips({
+  onInsert,
+  flowVariables = [],
+  includeAmount = true,
+  includePaymentUrl = false,
+}: {
+  onInsert: (variableText: string) => void
+  flowVariables?: FlowVariableItem[]
+  includeAmount?: boolean
+  includePaymentUrl?: boolean
+}) {
+  const [justInserted, setJustInserted] = useState<string | null>(null)
+
+  const handleInsert = (expr: string) => {
+    onInsert(expr)
+    setJustInserted(expr)
+    setTimeout(() => setJustInserted(null), 1200)
+  }
+
+  const baseVars = [
+    { label: 'Nom', expr: '{{ contact.name }}' },
+    { label: 'Téléphone', expr: '{{ contact.phone }}' },
+    { label: 'Message', expr: '{{ message.text }}' },
+    { label: 'Date', expr: '{{ date }}' },
+    { label: 'Heure', expr: '{{ time }}' },
+    ...(includeAmount ? [{ label: 'Montant', expr: '{{ amount }}' }] : []),
+    ...(includePaymentUrl ? [{ label: 'Lien Paiement', expr: '{{ payment_url }}' }] : []),
+  ]
+
+  return (
+    <div className="space-y-1.5 pt-1">
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Sparkles className="w-2.5 h-2.5 text-primary" />
+          Insérer une variable :
+        </span>
+        {justInserted && (
+          <span className="text-[10px] text-emerald-600 font-medium animate-in fade-in">
+            ✓ Inséré
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-1">
+        {baseVars.map((v) => (
+          <button
+            key={v.expr}
+            type="button"
+            onClick={() => handleInsert(v.expr)}
+            className="group px-2 py-0.5 rounded-md bg-muted/80 hover:bg-muted text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border hover:border-primary/40 transition-colors flex items-center gap-1 cursor-pointer"
+            title={`Insérer ${v.expr}`}
+          >
+            <span className="text-foreground font-sans font-medium text-[9px]">{v.label}</span>
+            <span className="opacity-70 group-hover:opacity-100">{v.expr}</span>
+          </button>
+        ))}
+      </div>
+
+      {flowVariables && flowVariables.length > 0 && (
+        <div className="space-y-1 pt-1.5 border-t border-border/50">
+          <div className="flex items-center gap-1 text-[10px] font-medium text-purple-700 dark:text-purple-300">
+            <Layers className="w-2.5 h-2.5" />
+            <span>Variables Flow WhatsApp ({flowVariables[0]?.flowName || 'Formulaire'}) :</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {flowVariables.map((fv) => (
+              <button
+                key={fv.expression}
+                type="button"
+                onClick={() => handleInsert(fv.expression)}
+                className="group px-2 py-0.5 rounded-md bg-purple-500/10 hover:bg-purple-500/20 text-[10px] font-mono text-purple-800 dark:text-purple-200 border border-purple-500/30 hover:border-purple-500/60 transition-colors flex items-center gap-1 cursor-pointer"
+                title={`Insérer la réponse du champ "${fv.label}" (${fv.expression})`}
+              >
+                <span className="font-sans font-medium text-[9px]">{fv.label} :</span>
+                <span>{fv.expression}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 interface PropertiesPanelProps {
   selectedNode: BuilderNode
+  nodes?: any[]
+  edges?: any[]
   onUpdateNode: (nodeId: string, data: any) => void
   onDeleteNode?: (nodeId: string) => void
   onClose?: () => void
@@ -41,6 +134,8 @@ interface PropertiesPanelProps {
 
 export function PropertiesPanel({
   selectedNode,
+  nodes = [],
+  edges = [],
   onUpdateNode,
   onDeleteNode,
   onClose,
@@ -53,6 +148,128 @@ export function PropertiesPanel({
   const [aiAgents, setAiAgents] = useState<any[]>([])
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
   const [testingNode, setTestingNode] = useState(false)
+
+  // Dynamically extract variables from WhatsApp Flows in the workflow DAG
+  const upstreamFlowVariables = useMemo<FlowVariableItem[]>(() => {
+    if (!selectedNode) return []
+
+    // 1. Ancestor node IDs via incoming edges
+    const ancestorIds = new Set<string>()
+    if (edges && edges.length > 0) {
+      const queue = [selectedNode.id]
+      while (queue.length > 0) {
+        const curr = queue.shift()!
+        for (const edge of edges) {
+          if (edge.target === curr && !ancestorIds.has(edge.source)) {
+            ancestorIds.add(edge.source)
+            queue.push(edge.source)
+          }
+        }
+      }
+    }
+
+    // 2. Identify candidate flow nodes: prefer ancestors, fallback to all nodes in workflow
+    const candidateNodes = (nodes || []).filter((n) => {
+      if (ancestorIds.size > 0 && ancestorIds.has(n.id)) return true
+      return false
+    })
+
+    const effectiveNodes = candidateNodes.length > 0 ? candidateNodes : (nodes || [])
+    const referencedFlowIds = new Set<string>()
+
+    for (const node of effectiveNodes) {
+      if ((node.type === 'triggerNode' || node.type === 'trigger') && node.data?.triggerType === 'flow_completed' && node.data.triggerValue) {
+        referencedFlowIds.add(String(node.data.triggerValue))
+      }
+      if (node.type === 'actionNode' && node.data?.actionType === 'send_flow') {
+        const fid = node.data?.flowId || (node.data?.actionPayload as any)?.flowId
+        if (fid) referencedFlowIds.add(String(fid))
+      }
+    }
+
+    // Also include selectedNode if it is itself a flow trigger or send_flow
+    if ((selectedNode.type === 'triggerNode' || (selectedNode.type as string) === 'trigger') && selectedNode.data?.triggerType === 'flow_completed' && selectedNode.data.triggerValue) {
+      referencedFlowIds.add(String(selectedNode.data.triggerValue))
+    }
+    if (selectedNode.type === 'actionNode' && selectedNode.data?.actionType === 'send_flow') {
+      const fid = selectedNode.data?.flowId || (selectedNode.data?.actionPayload as any)?.flowId
+      if (fid) referencedFlowIds.add(String(fid))
+    }
+
+    const result: FlowVariableItem[] = []
+    const seen = new Set<string>()
+
+    for (const flowId of Array.from(referencedFlowIds)) {
+      const flow = flows.find(
+        (f) => String(f.meta_flow_id) === String(flowId) || String(f.id) === String(flowId)
+      )
+      if (!flow) continue
+
+      let flowJson = flow.flow_json
+      if (typeof flowJson === 'string') {
+        try {
+          flowJson = JSON.parse(flowJson)
+        } catch {}
+      }
+      if (!flowJson) continue
+
+      const extractFromObj = (obj: any) => {
+        if (!obj || typeof obj !== 'object') return
+        const isExcluded = ['Screen', 'Footer', 'Form', 'OptIn', 'layout'].includes(obj.type)
+        if (obj.name && typeof obj.name === 'string' && !isExcluded) {
+          const varName = obj.name.trim()
+          if (varName && !varName.startsWith('form_') && !seen.has(varName)) {
+            seen.add(varName)
+            result.push({
+              name: varName,
+              label: obj.label || obj.title || varName,
+              flowName: flow.name,
+              expression: `{{ flow.response.${varName} }}`,
+            })
+          }
+        }
+        if (obj['on-click-action']?.payload && typeof obj['on-click-action'].payload === 'object') {
+          for (const k of Object.keys(obj['on-click-action'].payload)) {
+            if (k && !seen.has(k)) {
+              seen.add(k)
+              result.push({
+                name: k,
+                label: k,
+                flowName: flow.name,
+                expression: `{{ flow.response.${k} }}`,
+              })
+            }
+          }
+        }
+        Object.values(obj).forEach((val) => extractFromObj(val))
+      }
+
+      if (Array.isArray(flowJson._whatooz_visual_state)) {
+        for (const scr of flowJson._whatooz_visual_state) {
+          if (Array.isArray(scr?.components)) {
+            for (const c of scr.components) {
+              if (c?.name && typeof c.name === 'string') {
+                const varName = c.name.trim()
+                if (varName && !seen.has(varName)) {
+                  seen.add(varName)
+                  result.push({
+                    name: varName,
+                    label: c.label || c.title || varName,
+                    flowName: flow.name,
+                    expression: `{{ flow.response.${varName} }}`,
+                  })
+                }
+              }
+            }
+          }
+        }
+      }
+
+      extractFromObj(flowJson.screens || flowJson)
+    }
+
+    return result
+  }, [selectedNode, nodes, edges, flows])
 
   const handleTestSingleNode = async () => {
     if (!activeOrganization) return
@@ -73,7 +290,7 @@ export function PropertiesPanel({
       const data = await res.json()
       if (data.success) {
         if (selectedNode.data.actionType === 'create_saspay_payment') {
-          toast.success(`Lien SasPay généré avec succès !`, {
+          toast.success(`Lien de paiement généré avec succès !`, {
             description: `Lien: ${data.output?.checkoutUrl} (${data.output?.amount} FCFA)`,
             duration: 8000,
           })
@@ -115,7 +332,7 @@ export function PropertiesPanel({
         })
         if (resFlows.ok) {
           const { flows } = await resFlows.json()
-          if (flows) setFlows(flows.filter((f: any) => f.status === 'PUBLISHED'))
+          if (flows) setFlows(flows)
         }
 
         const supabase = createClient()
@@ -344,8 +561,8 @@ export function PropertiesPanel({
                   <option value="send_template">Envoyer un Modèle (Template)</option>
                   <option value="send_flow">Envoyer un Flow WhatsApp</option>
                 </optgroup>
-                <optgroup label="Commerce & SasPay">
-                  <option value="create_saspay_payment">Demande de Paiement SasPay</option>
+                <optgroup label="Paiements & Commerce">
+                  <option value="create_saspay_payment">Lien de Paiement Sécurisé (Mobile Money & Carte)</option>
                   <option value="send_catalog">Envoyer le Catalogue</option>
                   <option value="send_product">Envoyer un Produit</option>
                   <option value="send_product_list">Envoyer une Liste de Produits</option>
@@ -384,26 +601,12 @@ export function PropertiesPanel({
                     })
                   }
                 />
-                {/* Variable injection chips */}
-                <div className="space-y-1">
-                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                    Insérer une variable :
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {['{{ contact.name }}', '{{ contact.phone }}', '{{ message.text }}'].map(
-                      (pill) => (
-                        <button
-                          key={pill}
-                          type="button"
-                          onClick={() => appendVariableToPayloadField('text', pill)}
-                          className="px-2 py-0.5 rounded-full bg-muted text-[10px] font-mono text-muted-foreground hover:text-foreground hover:bg-muted/80 border border-border transition-colors"
-                        >
-                          {pill}
-                        </button>
-                      )
-                    )}
-                  </div>
-                </div>
+                <VariableChips
+                  onInsert={(v) => appendVariableToPayloadField('text', v)}
+                  flowVariables={upstreamFlowVariables}
+                  includeAmount={true}
+                  includePaymentUrl={true}
+                />
               </div>
             )}
 
@@ -458,10 +661,10 @@ export function PropertiesPanel({
                     value={(selectedNode.data.flowId as string) || ''}
                     onChange={(e) => handleChange('flowId', e.target.value)}
                   >
-                    <option value="">Sélectionner un flow publié...</option>
+                    <option value="">Sélectionner un flow...</option>
                     {flows.map((f) => (
                       <option key={f.id} value={f.id}>
-                        {f.name}
+                        {f.name} {f.status ? `(${f.status})` : ''}
                       </option>
                     ))}
                   </select>
@@ -480,35 +683,42 @@ export function PropertiesPanel({
 
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-foreground">Message d'accroche</label>
-                  <textarea
+                  <VariableTextarea
                     rows={2}
                     placeholder="Veuillez remplir vos informations ci-dessous :"
-                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs"
                     value={(selectedNode.data.ctaMessage as string) || ''}
                     onChange={(e) => handleChange('ctaMessage', e.target.value)}
+                  />
+                  <VariableChips
+                    onInsert={(v) => {
+                      const current = (selectedNode.data.ctaMessage as string) || ''
+                      handleChange('ctaMessage', current ? `${current} ${v}` : v)
+                    }}
+                    flowVariables={upstreamFlowVariables}
+                    includeAmount={true}
                   />
                 </div>
               </div>
             )}
 
-            {/* SASPAY PAYMENT */}
+            {/* PAYMENT LINK */}
             {selectedNode.data.actionType === 'create_saspay_payment' && (
               <div className="space-y-3.5">
-                <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
-                  <div className="flex items-center gap-1.5 font-semibold">
-                    <CreditCard className="w-3.5 h-3.5" />
-                    <span>Passerelle SasPay Sécurisée</span>
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-800 dark:text-emerald-300 space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-semibold text-xs">
+                    <CreditCard className="w-4 h-4 text-emerald-600" />
+                    <span>Lien de Paiement Sécurisé</span>
                   </div>
-                  <p className="text-[10px] leading-relaxed">
-                    Ce bloc génère une session de paiement officielle SasPay (Wave, Orange Money, MoMo, Carte) et transmet le lien sécurisé au client.
+                  <p className="text-[11px] leading-relaxed text-emerald-800/90 dark:text-emerald-300/90">
+                    Ce bloc génère un lien sécurisé compatible Wave, Orange Money, MTN, Moov et Carte bancaire. Les fonds collectés sont automatiquement crédités sur votre portefeuille personnel Whatooz (Wallet).
                   </p>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold text-foreground">Message d'invitation</label>
+                  <label className="text-xs font-semibold text-foreground">Message d'invitation au paiement</label>
                   <VariableTextarea
                     rows={2}
-                    placeholder="Voici votre lien sécurisé pour régler votre commande :"
+                    placeholder="Veuillez régler votre paiement de {{ amount }} FCFA via ce lien :"
                     value={
                       ((selectedNode.data.actionPayload as any)?.paymentMessage as string) || ''
                     }
@@ -519,18 +729,12 @@ export function PropertiesPanel({
                       })
                     }
                   />
-                  <div className="flex flex-wrap gap-1 pt-1">
-                    {['{{ amount }}', '{{ contact.name }}', '{{ order.id }}'].map((pill) => (
-                      <button
-                        key={pill}
-                        type="button"
-                        onClick={() => appendVariableToPayloadField('paymentMessage', pill)}
-                        className="px-2 py-0.5 rounded-full bg-muted text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border"
-                      >
-                        {pill}
-                      </button>
-                    ))}
-                  </div>
+                  <VariableChips
+                    onInsert={(v) => appendVariableToPayloadField('paymentMessage', v)}
+                    flowVariables={upstreamFlowVariables}
+                    includeAmount={true}
+                    includePaymentUrl={true}
+                  />
                 </div>
 
                 <div className="space-y-1">
@@ -552,8 +756,43 @@ export function PropertiesPanel({
                     }
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    Montant fixe ou variable dynamique. Si vide, utilise le total du panier WhatsApp.
+                    Montant fixe ou variable dynamique. Si vide, utilise le montant du panier WhatsApp.
                   </p>
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleChange('actionPayload', {
+                          ...((selectedNode.data.actionPayload as any) || {}),
+                          paymentAmount: '{{ order.total }}',
+                        })
+                      }
+                      className="px-2 py-0.5 rounded-md bg-muted hover:bg-muted/80 text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border cursor-pointer"
+                    >
+                      Panier: {'{{ order.total }}'}
+                    </button>
+                    {upstreamFlowVariables
+                      .filter((fv) =>
+                        ['montant', 'amount', 'prix', 'total', 'price', 'somme'].some((k) =>
+                          fv.name.toLowerCase().includes(k)
+                        )
+                      )
+                      .map((fv) => (
+                        <button
+                          key={fv.expression}
+                          type="button"
+                          onClick={() =>
+                            handleChange('actionPayload', {
+                              ...((selectedNode.data.actionPayload as any) || {}),
+                              paymentAmount: fv.expression,
+                            })
+                          }
+                          className="px-2 py-0.5 rounded-md bg-purple-500/10 hover:bg-purple-500/20 text-[10px] font-mono text-purple-700 dark:text-purple-300 border border-purple-500/30 cursor-pointer"
+                        >
+                          {fv.label}: {fv.expression}
+                        </button>
+                      ))}
+                  </div>
                 </div>
 
                 <div className="space-y-1">
@@ -572,25 +811,10 @@ export function PropertiesPanel({
                       })
                     }
                   />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-semibold text-foreground">
-                    Clé API Secrète SasPay (Optionnel)
-                  </label>
-                  <input
-                    type="password"
-                    placeholder="sk_live_... (laisser vide pour la clé globale)"
-                    className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg text-xs font-mono"
-                    value={
-                      ((selectedNode.data.actionPayload as any)?.saspayApiKey as string) || ''
-                    }
-                    onChange={(e) =>
-                      handleChange('actionPayload', {
-                        ...((selectedNode.data.actionPayload as any) || {}),
-                        saspayApiKey: e.target.value,
-                      })
-                    }
+                  <VariableChips
+                    onInsert={(v) => appendVariableToPayloadField('paymentDescription', v)}
+                    flowVariables={upstreamFlowVariables}
+                    includeAmount={true}
                   />
                 </div>
 
@@ -605,7 +829,7 @@ export function PropertiesPanel({
                   ) : (
                     <Play className="w-3.5 h-3.5" />
                   )}
-                  <span>Tester la génération de lien SasPay</span>
+                  <span>Tester la génération du lien de paiement</span>
                 </button>
               </div>
             )}
@@ -696,10 +920,16 @@ export function PropertiesPanel({
                     })
                   }
                 />
+                <VariableChips
+                  onInsert={(v) => appendVariableToPayloadField('prompt', v)}
+                  flowVariables={upstreamFlowVariables}
+                  includeAmount={true}
+                  includePaymentUrl={true}
+                />
               </div>
             )}
 
-            {/* HTTP REQUEST (n8n-style) */}
+            {/* HTTP REQUEST */}
             {selectedNode.data.actionType === 'http_request' && (
               <div className="space-y-4">
                 <div className="flex gap-2">
@@ -923,6 +1153,12 @@ export function PropertiesPanel({
                         })
                       }
                     />
+                    <VariableChips
+                      onInsert={(v) => appendVariableToPayloadField('body', v)}
+                      flowVariables={upstreamFlowVariables}
+                      includeAmount={true}
+                      includePaymentUrl={true}
+                    />
                   </div>
                 )}
 
@@ -1034,18 +1270,12 @@ export function PropertiesPanel({
                         })
                       }
                     />
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {['{{ contact.name }}', '{{ contact.phone }}', '{{ message.text }}', '{{ now }}'].map((pill) => (
-                        <button
-                          key={pill}
-                          type="button"
-                          onClick={() => appendVariableToPayloadField('telegramText', pill)}
-                          className="px-2 py-0.5 rounded-full bg-muted text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border"
-                        >
-                          {pill}
-                        </button>
-                      ))}
-                    </div>
+                    <VariableChips
+                      onInsert={(v) => appendVariableToPayloadField('telegramText', v)}
+                      flowVariables={upstreamFlowVariables}
+                      includeAmount={true}
+                      includePaymentUrl={true}
+                    />
                   </div>
                 )}
 
@@ -1418,6 +1648,11 @@ export function PropertiesPanel({
                           })
                         }
                       />
+                      <VariableChips
+                        onInsert={(v) => appendVariableToPayloadField('notionPageTitle', v)}
+                        flowVariables={upstreamFlowVariables}
+                        includeAmount={true}
+                      />
                     </div>
 
                     <div className="space-y-2">
@@ -1433,6 +1668,11 @@ export function PropertiesPanel({
                             notionPropertiesJson: e.target.value,
                           })
                         }
+                      />
+                      <VariableChips
+                        onInsert={(v) => appendVariableToPayloadField('notionPropertiesJson', v)}
+                        flowVariables={upstreamFlowVariables}
+                        includeAmount={true}
                       />
                     </div>
                   </div>
@@ -1468,6 +1708,11 @@ export function PropertiesPanel({
                           })
                         }
                       />
+                      <VariableChips
+                        onInsert={(v) => appendVariableToPayloadField('notionContent', v)}
+                        flowVariables={upstreamFlowVariables}
+                        includeAmount={true}
+                      />
                     </div>
                   </div>
                 )}
@@ -1488,10 +1733,22 @@ export function PropertiesPanel({
                 value={(selectedNode.data.conditionField as string) || 'message.text'}
                 onChange={(e) => handleChange('conditionField', e.target.value)}
               >
-                <option value="message.text">Texte du message reçu (message.text)</option>
-                <option value="contact.name">Nom du client (contact.name)</option>
-                <option value="contact.phone">Numéro de téléphone (contact.phone)</option>
-                <option value="order.total">Montant total de commande (order.total)</option>
+                <optgroup label="Champs généraux">
+                  <option value="message.text">Texte du message reçu (message.text)</option>
+                  <option value="contact.name">Nom du client (contact.name)</option>
+                  <option value="contact.phone">Numéro de téléphone (contact.phone)</option>
+                  <option value="order.total">Montant total de commande (order.total)</option>
+                  <option value="amount">Montant (amount)</option>
+                </optgroup>
+                {upstreamFlowVariables.length > 0 && (
+                  <optgroup label={`Formulaire Flow (${upstreamFlowVariables[0]?.flowName || 'WhatsApp'})`}>
+                    {upstreamFlowVariables.map((fv) => (
+                      <option key={fv.expression} value={`flow.response.${fv.name}`}>
+                        {fv.label} (flow.response.{fv.name})
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
 
@@ -1530,7 +1787,7 @@ export function PropertiesPanel({
               )}
 
             <div className="p-2.5 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[11px] text-purple-700 dark:text-purple-300">
-              💡 <strong>n8n Branching :</strong> Connectez la sortie <strong>VRAI</strong> vers
+              💡 <strong>Branchement conditionnel :</strong> Connectez la sortie <strong>VRAI</strong> vers
               l'action si la condition est remplie, et <strong>FAUX</strong> pour l'alternative.
             </div>
           </div>

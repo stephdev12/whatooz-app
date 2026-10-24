@@ -20,10 +20,13 @@ export interface WorkflowEngineConfig {
  * Supports:
  * - {{ contact.name }}, {{ contact.phone }}, {{ contact.id }}
  * - {{ message.text }}, {{ message.id }}
- * - {{ flow.response.FIELD_NAME }}
- * - {{ order.id }}, {{ order.total }}
+ * - {{ flow.response.FIELD_NAME }}, {{ flow.FIELD_NAME }}
+ * - {{ amount }}, {{ payment_amount }}, {{ montant }}, {{ total }}
+ * - {{ payment_url }}, {{ checkout_url }}, {{ lien_paiement }}
+ * - {{ order.id }}, {{ order.total }}, {{ order.total_amount }}
  * - {{ steps.NODE_ID.FIELD }}
- * - {{ variables.VAR_NAME }}
+ * - {{ variables.VAR_NAME }} or direct {{ VAR_NAME }}
+ * - {{ now }}, {{ date }}, {{ time }}
  */
 export function interpolateVariables(text: string, context: WorkflowExecutionContext): string {
   if (!text || typeof text !== 'string') return text
@@ -41,11 +44,39 @@ export function interpolateVariables(text: string, context: WorkflowExecutionCon
     if (trimmed === 'date') return new Date().toLocaleDateString('fr-FR')
     if (trimmed === 'time') return new Date().toLocaleTimeString('fr-FR')
 
-    // 2. Flow response variables: {{ flow.response.some_key }}
+    // Amount & payment aliases: {{ amount }}, {{ payment_amount }}, {{ montant }}, {{ total }}
+    if (trimmed === 'amount' || trimmed === 'payment_amount' || trimmed === 'montant' || trimmed === 'total') {
+      const amt =
+        context.variables?.amount ??
+        context.variables?.payment_amount ??
+        context.variables?.montant ??
+        context.variables?.total ??
+        context.order?.total_amount ??
+        context.order?.total ??
+        context.flowResponse?.amount ??
+        context.flowResponse?.montant ??
+        context.flowResponse?.total
+      if (amt !== undefined && amt !== null && amt !== '') return String(amt)
+      return ''
+    }
+
+    // Payment URLs: {{ payment_url }}, {{ checkout_url }}, {{ lien_paiement }}
+    if (trimmed === 'payment_url' || trimmed === 'checkout_url' || trimmed === 'lien_paiement') {
+      const url = context.variables?.payment_url ?? context.variables?.checkout_url
+      if (url) return String(url)
+      return ''
+    }
+
+    // 2. Flow response variables: {{ flow.response.some_key }} or {{ flow.some_key }}
     if (trimmed.startsWith('flow.response.') && context.flowResponse) {
       const key = trimmed.replace('flow.response.', '').trim()
       const val = context.flowResponse[key]
       return val !== undefined && val !== null ? String(val) : ''
+    }
+    if (trimmed.startsWith('flow.') && context.flowResponse) {
+      const key = trimmed.replace('flow.', '').trim()
+      const val = context.flowResponse[key]
+      if (val !== undefined && val !== null) return String(val)
     }
 
     // 3. Step execution results: {{ steps.NODE_ID.some_key }}
@@ -66,7 +97,21 @@ export function interpolateVariables(text: string, context: WorkflowExecutionCon
       return val !== undefined && val !== null ? String(val) : ''
     }
 
-    // Fallback: search in context directly
+    // 5. Direct variable lookup without prefix (from variables, flowResponse or order)
+    if (context.variables && trimmed in context.variables) {
+      const val = context.variables[trimmed]
+      if (val !== undefined && val !== null) return String(val)
+    }
+    if (context.flowResponse && trimmed in context.flowResponse) {
+      const val = context.flowResponse[trimmed]
+      if (val !== undefined && val !== null) return String(val)
+    }
+    if (context.order && trimmed in context.order) {
+      const val = context.order[trimmed]
+      if (val !== undefined && val !== null) return String(val)
+    }
+
+    // 6. Fallback: search in context directly
     const parts = trimmed.split('.')
     let current: any = context
     for (const part of parts) {
@@ -386,13 +431,23 @@ export async function executeActionNode(
         rawAmount = context.order.total
       } else if (!rawAmount && context.flowResponse?.amount) {
         rawAmount = context.flowResponse.amount
+      } else if (!rawAmount && context.flowResponse?.montant) {
+        rawAmount = context.flowResponse.montant
+      } else if (!rawAmount && context.variables?.amount) {
+        rawAmount = context.variables.amount
       }
       
       const resolvedAmountStr = interpolateVariables(String(rawAmount || '1000'), context).trim()
       const numericAmount = Math.max(100, Math.round(parseFloat(resolvedAmountStr) || 1000))
 
+      // Crucial: Set amount in variables immediately so subsequent expressions in description & message have it!
+      if (!context.variables) context.variables = {}
+      context.variables.amount = numericAmount
+      context.variables.payment_amount = numericAmount
+      context.variables.montant = numericAmount
+
       // 2. Resolve credentials & parameters
-      const apiKey = (payload.apiKey || payload.saspayApiKey || process.env.SASPAY_API_KEY || '').trim()
+      const apiKey = (process.env.SASPAY_API_KEY || payload.apiKey || payload.saspayApiKey || '').trim()
       const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://whatooz.space'
       const returnUrl = payload.returnUrl || `${baseUrl}/shop`
       const rawDescription = payload.description || payload.paymentDescription || `Paiement WhatsApp - ${context.contact.name || recipientPhone}`
@@ -400,12 +455,12 @@ export async function executeActionNode(
 
       if (!apiKey || apiKey === 'sk_live_votre_cle_secrete_saspay') {
         throw new Error(
-          `Clé API SasPay non configurée. Veuillez renseigner votre clé secrète SasPay (sk_live_...) dans la configuration du bloc de paiement ou définir SASPAY_API_KEY.`
+          `Configuration du service de paiement indisponible côté serveur. Veuillez contacter le support.`
         )
       }
 
-      // 3. Call REAL SasPay Checkout Session API
-      console.log(`[Workflow Engine] Creating SasPay session: ${numericAmount} XOF for ${recipientPhone}`)
+      // 3. Call REAL Checkout Session API
+      console.log(`[Workflow Engine] Creating Payment session: ${numericAmount} XOF for ${recipientPhone}`)
       const saspayResponse = await fetch('https://api.saspay.me/api/v1/checkout-sessions/', {
         method: 'POST',
         headers: {
@@ -433,14 +488,14 @@ export async function executeActionNode(
 
       if (!saspayResponse.ok) {
         const errorDetail = saspayData.error?.detail || saspayData.message || saspayData.detail || JSON.stringify(saspayData)
-        throw new Error(`Erreur API SasPay (${saspayResponse.status}): ${errorDetail}`)
+        throw new Error(`Erreur lors de la génération du lien de paiement (${saspayResponse.status}): ${errorDetail}`)
       }
 
       const checkoutUrl = saspayData.data?.checkout_url || saspayData.checkout_url
       const sessionId = saspayData.data?.id || saspayData.id
 
       if (!checkoutUrl) {
-        throw new Error(`SasPay n'a pas retourné de lien de paiement valide: ${JSON.stringify(saspayData)}`)
+        throw new Error(`Le service de paiement n'a pas retourné de lien de paiement valide.`)
       }
 
       // 4. Record transaction in database
@@ -465,16 +520,15 @@ export async function executeActionNode(
       }
 
       // 5. Expose variables for subsequent nodes
-      if (!context.variables) context.variables = {}
       context.variables.payment_url = checkoutUrl
       context.variables.checkout_url = checkoutUrl
-      context.variables.amount = numericAmount
-      context.variables.payment_amount = numericAmount
 
       // 6. Build and send WhatsApp message with REAL link
       const rawMsg = payload.message || payload.paymentMessage || data.paymentMessage || `Veuillez régler votre paiement de {{ amount }} FCFA via ce lien sécurisé :`
       const resolvedMsg = interpolateVariables(rawMsg, context)
-      const fullText = `${resolvedMsg}\n\n👉 Lien de paiement sécurisé : ${checkoutUrl}`
+      const fullText = resolvedMsg.includes(checkoutUrl)
+        ? resolvedMsg
+        : `${resolvedMsg}\n\n👉 Lien de paiement sécurisé : ${checkoutUrl}`
 
       let res: any = { checkoutUrl, sessionId, amount: numericAmount }
 
@@ -1178,7 +1232,7 @@ async function logOutboundMessage(
 }
 
 /**
- * Execute an entire automation workflow (Graph DAG traversal, n8n-style).
+ * Execute an entire automation workflow (Graph DAG traversal engine).
  */
 export async function executeAutomationWorkflow(
   automation: {

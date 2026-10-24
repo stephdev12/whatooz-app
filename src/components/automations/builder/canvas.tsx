@@ -224,7 +224,7 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
             ...newNode.data,
             actionType: 'create_saspay_payment',
             actionPayload: {
-              paymentMessage: 'Veuillez régler votre commande via SasPay :',
+              paymentMessage: 'Veuillez régler votre commande via le lien sécurisé suivant :',
               paymentAmount: '',
             },
           }
@@ -490,6 +490,8 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
           <div className="absolute inset-y-0 right-0 z-40 md:relative bg-card h-full w-full md:w-88 shadow-xl md:shadow-none border-l border-border">
             <PropertiesPanel
               selectedNode={nodes.find((n) => n.id === selectedNodeId) as BuilderNode}
+              nodes={nodes}
+              edges={edges}
               onUpdateNode={updateNodeData}
               onDeleteNode={deleteNode}
               onClose={() => setSelectedNodeId(null)}
@@ -606,7 +608,7 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
                               </p>
                             )}
 
-                            {/* Special view for SasPay link */}
+                            {/* Special view for Payment link */}
                             {log.output?.checkoutUrl && (
                               <div className="pt-1">
                                 <a
@@ -615,7 +617,7 @@ export function Canvas({ initialNodes = [], initialEdges = [], onSave }: CanvasP
                                   rel="noopener noreferrer"
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-xs"
                                 >
-                                  <span>Tester le lien SasPay généré</span>
+                                  <span>Tester le lien de paiement généré</span>
                                   <ExternalLink className="w-3.5 h-3.5" />
                                 </a>
                               </div>

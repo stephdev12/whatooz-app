@@ -96,7 +96,7 @@ export interface ActionNodeData extends BaseNodeData {
     url?: string
     headers?: Record<string, string>
     body?: string
-    // Advanced HTTP Request Options (n8n-grade)
+    // Advanced HTTP Request Options (Workflow Engine)
     authType?: 'none' | 'bearer' | 'basic' | 'header' | 'query'
     authToken?: string
     authUsername?: string

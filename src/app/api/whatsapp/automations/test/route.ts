@@ -73,7 +73,10 @@ export async function POST(request: NextRequest) {
         total: 2500,
         total_amount: 2500,
       },
-      variables: {},
+      variables: {
+        amount: 2500,
+        payment_amount: 2500,
+      },
       steps: {},
       logs: [],
     }
