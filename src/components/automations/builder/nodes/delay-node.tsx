@@ -12,47 +12,49 @@ export function DelayNode({ data, selected }: DelayNodeProps) {
   const duration = data.delayMinutes || 1
 
   return (
-    <div
-      className={`relative min-w-[220px] max-w-[280px] bg-card rounded-xl shadow-sm border ${
-        selected
-          ? 'border-slate-500 ring-2 ring-slate-500/20 shadow-lg'
-          : 'border-border hover:border-border/80'
-      } transition-all duration-150 select-none`}
-    >
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="!w-3 !h-3 !bg-muted-foreground/40 hover:!bg-slate-500 !border-2 !border-background rounded-full -ml-1.5 transition-colors"
-      />
+    <div className="relative flex flex-col items-center select-none group">
+      {/* Sleek minimal n8n rectangle */}
+      <div
+        className={`relative w-[96px] h-[84px] bg-card rounded-2xl flex flex-col items-center justify-center transition-all duration-150 border-2 ${
+          selected
+            ? 'border-amber-500 ring-4 ring-amber-500/20 shadow-lg scale-105'
+            : 'border-border/80 hover:border-border hover:shadow-md'
+        }`}
+      >
+        {/* Enlarged Input Handle on Left (Target) */}
+        <Handle
+          type="target"
+          position={Position.Left}
+          className="!w-4 !h-4 !bg-zinc-400 dark:!bg-zinc-500 hover:!bg-amber-500 !border-2 !border-background rounded-full -ml-2 hover:!scale-130 transition-transform cursor-crosshair shadow-md"
+          title="Point d'entrée du délai"
+        />
 
-      {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-border/60 bg-muted/20 rounded-t-xl">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="p-1 rounded-md bg-muted text-muted-foreground border border-border shrink-0">
-            <Clock className="w-4 h-4" />
-          </div>
-          <h3 className="text-xs font-semibold text-foreground truncate">
-            {data.label || 'Délai d\'attente'}
-          </h3>
+        {/* Central Icon & Duration Pill */}
+        <div className="flex flex-col items-center justify-center p-2 rounded-xl group-hover:scale-110 transition-transform gap-1">
+          <Clock className="w-6 h-6 text-amber-500" />
+          <span className="text-[10px] font-bold text-foreground bg-muted px-1.5 py-0.2 rounded-md">
+            {duration}m
+          </span>
         </div>
-        <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0 ml-2">
-          Pause
-        </span>
+
+        {/* Enlarged Output Handle on Right (Source) */}
+        <Handle
+          type="source"
+          position={Position.Right}
+          className="!w-4 !h-4 !bg-amber-500 !border-2 !border-background rounded-full -mr-2 hover:!scale-130 transition-transform cursor-crosshair shadow-md"
+          title="Reprendre après la pause"
+        />
       </div>
 
-      {/* Body */}
-      <div className="p-3 text-[11px] flex justify-between items-center text-muted-foreground">
-        <span className="text-[10px] uppercase font-medium tracking-wider">Durée</span>
-        <span className="font-semibold text-foreground bg-muted px-2 py-0.5 rounded text-xs">
-          {duration} min{duration > 1 ? 's' : ''}
-        </span>
+      {/* Label and subtitle outside under the node */}
+      <div className="mt-2 text-center select-none pointer-events-none max-w-[120px]">
+        <div className="text-xs font-semibold text-foreground truncate leading-tight">
+          {data.label || 'Délai'}
+        </div>
+        <div className="text-[10px] text-muted-foreground truncate mt-0.5 font-medium">
+          Attente {duration} min{duration > 1 ? 's' : ''}
+        </div>
       </div>
-
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="!w-3 !h-3 !bg-muted-foreground/40 hover:!bg-slate-500 !border-2 !border-background rounded-full -mr-1.5 transition-colors"
-      />
     </div>
   )
 }
