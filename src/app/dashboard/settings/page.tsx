@@ -1,45 +1,23 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
 import {
   Settings as SettingsIcon,
-  Phone,
-  Key,
-  Hash,
   CheckCircle2,
-  AlertCircle,
   Loader2,
   Save,
-  Sparkles,
   Palette,
   Image as ImageIcon,
   Type,
   ExternalLink,
-  RefreshCw
 } from 'lucide-react'
-import { MetaEmbeddedSignupButton } from '@/components/whatsapp/meta-embedded-signup-button'
+import { NumbersManager } from '@/components/whatsapp/numbers-manager'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
-interface WhatsAppConfig {
-  phone_number_id: string
-  waba_id: string
-  display_phone_number: string
-  verified_name: string
-  has_token: boolean
-  connected: boolean
-}
-
 export default function SettingsPage() {
   const { activeOrganization } = useOrganization()
-  const [config, setConfig] = useState<WhatsAppConfig | null>(null)
-  
-  // WhatsApp State
-  const [accessToken, setAccessToken] = useState('')
-  const [phoneNumberId, setPhoneNumberId] = useState('')
-  const [wabaId, setWabaId] = useState('')
   
   // Mini Site State
   const [logoUrl, setLogoUrl] = useState('')
@@ -47,42 +25,18 @@ export default function SettingsPage() {
   const [themeColor, setThemeColor] = useState('#4f46e5')
   
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-
   const [savingMiniSite, setSavingMiniSite] = useState(false)
   const [miniSiteSuccess, setMiniSiteSuccess] = useState('')
-  const [resyncing, setResyncing] = useState(false)
-
-  const searchParams = useSearchParams()
-
-  // Handle callback redirect params (from Hosted Embedded Signup)
-  useEffect(() => {
-    const metaConnected = searchParams.get('meta_connected')
-    const callbackError = searchParams.get('error')
-    
-    if (metaConnected === 'true') {
-      setSuccess('Compte WhatsApp connecté avec succès via Meta !')
-      loadConfig()
-      // Clean URL
-      window.history.replaceState({}, '', '/dashboard/settings')
-    }
-    if (callbackError) {
-      setError(decodeURIComponent(callbackError))
-      window.history.replaceState({}, '', '/dashboard/settings')
-    }
-  }, [searchParams])
 
   useEffect(() => {
     if (activeOrganization) {
-      loadConfig()
       loadOrgDetails()
     }
   }, [activeOrganization])
 
   async function loadOrgDetails() {
     if (!activeOrganization) return
+    setLoading(true)
     const supabase = createClient()
     const { data } = await supabase
       .from('organizations')
@@ -95,87 +49,7 @@ export default function SettingsPage() {
       setDescription(data.description || '')
       setThemeColor(data.theme_color || '#4f46e5')
     }
-  }
-
-  async function loadConfig() {
-    if (!activeOrganization) return
-    try {
-      const res = await fetch('/api/whatsapp/config', {
-        headers: {
-          'x-organization-id': activeOrganization.id
-        }
-      })
-      const data = await res.json()
-      if (data.config) {
-        setConfig(data.config)
-        setPhoneNumberId(data.config.phone_number_id || '')
-        setWabaId(data.config.waba_id || '')
-      }
-    } catch {
-      // No config yet
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleSaveWhatsApp(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setSuccess('')
-    setSaving(true)
-
-    try {
-      const res = await fetch('/api/whatsapp/config', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-organization-id': activeOrganization?.id || ''
-        },
-        body: JSON.stringify({ accessToken, phoneNumberId, wabaId }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || 'Erreur de sauvegarde')
-        return
-      }
-
-      setSuccess(`✅ Connecté : ${data.phoneInfo.display_phone_number} (${data.phoneInfo.verified_name || 'N/A'})`)
-      setAccessToken('')
-      await loadConfig()
-    } catch {
-      setError('Erreur réseau')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  async function handleResyncWebhooks() {
-    if (!activeOrganization) return
-    setResyncing(true)
-    setError('')
-    setSuccess('')
-    try {
-      const res = await fetch('/api/whatsapp/config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-organization-id': activeOrganization.id,
-        },
-        body: JSON.stringify({ action: 'resync' }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setError(data.error || 'Échec de synchronisation des webhooks')
-      } else {
-        setSuccess(data.message || 'Webhooks WhatsApp vérifiés et réactivés avec succès !')
-        await loadConfig()
-      }
-    } catch {
-      setError('Erreur réseau lors de la synchronisation')
-    } finally {
-      setResyncing(false)
-    }
+    setLoading(false)
   }
 
   async function handleSaveMiniSite(e: React.FormEvent) {
@@ -309,143 +183,8 @@ export default function SettingsPage() {
 
       <hr className="border-border" />
 
-      {/* WHATSAPP CONFIGURATION */}
-      {config?.connected && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-3xl border border-emerald-500/20 bg-emerald-500/5 p-5 backdrop-blur-md">
-          <div className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
-            <div>
-              <p className="text-sm font-bold text-foreground">
-                WhatsApp Business Officiel Connecté
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Numéro actif : <span className="font-mono text-foreground font-semibold">{config.display_phone_number}</span>
-                {config.verified_name && ` • Nom vérifié : ${config.verified_name}`}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleResyncWebhooks}
-            disabled={resyncing}
-            className="flex items-center gap-1.5 self-start sm:self-center rounded-full border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3.5 py-1.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300 transition-colors disabled:opacity-50"
-            title="S'assure que Meta transfère bien tous les messages entrants et accusés de réception"
-          >
-            {resyncing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-            {resyncing ? 'Vérification...' : 'Synchroniser Webhooks'}
-          </button>
-        </div>
-      )}
-
-      <div className="relative overflow-hidden rounded-3xl border border-[#fe5105]/20 bg-gradient-to-br from-[#fe5105]/10 via-card/80 to-card p-6 shadow-xs backdrop-blur-md">
-        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#fe5105]">
-          <Sparkles className="h-4 w-4" />
-          Connexion Meta Officielle
-        </div>
-        <h2 className="mt-2 text-base sm:text-lg font-bold text-foreground">
-          Liaison WhatsApp Business en 1 clic
-        </h2>
-        <p className="mt-1 text-xs text-muted-foreground max-w-xl">
-          Connectez votre compte WhatsApp Business directement via la fenêtre sécurisée Meta. Les numéros et tokens sont synchronisés automatiquement.
-        </p>
-
-        <div className="mt-5 max-w-sm">
-          <MetaEmbeddedSignupButton
-            label={config?.connected ? 'Reconnecter via Meta' : 'Connecter avec Meta WhatsApp'}
-            onSuccess={() => {
-              loadConfig()
-              setSuccess('Compte WhatsApp lié avec succès via Meta !')
-            }}
-          />
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-black/[0.06] dark:border-white/[0.08] bg-card/80 p-6 backdrop-blur-md shadow-xs">
-        <h2 className="mb-1 text-base sm:text-lg font-bold text-foreground">
-          Configuration manuelle (Optionnelle)
-        </h2>
-        <p className="mb-6 text-xs text-muted-foreground">
-          Entrez vos clés d'API manuellement si vous disposez d'un jeton système créé sur{' '}
-          <a
-            href="https://developers.facebook.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#fe5105] hover:underline"
-          >
-            Meta for Developers
-          </a>
-          .
-        </p>
-
-        <form onSubmit={handleSaveWhatsApp} className="space-y-4">
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              Phone Number ID
-            </label>
-            <input
-              type="text"
-              value={phoneNumberId}
-              onChange={(e) => setPhoneNumberId(e.target.value)}
-              placeholder="123456789012345"
-              required
-              className="w-full rounded-xl border border-border bg-input px-3.5 py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105]"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
-              <Hash className="h-4 w-4 text-muted-foreground" />
-              WhatsApp Business Account ID (WABA ID)
-            </label>
-            <input
-              type="text"
-              value={wabaId}
-              onChange={(e) => setWabaId(e.target.value)}
-              placeholder="123456789012345"
-              required
-              className="w-full rounded-xl border border-border bg-input px-3.5 py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105]"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="flex items-center gap-2 text-xs font-semibold text-foreground">
-              <Key className="h-4 w-4 text-muted-foreground" />
-              Access Token Système
-            </label>
-            <input
-              type="password"
-              value={accessToken}
-              onChange={(e) => setAccessToken(e.target.value)}
-              placeholder={config?.has_token ? '••••••••• (déjà configuré)' : 'EAAxxxxxxx...'}
-              required={!config?.has_token}
-              className="w-full rounded-xl border border-border bg-input px-3.5 py-2 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105]"
-            />
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
-              <AlertCircle className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
-          )}
-          {success && (
-            <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 p-3 text-xs text-emerald-500">
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
-              {success}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={saving}
-            className="flex items-center gap-2 rounded-full bg-[#fe5105] hover:bg-[#e04602] px-6 py-2.5 text-xs font-bold text-white shadow-xs transition-transform active:scale-95 disabled:opacity-50"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {saving ? 'Vérification...' : 'Connecter & Sauvegarder'}
-          </button>
-        </form>
-      </div>
+      {/* WHATSAPP MULTI-NUMBERS CONFIGURATION */}
+      <NumbersManager />
     </div>
   )
 }

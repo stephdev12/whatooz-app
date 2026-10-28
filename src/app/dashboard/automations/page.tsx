@@ -14,10 +14,13 @@ import {
   Edit3,
   Lock,
   Sparkles,
+  Phone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Switch } from '@/components/ui/switch'
 import { usePlanAccess } from '@/hooks/use-plan-access'
+import { Badge } from '@/components/ui/badge'
+import { createClient } from '@/lib/supabase/client'
 
 interface Automation {
   id: string
@@ -28,6 +31,7 @@ interface Automation {
   is_active: boolean
   executions_count: number
   created_at: string
+  phone_number_id?: string | null
 }
 
 export default function AutomationsPage() {
@@ -35,6 +39,7 @@ export default function AutomationsPage() {
   const { activeOrganization } = useOrganization()
   const { plan } = usePlanAccess()
   const [automations, setAutomations] = useState<Automation[]>([])
+  const [connectedPhones, setConnectedPhones] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -57,6 +62,15 @@ export default function AutomationsPage() {
 
       const autoData = await autoRes.json()
       if (autoRes.ok) setAutomations(autoData.automations ?? [])
+
+      if (activeOrganization) {
+        const supabase = createClient()
+        const { data: phones } = await supabase
+          .from('whatsapp_config')
+          .select('phone_number_id, phone_label, display_phone_number')
+          .eq('organization_id', activeOrganization.id)
+        if (phones) setConnectedPhones(phones)
+      }
     } catch {
       setError('Impossible de charger les données')
     } finally {
@@ -183,9 +197,29 @@ export default function AutomationsPage() {
                   </div>
                   <div>
                     <h3 className="font-bold text-foreground">{auto.name}</h3>
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {auto.executions_count} exécution(s)
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {auto.executions_count} exécution(s)
+                      </p>
+                      {(() => {
+                        const assignedPhone = connectedPhones.find(
+                          (p) => p.phone_number_id === auto.phone_number_id
+                        )
+                        if (assignedPhone) {
+                          return (
+                            <Badge variant="outline" size="sm" className="text-[10px] py-0 px-1 font-mono">
+                              <Phone className="size-2.5 text-[#fe5105]" />
+                              {assignedPhone.phone_label || assignedPhone.display_phone_number}
+                            </Badge>
+                          )
+                        }
+                        return (
+                          <Badge variant="secondary" size="sm" className="text-[10px] py-0 px-1 opacity-70">
+                            Toutes les lignes
+                          </Badge>
+                        )
+                      })()}
+                    </div>
                   </div>
                 </div>
                 {/* Active Toggle */}

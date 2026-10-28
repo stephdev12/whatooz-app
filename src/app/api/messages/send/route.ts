@@ -14,7 +14,17 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { organization_id, to, type, text, template } = body
+    const {
+      organization_id,
+      to,
+      type,
+      text,
+      template,
+      phone_number_id: requestedPhoneNumberId,
+      reply_to_message_id,
+      media_url,
+      caption,
+    } = body
 
     if (!organization_id || !to) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -44,36 +54,74 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
 
-    const { data: config, error: configError } = await supabaseAdmin
+    let configQuery = supabaseAdmin
       .from('whatsapp_config')
-      .select('phone_number_id, access_token_encrypted')
+      .select('phone_number_id, access_token_encrypted, phone_label')
       .eq('organization_id', organization_id)
-      .single()
+
+    if (requestedPhoneNumberId) {
+      configQuery = configQuery.eq('phone_number_id', requestedPhoneNumberId)
+    } else {
+      configQuery = configQuery.order('is_default', { ascending: false })
+    }
+
+    const { data: configs, error: configError } = await configQuery.limit(1)
+    const config = configs?.[0]
 
     if (configError || !config) {
       return NextResponse.json({ error: 'WhatsApp integration not configured' }, { status: 400 })
     }
 
-    // 3. Decrypt token
+    // 4. Decrypt token
     const accessToken = decrypt(config.access_token_encrypted)
 
-    // 4. Build Meta API payload
+    // Check for quote reply
+    let contextMessageId: string | undefined = undefined
+    let quotedMessageData: any = null
+    if (reply_to_message_id) {
+      const { data: replyMsg } = await supabaseAdmin
+        .from('messages')
+        .select('id, wamid, content_text, message_type')
+        .eq('id', reply_to_message_id)
+        .maybeSingle()
+
+      if (replyMsg?.wamid) {
+        contextMessageId = replyMsg.wamid
+        quotedMessageData = {
+          id: replyMsg.id,
+          text: replyMsg.content_text,
+          type: replyMsg.message_type,
+        }
+      }
+    }
+
+    // 5. Build Meta API payload
+    const msgType = type || 'text'
     const metaPayload: any = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to: to,
-      type: type || 'text'
+      type: msgType,
     }
 
-    if (metaPayload.type === 'text' && text) {
+    if (contextMessageId) {
+      metaPayload.context = { message_id: contextMessageId }
+    }
+
+    if (msgType === 'text' && text) {
       metaPayload.text = { preview_url: false, body: text }
-    } else if (metaPayload.type === 'template' && template) {
+    } else if (msgType === 'template' && template) {
       metaPayload.template = template
+    } else if (['image', 'video', 'audio', 'document'].includes(msgType) && media_url) {
+      metaPayload[msgType] = {
+        link: media_url,
+        ...(caption ? { caption } : {}),
+      }
     } else {
       return NextResponse.json({ error: 'Invalid message type or missing content' }, { status: 400 })
     }
 
-    // 5. Call Meta API
+    // 6. Call Meta API
     const metaResponse = await fetch(`https://graph.facebook.com/v19.0/${config.phone_number_id}/messages`, {
       method: 'POST',
       headers: {
@@ -92,42 +140,51 @@ export async function POST(req: Request) {
 
     const wamid = metaData.messages?.[0]?.id
 
-    // 6. Ensure Conversation exists
+    // 7. Ensure Conversation exists
     let conversationId = null
     const { data: existingConv } = await supabaseAdmin
       .from('conversations')
       .select('id')
       .eq('organization_id', organization_id)
       .eq('contact_phone', to)
-      .single()
+      .limit(1)
+      .maybeSingle()
+
+    const displayMsg =
+      msgType === 'text'
+        ? text
+        : `[${msgType.toUpperCase()}]${caption ? ': ' + caption : ''}`
 
     if (existingConv) {
       conversationId = existingConv.id
-      // Update last message
+      // Update last message & has_replied
       await supabaseAdmin
         .from('conversations')
         .update({
-          last_message_text: metaPayload.type === 'text' ? text : `[${metaPayload.type.toUpperCase()}]`,
-          last_message_at: new Date().toISOString()
+          last_message_text: displayMsg,
+          last_message_at: new Date().toISOString(),
+          has_replied: true,
+          phone_number_id: config.phone_number_id,
         })
         .eq('id', conversationId)
     } else {
-      // Need contact ID if possible
       const { data: contact } = await supabaseAdmin
         .from('contacts')
         .select('id, name')
         .eq('organization_id', organization_id)
         .eq('phone', to)
-        .single()
+        .maybeSingle()
 
       const { data: newConv } = await supabaseAdmin
         .from('conversations')
         .insert({
           organization_id: organization_id,
+          phone_number_id: config.phone_number_id,
           contact_id: contact?.id || null,
           contact_phone: to,
           contact_name: contact?.name || null,
-          last_message_text: metaPayload.type === 'text' ? text : `[${metaPayload.type.toUpperCase()}]`,
+          has_replied: true,
+          last_message_text: displayMsg,
           last_message_at: new Date().toISOString()
         })
         .select('id')
@@ -136,19 +193,25 @@ export async function POST(req: Request) {
       if (newConv) conversationId = newConv.id
     }
 
-    // 7. Save message to database
+    // 8. Save message to database
     if (conversationId && wamid) {
       await supabaseAdmin
         .from('messages')
         .insert({
           organization_id: organization_id,
           conversation_id: conversationId,
+          phone_number_id: config.phone_number_id,
           direction: 'outbound',
-          message_type: metaPayload.type,
-          content_text: metaPayload.type === 'text' ? text : null,
+          message_type: msgType,
+          content_text: msgType === 'text' ? text : null,
+          media_url: media_url || null,
+          media_caption: caption || null,
           wamid: wamid,
           status: 'sent',
-          sender_user_id: user.id
+          sender_user_id: user.id,
+          reply_to_message_id: reply_to_message_id || null,
+          context_wamid: contextMessageId || null,
+          quoted_content: quotedMessageData,
         })
     }
 

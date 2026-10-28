@@ -1,11 +1,12 @@
 'use client'
 
 import { formatRelativeTime, cn } from '@/lib/utils'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Phone } from 'lucide-react'
 import { CoolIcon } from '@/components/icons/coolicon'
 import { useState, useMemo } from 'react'
-import type { Conversation } from '@/app/dashboard/inbox/page'
+import type { Conversation, ConnectedPhone } from '@/app/dashboard/inbox/page'
 import { useOrganization } from '@/hooks/use-organization'
+import { Badge } from '@/components/ui/badge'
 
 interface ConversationListProps {
   conversations: Conversation[]
@@ -13,6 +14,11 @@ interface ConversationListProps {
   loading: boolean
   onSelect: (id: string) => void
   onConversationCreated?: () => void
+  connectedPhones?: ConnectedPhone[]
+  selectedPhoneId?: string
+  onSelectPhone?: (id: string) => void
+  responseFilter?: 'all' | 'unanswered' | 'replied'
+  onSelectResponseFilter?: (filter: 'all' | 'unanswered' | 'replied') => void
 }
 
 export function ConversationList({
@@ -21,12 +27,18 @@ export function ConversationList({
   loading,
   onSelect,
   onConversationCreated,
+  connectedPhones,
+  selectedPhoneId = 'all',
+  onSelectPhone,
+  responseFilter = 'all',
+  onSelectResponseFilter,
 }: ConversationListProps) {
   const { activeOrganization } = useOrganization()
   const [search, setSearch] = useState('')
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
   const [showNewModal, setShowNewModal] = useState(false)
   const [phone, setPhone] = useState('')
+  const [modalPhoneNumberId, setModalPhoneNumberId] = useState<string>('')
   const [msgType, setMsgType] = useState<'template' | 'text'>('template')
   const [customText, setCustomText] = useState('')
   const [sending, setSending] = useState(false)
@@ -85,7 +97,7 @@ export function ConversationList({
 
     setSending(true)
     try {
-      const payload =
+      const payload: any =
         msgType === 'template'
           ? {
               to: cleanedPhone,
@@ -98,6 +110,10 @@ export function ConversationList({
               type: 'text',
               text: customText.trim() || 'Bonjour !',
             }
+
+      if (modalPhoneNumberId) {
+        payload.phoneNumberId = modalPhoneNumberId
+      }
 
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
@@ -161,6 +177,67 @@ export function ConversationList({
           />
         </div>
 
+        {/* Multi-Number Filter (if more than 1 connected number) */}
+        {connectedPhones && connectedPhones.length > 1 && (
+          <div className="mt-2.5 flex items-center gap-2">
+            <Phone className="size-3.5 text-muted-foreground shrink-0" />
+            <select
+              value={selectedPhoneId}
+              onChange={(e) => onSelectPhone?.(e.target.value)}
+              className="w-full h-7 rounded-lg border border-border bg-background px-2 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-[#fe5105] truncate"
+            >
+              <option value="all">Toutes les lignes ({connectedPhones.length})</option>
+              {connectedPhones.map((p) => (
+                <option key={p.phone_number_id} value={p.phone_number_id}>
+                  {p.phone_label || p.display_phone_number} {p.is_default ? '★' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Response Status Filter Tabs */}
+        <div className="grid grid-cols-3 gap-1 bg-muted/40 p-1 rounded-xl mt-2.5 select-none">
+          <button
+            type="button"
+            onClick={() => onSelectResponseFilter?.('all')}
+            className={cn(
+              'py-1 rounded-lg text-center text-xs font-medium transition-all cursor-pointer',
+              responseFilter === 'all'
+                ? 'bg-background text-foreground shadow-xs font-semibold'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            Toutes
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectResponseFilter?.('unanswered')}
+            className={cn(
+              'py-1 rounded-lg text-center text-xs font-medium transition-all flex items-center justify-center gap-1 cursor-pointer',
+              responseFilter === 'unanswered'
+                ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 font-semibold shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <span className="size-1.5 rounded-full bg-amber-500 shrink-0" />
+            En attente
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectResponseFilter?.('replied')}
+            className={cn(
+              'py-1 rounded-lg text-center text-xs font-medium transition-all flex items-center justify-center gap-1 cursor-pointer',
+              responseFilter === 'replied'
+                ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-semibold shadow-xs'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+            Répondues
+          </button>
+        </div>
+
         {/* Tag Filters Strip */}
         {availableTags.length > 0 && (
           <div className="mt-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
@@ -222,67 +299,100 @@ export function ConversationList({
             </p>
           </div>
         ) : (
-          filtered.map((convo) => (
-            <button
-              key={convo.id}
-              onClick={() => onSelect(convo.id)}
-              className={cn(
-                'flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left transition-colors hover:bg-secondary/50 shrink-0',
-                selectedId === convo.id && 'bg-accent'
-              )}
-            >
-              {/* Avatar */}
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fe5105]/10 text-sm font-semibold text-[#fe5105]">
-                {(convo.contact_name || convo.contact_phone || '?')
-                  .charAt(0)
-                  .toUpperCase()}
-              </div>
+          filtered.map((convo) => {
+            const phoneObj = connectedPhones?.find(
+              (p) => p.phone_number_id === convo.phone_number_id
+            )
+            const isPendingReply = convo.has_replied === false
 
-              {/* Content */}
-              <div className="flex-1 overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col overflow-hidden">
-                    <span className="truncate text-sm font-medium text-foreground">
-                      {convo.contact_name || convo.contact_phone}
-                    </span>
-                    {convo.contact?.tags && convo.contact.tags.length > 0 && (
-                      <div className="flex gap-1 mt-1 overflow-x-auto no-scrollbar">
-                        {convo.contact.tags.map(tag => (
-                          <span 
-                            key={tag.id}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setSelectedTagId(selectedTagId === tag.id ? null : tag.id)
-                            }}
-                            className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium cursor-pointer hover:opacity-80 transition-opacity"
-                            style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
-                            title={`Filtrer par le tag ${tag.name}`}
-                          >
-                            {tag.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
+            return (
+              <button
+                key={convo.id}
+                onClick={() => onSelect(convo.id)}
+                className={cn(
+                  'flex w-full items-start gap-3 border-b border-border px-4 py-3 text-left transition-colors hover:bg-secondary/50 shrink-0 group',
+                  selectedId === convo.id && 'bg-accent'
+                )}
+              >
+                {/* Avatar with Response indicator */}
+                <div className="relative shrink-0">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#fe5105]/10 text-sm font-semibold text-[#fe5105]">
+                    {(convo.contact_name || convo.contact_phone || '?')
+                      .charAt(0)
+                      .toUpperCase()}
                   </div>
-                  <span className="shrink-0 text-xs text-muted-foreground ml-2">
-                    {convo.last_message_at
-                      ? formatRelativeTime(convo.last_message_at)
-                      : ''}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between mt-0.5">
-                  <p className="truncate text-xs text-muted-foreground">
-                    {convo.last_message_text || 'Nouvelle conversation'}
-                  </p>
-                  {convo.unread_count > 0 && (
-                    <span className="ml-2 flex h-4 min-w-[16px] shrink-0 items-center justify-center rounded-full bg-[#fe5105] px-1 text-[10px] font-bold text-white">
-                      {convo.unread_count}
-                    </span>
+                  {isPendingReply && (
+                    <span
+                      className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-amber-500 border-2 border-background animate-pulse"
+                      title="En attente de réponse"
+                    />
                   )}
                 </div>
-              </div>
-            </button>
-          ))
+
+                {/* Content */}
+                <div className="flex-1 overflow-hidden min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                      <span className="truncate text-sm font-semibold text-foreground">
+                        {convo.contact_name || convo.contact_phone}
+                      </span>
+                      {phoneObj && (
+                        <Badge
+                          variant="outline"
+                          size="sm"
+                          className="text-[9px] py-0 px-1 font-mono shrink-0 opacity-80"
+                        >
+                          {phoneObj.phone_label || phoneObj.display_phone_number}
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-[11px] text-muted-foreground">
+                      {convo.last_message_at
+                        ? formatRelativeTime(convo.last_message_at)
+                        : ''}
+                    </span>
+                  </div>
+
+                  {convo.contact?.tags && convo.contact.tags.length > 0 && (
+                    <div className="flex gap-1 mt-1 overflow-x-auto no-scrollbar">
+                      {convo.contact.tags.map((tag) => (
+                        <span
+                          key={tag.id}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSelectedTagId(selectedTagId === tag.id ? null : tag.id)
+                          }}
+                          className="inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-medium cursor-pointer hover:opacity-80 transition-opacity"
+                          style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+                          title={`Filtrer par le tag ${tag.name}`}
+                        >
+                          {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between mt-1 gap-2">
+                    <p className="truncate text-xs text-muted-foreground flex-1">
+                      {convo.last_message_text || 'Nouvelle conversation'}
+                    </p>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isPendingReply && (
+                        <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-md">
+                          À répondre
+                        </span>
+                      )}
+                      {convo.unread_count > 0 && (
+                        <span className="flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[#fe5105] px-1 text-[10px] font-bold text-white">
+                          {convo.unread_count}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            )
+          })
         )}
       </div>
 
@@ -303,6 +413,27 @@ export function ConversationList({
             </div>
 
             <form onSubmit={handleStartConversation} className="mt-4 space-y-4">
+              {/* Phone Line Selector if multiple lines available */}
+              {connectedPhones && connectedPhones.length > 1 && (
+                <div>
+                  <label className="block text-xs font-semibold text-foreground mb-1">
+                    Envoyer depuis le numéro :
+                  </label>
+                  <select
+                    value={modalPhoneNumberId}
+                    onChange={(e) => setModalPhoneNumberId(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-input px-3 py-2 text-xs text-foreground outline-none focus:border-[#fe5105]"
+                  >
+                    <option value="">Numéro par défaut</option>
+                    {connectedPhones.map((p) => (
+                      <option key={p.phone_number_id} value={p.phone_number_id}>
+                        {p.phone_label || p.display_phone_number} {p.is_default ? '(Principal)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-medium text-foreground">
                   Numéro de téléphone destinataire (avec indicatif pays)

@@ -23,10 +23,18 @@ import {
   AlertTriangle,
   Plus,
   ChevronDown,
+  Reply,
+  FileText,
+  Download,
 } from 'lucide-react'
 import type { Conversation, Message } from '@/app/dashboard/inbox/page'
 import { useOrganization } from '@/hooks/use-organization'
 import { createClient } from '@/lib/supabase/client'
+import { AudioPlayer } from '@/components/inbox/audio-player'
+import { VideoPlayer } from '@/components/inbox/video-player'
+import { PhotoLightbox } from '@/components/inbox/photo-lightbox'
+import { MediaSenderModal } from '@/components/inbox/media-sender-modal'
+import { Badge } from '@/components/ui/badge'
 
 interface ChatThreadProps {
   conversation: Conversation
@@ -55,6 +63,19 @@ export function ChatThread({
   const [members, setMembers] = useState<any[]>([])
   const [isEditingName, setIsEditingName] = useState(false)
   const [editName, setEditName] = useState(conversation.contact_name || '')
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null)
+
+  const scrollToMessage = (msgId?: string | null) => {
+    if (!msgId) return
+    const el = document.getElementById(`msg-${msgId}`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.add('ring-2', 'ring-[#fe5105]', 'transition-all')
+      setTimeout(() => {
+        el.classList.remove('ring-2', 'ring-[#fe5105]')
+      }, 1600)
+    }
+  }
 
 
 
@@ -193,6 +214,8 @@ export function ChatThread({
           to: conversation.contact_phone,
           type: 'text',
           text: text.trim(),
+          replyToMessageId: replyingTo?.id || undefined,
+          phoneNumberId: conversation.phone_number_id || undefined,
         }),
       })
 
@@ -204,6 +227,7 @@ export function ChatThread({
       }
 
       setText('')
+      setReplyingTo(null)
       onMessageSent(data.message)
       setTimeout(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -486,19 +510,53 @@ export function ChatThread({
             return (
               <div
                 key={msg.id}
+                id={`msg-${msg.id}`}
                 className={cn(
-                  'flex',
+                  'flex items-end gap-1.5 group transition-colors rounded-2xl',
                   isOutbound ? 'justify-end' : 'justify-start'
                 )}
               >
+                {/* Reply button on hover (shown on opposite side of bubble) */}
                 <div
                   className={cn(
-                    'max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-sm flex flex-col',
+                    'opacity-0 group-hover:opacity-100 transition-opacity flex items-center self-center px-1',
+                    isOutbound ? 'order-first' : 'order-last'
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setReplyingTo(msg)}
+                    className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    title="Répondre à ce message"
+                  >
+                    <Reply className="size-3.5" />
+                  </button>
+                </div>
+
+                <div
+                  className={cn(
+                    'max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-sm flex flex-col relative',
                     isOutbound
                       ? 'wa-bubble-sent text-foreground'
                       : 'wa-bubble-received border border-border text-foreground'
                   )}
                 >
+                  {/* Contextual Quoted Snippet */}
+                  {(msg.quoted_content || msg.reply_to_message_id) && (
+                    <div
+                      onClick={() => scrollToMessage(msg.reply_to_message_id)}
+                      className="mb-2 p-2 rounded-xl bg-black/5 dark:bg-white/5 border-l-4 border-[#fe5105] text-xs cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                      title="Cliquer pour afficher le message d'origine"
+                    >
+                      <p className="font-semibold text-[#fe5105] text-[11px] mb-0.5">
+                        Message cité
+                      </p>
+                      <p className="text-muted-foreground line-clamp-2 text-xs">
+                        {msg.quoted_content?.text || `[${msg.quoted_content?.type || 'Média'}]`}
+                      </p>
+                    </div>
+                  )}
+
                   {msg.media_url && (
                     <div className="mb-2">
                       {(() => {
@@ -510,17 +568,41 @@ export function ChatThread({
                         return (
                           <>
                             {msg.message_type === 'image' && (
-                              <img src={displayUrl} alt="Image jointe" className="max-w-full rounded-lg max-h-64 object-contain" />
+                              <PhotoLightbox
+                                src={displayUrl}
+                                caption={msg.media_caption || undefined}
+                              />
                             )}
                             {msg.message_type === 'video' && (
-                              <video src={displayUrl} controls className="max-w-full rounded-lg max-h-64" />
+                              <VideoPlayer
+                                src={displayUrl}
+                                caption={msg.media_caption || undefined}
+                              />
+                            )}
+                            {msg.message_type === 'audio' && (
+                              <AudioPlayer
+                                src={displayUrl}
+                                isOutbound={isOutbound}
+                              />
                             )}
                             {msg.message_type === 'document' && (
-                              <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-500 hover:underline bg-background/50 p-2 rounded-lg text-xs">
-                                <Paperclip className="h-4 w-4" /> Document joint
+                              <a
+                                href={displayUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2.5 p-2.5 rounded-xl bg-black/5 dark:bg-white/5 border border-border/50 hover:bg-black/10 dark:hover:bg-white/10 transition-colors text-xs"
+                              >
+                                <FileText className="size-5 text-[#fe5105] shrink-0" />
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-foreground truncate">
+                                    {msg.media_caption || 'Document joint'}
+                                  </p>
+                                  <span className="text-[10px] text-muted-foreground">Télécharger le document</span>
+                                </div>
+                                <Download className="size-3.5 text-muted-foreground shrink-0" />
                               </a>
                             )}
-                            {msg.message_type !== 'image' && msg.message_type !== 'video' && msg.message_type !== 'document' && (
+                            {msg.message_type !== 'image' && msg.message_type !== 'video' && msg.message_type !== 'audio' && msg.message_type !== 'document' && (
                               <a href={displayUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-500 hover:underline text-xs">
                                 Fichier joint ({msg.message_type})
                               </a>
@@ -571,30 +653,53 @@ export function ChatThread({
             </button>
           </div>
         )}
+
+        {/* Replying banner */}
+        {replyingTo && (
+          <div className="mx-auto max-w-3xl mb-2 flex items-center justify-between rounded-xl bg-muted/70 border border-border p-2.5 text-xs animate-in slide-in-from-bottom-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-1 self-stretch rounded-full bg-[#fe5105]" />
+              <div className="min-w-0">
+                <p className="font-bold text-[#fe5105] text-[11px]">
+                  Réponse à {replyingTo.direction === 'outbound' ? 'Vous-même' : (conversation.contact_name || conversation.contact_phone)}
+                </p>
+                <p className="text-muted-foreground truncate text-xs">
+                  {replyingTo.content_text || `[${replyingTo.message_type}]`}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setReplyingTo(null)}
+              className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              title="Annuler la réponse"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        )}
+
         <form
           onSubmit={handleSend}
           className="mx-auto flex max-w-3xl items-center gap-2 sm:gap-3"
         >
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-            className="hidden" 
+          {/* Rich Media Sender Modal */}
+          <MediaSenderModal
+            conversationId={conversation.id}
+            contactPhone={conversation.contact_phone}
+            currentPhoneNumberId={conversation.phone_number_id}
+            replyToMessageId={replyingTo?.id || null}
+            onMediaSent={(newMsg) => {
+              setReplyingTo(null)
+              onMessageSent(newMsg)
+            }}
+            disabled={sending}
           />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading || sending}
-            className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
-            title="Joindre un fichier"
-          >
-            {uploading ? <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> : <Paperclip className="h-4 w-4 sm:h-5 sm:w-5" />}
-          </button>
           
           <button
             type="button"
             onClick={() => setShowProductPicker(true)}
-            disabled={uploading || sending}
+            disabled={sending}
             className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
             title="Envoyer un produit"
           >
@@ -608,13 +713,13 @@ export function ChatThread({
               setText(e.target.value)
               if (sendError) setSendError(null)
             }}
-            placeholder="Écrire un message..."
+            placeholder={replyingTo ? "Écrire une réponse..." : "Écrire un message..."}
             className="flex-1 min-w-0 rounded-xl border border-border bg-input px-3.5 py-2 sm:py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-[#fe5105] focus:ring-1 focus:ring-[#fe5105]"
           />
           <button
             type="submit"
-            disabled={!text.trim() || sending || uploading}
-            className="flex h-10 w-10 shrink-0 min-w-[42px] min-h-[42px] items-center justify-center rounded-xl bg-[#fe5105] text-white shadow-sm transition-all hover:bg-[#e04602] active:scale-95 disabled:opacity-50"
+            disabled={!text.trim() || sending}
+            className="flex h-10 w-10 shrink-0 min-w-[42px] min-h-[42px] items-center justify-center rounded-xl bg-[#fe5105] text-white shadow-sm transition-all hover:bg-[#e04602] active:scale-95 disabled:opacity-50 cursor-pointer"
             title="Envoyer le message"
           >
             {sending ? (

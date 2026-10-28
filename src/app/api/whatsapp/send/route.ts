@@ -73,6 +73,9 @@ export async function POST(request: NextRequest) {
     caption,
     catalogId,
     productRetailerId,
+    phoneNumberId: requestedPhoneNumberId,
+    replyToMessageId,
+    reply_to_message_id,
   } = body
 
   if (!to || !type) {
@@ -82,12 +85,37 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  // Load WhatsApp config
-  const { data: config } = await supabaseAdmin
+  // Check if conversation already has an assigned phone_number_id
+  let targetPhoneNumberId = requestedPhoneNumberId
+  let existingConvoData: any = null
+  if (conversationId) {
+    const { data: c } = await supabaseAdmin
+      .from('conversations')
+      .select('id, phone_number_id')
+      .eq('id', conversationId)
+      .maybeSingle()
+    if (c) {
+      existingConvoData = c
+      if (!targetPhoneNumberId && c.phone_number_id) {
+        targetPhoneNumberId = c.phone_number_id
+      }
+    }
+  }
+
+  // Load WhatsApp config for targeted or default number
+  let configQuery = supabaseAdmin
     .from('whatsapp_config')
     .select('*')
     .eq('organization_id', organizationId)
-    .single()
+
+  if (targetPhoneNumberId) {
+    configQuery = configQuery.eq('phone_number_id', targetPhoneNumberId)
+  } else {
+    configQuery = configQuery.order('is_default', { ascending: false })
+  }
+
+  const { data: configs } = await configQuery.limit(1)
+  const config = configs?.[0]
 
   if (!config?.access_token_encrypted || !config.phone_number_id) {
     return NextResponse.json(
@@ -98,6 +126,28 @@ export async function POST(request: NextRequest) {
 
   const accessToken = decrypt(config.access_token_encrypted)
   const phoneNumberId = config.phone_number_id
+
+  // Contextual Quote Reply resolution
+  const targetReplyId = replyToMessageId || reply_to_message_id
+  let contextMessageId: string | undefined = undefined
+  let quotedMessageData: any = null
+
+  if (targetReplyId) {
+    const { data: replyMsg } = await supabaseAdmin
+      .from('messages')
+      .select('id, wamid, content_text, message_type')
+      .eq('id', targetReplyId)
+      .maybeSingle()
+
+    if (replyMsg?.wamid) {
+      contextMessageId = replyMsg.wamid
+      quotedMessageData = {
+        id: replyMsg.id,
+        text: replyMsg.content_text,
+        type: replyMsg.message_type,
+      }
+    }
+  }
 
   let result
   try {
@@ -114,6 +164,7 @@ export async function POST(request: NextRequest) {
           accessToken,
           to,
           text,
+          contextMessageId,
         })
         break
 
@@ -266,6 +317,7 @@ export async function POST(request: NextRequest) {
             footerText: resolvedFooterText,
             screen: targetScreen,
             mode: flowRow?.status === 'DRAFT' ? 'draft' : undefined,
+            contextMessageId,
           })
         } catch (sendErr: any) {
           // If Meta reports that the specified screen is not allowed, auto-retry with allowed screen!
@@ -285,6 +337,7 @@ export async function POST(request: NextRequest) {
               footerText: resolvedFooterText,
               screen: match[1],
               mode: flowRow?.status === 'DRAFT' ? 'draft' : undefined,
+              contextMessageId,
             })
           } else {
             throw sendErr
@@ -311,6 +364,7 @@ export async function POST(request: NextRequest) {
           mediaUrl,
           mediaId,
           caption,
+          contextMessageId,
         })
         break
 
@@ -329,6 +383,7 @@ export async function POST(request: NextRequest) {
           productRetailerId,
           bodyText,
           footerText,
+          contextMessageId,
         })
         break
 
@@ -380,9 +435,11 @@ export async function POST(request: NextRequest) {
         .from('conversations')
         .insert({
           organization_id: organizationId,
+          phone_number_id: phoneNumberId,
           contact_phone: to,
           contact_name: contactName,
           status: 'open',
+          has_replied: true,
           last_message_text: contentText,
           last_message_at: new Date().toISOString(),
         })
@@ -399,17 +456,22 @@ export async function POST(request: NextRequest) {
     .insert({
       conversation_id: activeConvoId,
       organization_id: organizationId,
+      phone_number_id: phoneNumberId,
       direction: 'outbound',
       message_type: type,
       content_text: contentText,
       media_url: mediaUrl || mediaId || null,
       wamid: result.messageId,
       status: 'sent',
+      reply_to_message_id: targetReplyId || null,
+      context_wamid: contextMessageId || null,
+      quoted_content: quotedMessageData,
+      sender_user_id: user.id,
     })
     .select()
     .single()
 
-  // Update conversation last_message
+  // Update conversation last_message and has_replied
   if (activeConvoId) {
     await supabaseAdmin
       .from('conversations')
@@ -417,6 +479,8 @@ export async function POST(request: NextRequest) {
         last_message_text: contentText,
         last_message_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        has_replied: true,
+        phone_number_id: phoneNumberId,
       })
       .eq('id', activeConvoId)
   }

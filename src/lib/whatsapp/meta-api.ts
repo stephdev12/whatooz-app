@@ -85,8 +85,9 @@ export async function sendTextMessage(args: {
   accessToken: string
   to: string
   text: string
+  contextMessageId?: string
 }): Promise<MetaSendResult> {
-  const { phoneNumberId, accessToken, to, text } = args
+  const { phoneNumberId, accessToken, to, text, contextMessageId } = args
   const url = `${META_API_BASE}/${phoneNumberId}/messages`
   const response = await fetch(url, {
     method: 'POST',
@@ -98,6 +99,7 @@ export async function sendTextMessage(args: {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to,
+      ...(contextMessageId ? { context: { message_id: contextMessageId } } : {}),
       type: 'text',
       text: { preview_url: true, body: text },
     }),
@@ -224,8 +226,9 @@ export async function sendMediaMessage(args: {
   mediaId?: string
   caption?: string
   filename?: string
+  contextMessageId?: string
 }): Promise<MetaSendResult> {
-  const { phoneNumberId, accessToken, to, mediaKind, mediaUrl, mediaId, caption, filename } = args
+  const { phoneNumberId, accessToken, to, mediaKind, mediaUrl, mediaId, caption, filename, contextMessageId } = args
   const url = `${META_API_BASE}/${phoneNumberId}/messages`
 
   const mediaPayload: Record<string, string> = mediaId ? { id: mediaId } : { link: mediaUrl! }
@@ -242,6 +245,7 @@ export async function sendMediaMessage(args: {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to,
+      ...(contextMessageId ? { context: { message_id: contextMessageId } } : {}),
       type: mediaKind,
       [mediaKind]: mediaPayload,
     }),
@@ -1074,6 +1078,7 @@ export interface SendFlowMessageArgs {
   flowToken?: string
   flowActionPayload?: Record<string, unknown>
   mode?: 'draft' | 'published'
+  contextMessageId?: string
 }
 
 /**
@@ -1094,6 +1099,7 @@ export async function sendFlowMessage(args: SendFlowMessageArgs): Promise<MetaSe
     flowToken = `flow_${Date.now()}`,
     flowActionPayload,
     mode,
+    contextMessageId,
   } = args
 
   if (!flowId || !/^\d+$/.test(flowId)) {
@@ -1137,6 +1143,7 @@ export async function sendFlowMessage(args: SendFlowMessageArgs): Promise<MetaSe
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to,
+      ...(contextMessageId ? { context: { message_id: contextMessageId } } : {}),
       type: 'interactive',
       interactive,
     })
@@ -1207,8 +1214,9 @@ export async function sendProductMessage(args: {
   productRetailerId: string
   bodyText?: string
   footerText?: string
+  contextMessageId?: string
 }): Promise<MetaSendResult> {
-  const { phoneNumberId, accessToken, to, catalogId, productRetailerId, bodyText, footerText } = args
+  const { phoneNumberId, accessToken, to, catalogId, productRetailerId, bodyText, footerText, contextMessageId } = args
   const url = `${META_API_BASE}/${phoneNumberId}/messages`
 
   const interactive: any = {
@@ -1231,6 +1239,7 @@ export async function sendProductMessage(args: {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to,
+      ...(contextMessageId ? { context: { message_id: contextMessageId } } : {}),
       type: 'interactive',
       interactive,
     }),

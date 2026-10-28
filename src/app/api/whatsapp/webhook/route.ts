@@ -301,13 +301,19 @@ export async function POST(request: NextRequest) {
             contactId = newContact?.id ?? null
           }
 
-          // Find or create Conversation
+          // Find or create Conversation with phone_number_id
           let conversationId: string | null = null
-          const { data: existingConvos } = await supabaseAdmin
+          let convoQuery = supabaseAdmin
             .from('conversations')
-            .select('id, unread_count, contact_name, status')
+            .select('id, unread_count, contact_name, status, phone_number_id')
             .eq('organization_id', organizationId)
             .eq('contact_phone', customerPhone)
+
+          if (phoneNumberId) {
+            convoQuery = convoQuery.eq('phone_number_id', phoneNumberId)
+          }
+
+          const { data: existingConvos } = await convoQuery
             .order('updated_at', { ascending: false })
             .limit(1)
             
@@ -321,11 +327,16 @@ export async function POST(request: NextRequest) {
               last_message_at: timestamp,
               status: isEcho ? existingConvo.status : 'open',
               updated_at: new Date().toISOString(),
+              phone_number_id: existingConvo.phone_number_id || phoneNumberId,
             }
 
-            // Only increment unread count if it's an inbound message
+            // Only increment unread count and set response status if inbound
             if (!isEcho) {
               updatePayload.unread_count = (existingConvo.unread_count || 0) + 1;
+              updatePayload.has_replied = false;
+              updatePayload.last_customer_message_at = timestamp;
+            } else {
+              updatePayload.has_replied = true;
             }
 
             if (customerProfileName && customerProfileName !== customerPhone && (!existingConvo.contact_name || existingConvo.contact_name === customerPhone)) {
@@ -348,6 +359,9 @@ export async function POST(request: NextRequest) {
                 last_message_text: contentText,
                 last_message_at: timestamp,
                 unread_count: isEcho ? 0 : 1,
+                phone_number_id: phoneNumberId,
+                has_replied: isEcho,
+                last_customer_message_at: isEcho ? null : timestamp,
               })
               .select('id')
               .maybeSingle()
@@ -362,7 +376,7 @@ export async function POST(request: NextRequest) {
               primaryOrganizationId = organizationId
             }
 
-            // Insert Inbound Message
+            // Insert Inbound / Outbound Message
             await supabaseAdmin.from('messages').insert({
               conversation_id: conversationId,
               organization_id: organizationId,
@@ -373,6 +387,8 @@ export async function POST(request: NextRequest) {
               wamid: messageId,
               status: isEcho ? 'sent' : 'delivered',
               created_at: timestamp,
+              phone_number_id: phoneNumberId,
+              context_wamid: msg.context?.id || null,
             })
           }
 
@@ -575,11 +591,23 @@ export async function POST(request: NextRequest) {
             .eq('is_active', true)
 
           if (automations && automations.length > 0) {
-            const { data: userConfig } = await supabaseAdmin
+            // Fetch WhatsApp credentials for this specific phone number, or default
+            let { data: userConfig } = await supabaseAdmin
               .from('whatsapp_config')
               .select('access_token_encrypted, phone_number_id, waba_id')
               .eq('organization_id', organizationId)
+              .eq('phone_number_id', phoneNumberId)
               .maybeSingle()
+
+            if (!userConfig) {
+              const { data: defaultConfig } = await supabaseAdmin
+                .from('whatsapp_config')
+                .select('access_token_encrypted, phone_number_id, waba_id')
+                .eq('organization_id', organizationId)
+                .order('is_default', { ascending: false })
+                .limit(1)
+              userConfig = defaultConfig?.[0] || null
+            }
 
             if (userConfig?.access_token_encrypted) {
               const accessToken = decrypt(userConfig.access_token_encrypted)
@@ -587,6 +615,11 @@ export async function POST(request: NextRequest) {
               const normalizedInput = contentText.trim().toUpperCase()
 
               for (const auto of automations) {
+                // Multi-number filter: if automation is assigned to a specific phone number, check match
+                if (auto.phone_number_id && auto.phone_number_id !== phoneNumberId) {
+                  continue
+                }
+
                 let shouldTrigger = false
 
                 // Extract trigger from canvas nodes or legacy fields

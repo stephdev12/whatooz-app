@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { Canvas } from '@/components/automations/builder/canvas'
 import { BuilderNode, BuilderEdge } from '@/components/automations/builder/types'
-import { ArrowLeft, Loader2, Save, Play } from 'lucide-react'
+import { ArrowLeft, Loader2, Save, Play, Phone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useOrganization } from '@/hooks/use-organization'
 import { toast } from 'sonner'
@@ -19,12 +19,24 @@ export default function AutomationBuilderPage() {
   const [automationName, setAutomationName] = useState('Nouvelle Automation')
   const [nodes, setNodes] = useState<BuilderNode[]>([])
   const [edges, setEdges] = useState<BuilderEdge[]>([])
+  const [selectedPhoneNumberId, setSelectedPhoneNumberId] = useState<string | null>(null)
+  const [connectedPhones, setConnectedPhones] = useState<any[]>([])
 
   const isNew = params.id === 'new'
   const automationId = isNew ? null : (params.id as string)
 
   useEffect(() => {
     if (!activeOrganization) return
+
+    const supabase = createClient()
+    supabase
+      .from('whatsapp_config')
+      .select('phone_number_id, phone_label, display_phone_number, is_default')
+      .eq('organization_id', activeOrganization.id)
+      .order('is_default', { ascending: false })
+      .then(({ data }) => {
+        if (data) setConnectedPhones(data)
+      })
 
     if (isNew) {
       // Default starter workflow for new automation
@@ -72,6 +84,7 @@ export default function AutomationBuilderPage() {
 
       if (data) {
         setAutomationName(data.name || 'Workflow sans titre')
+        setSelectedPhoneNumberId(data.phone_number_id || null)
         
         if (data.nodes && Array.isArray(data.nodes) && data.nodes.length > 0) {
           setNodes(data.nodes)
@@ -253,6 +266,7 @@ export default function AutomationBuilderPage() {
             trigger_value,
             action_type,
             action_payload,
+            phone_number_id: selectedPhoneNumberId || null,
           })
           .select()
           .single()
@@ -273,6 +287,7 @@ export default function AutomationBuilderPage() {
             trigger_value,
             action_type,
             action_payload,
+            phone_number_id: selectedPhoneNumberId || null,
             updated_at: new Date().toISOString(),
           })
           .eq('id', automationId)
@@ -309,7 +324,7 @@ export default function AutomationBuilderPage() {
           >
             <ArrowLeft className="w-4 h-4 text-muted-foreground hover:text-foreground" />
           </button>
-          <div className="flex-1 shrink-0">
+          <div className="flex-1 shrink-0 flex items-center gap-3">
             <input
               type="text"
               value={automationName}
@@ -317,6 +332,24 @@ export default function AutomationBuilderPage() {
               className="text-sm font-semibold text-foreground bg-transparent border-none outline-none focus:ring-0 placeholder-muted-foreground min-w-[150px]"
               placeholder="Nom du workflow"
             />
+
+            {/* Line assignment selector */}
+            <div className="hidden sm:flex items-center gap-1.5 bg-background border border-border rounded-xl px-2.5 py-1 text-xs">
+              <Phone className="size-3 text-[#fe5105] shrink-0" />
+              <select
+                value={selectedPhoneNumberId || ''}
+                onChange={(e) => setSelectedPhoneNumberId(e.target.value || null)}
+                className="bg-transparent font-medium text-foreground outline-none cursor-pointer text-xs max-w-[200px] truncate"
+                title="Ligne WhatsApp assignée à cette automatisation"
+              >
+                <option value="">Toutes les lignes WhatsApp</option>
+                {connectedPhones.map((p) => (
+                  <option key={p.phone_number_id} value={p.phone_number_id}>
+                    {p.phone_label || p.display_phone_number} {p.is_default ? '(Principal)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {saving && <span className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 sm:gap-2"><Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" /> <span className="hidden sm:inline">Enregistrement...</span></span>}

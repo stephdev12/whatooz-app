@@ -23,25 +23,41 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Organization ID is required' }, { status: 400 })
   }
 
-  const { data: config } = await supabaseAdmin
+  const { data: configs } = await supabaseAdmin
     .from('whatsapp_config')
     .select('*')
     .eq('organization_id', organizationId)
-    .single()
+    .order('is_default', { ascending: false })
+    .order('created_at', { ascending: true })
+
+  const config = configs?.[0]
 
   if (!config) {
-    return NextResponse.json({ config: null })
+    return NextResponse.json({ config: null, numbers: [], total_numbers: 0 })
   }
 
   return NextResponse.json({
     config: {
+      id: config.id,
       phone_number_id: config.phone_number_id,
       waba_id: config.waba_id,
       display_phone_number: config.display_phone_number,
       verified_name: config.verified_name,
+      phone_label: config.phone_label || (config.is_default ? 'Principal' : 'Secondaire'),
+      is_default: !!config.is_default,
       has_token: !!config.access_token_encrypted,
       connected: config.connected,
     },
+    total_numbers: configs.length,
+    numbers: configs.map(c => ({
+      id: c.id,
+      phone_number_id: c.phone_number_id,
+      display_phone_number: c.display_phone_number,
+      verified_name: c.verified_name,
+      phone_label: c.phone_label || (c.is_default ? 'Principal' : 'Secondaire'),
+      is_default: !!c.is_default,
+      connected: c.connected,
+    }))
   })
 }
 
@@ -130,6 +146,14 @@ export async function POST(request: NextRequest) {
     )
   }
 
+  // Check if first number to set default
+  const { count: existingCount } = await supabaseAdmin
+    .from('whatsapp_config')
+    .select('*', { count: 'exact', head: true })
+    .eq('organization_id', organizationId)
+
+  const isFirstNumber = !existingCount || existingCount === 0
+
   const { error: upsertError } = await supabaseAdmin
     .from('whatsapp_config')
     .upsert(
@@ -141,10 +165,13 @@ export async function POST(request: NextRequest) {
         display_phone_number: phoneInfo.display_phone_number,
         verified_name: phoneInfo.verified_name ?? null,
         quality_rating: phoneInfo.quality_rating ?? null,
+        phone_label: phoneInfo.verified_name || (isFirstNumber ? 'Principal' : `Numéro ${phoneInfo.display_phone_number}`),
+        is_default: isFirstNumber,
+        status: 'active',
         connected: true,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'organization_id' }
+      { onConflict: 'phone_number_id' }
     )
 
   if (upsertError) {

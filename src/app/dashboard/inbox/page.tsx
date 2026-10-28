@@ -35,6 +35,9 @@ export interface Conversation {
   assigned_user_id?: string | null
   contact_id?: string | null
   contact?: Contact | null
+  phone_number_id?: string | null
+  has_replied?: boolean
+  last_customer_message_at?: string | null
 }
 
 export interface Message {
@@ -47,6 +50,23 @@ export interface Message {
   wamid: string | null
   status: string
   created_at: string
+  phone_number_id?: string | null
+  reply_to_message_id?: string | null
+  context_wamid?: string | null
+  quoted_content?: {
+    id?: string
+    text?: string
+    type?: string
+  } | null
+  media_caption?: string | null
+  media_duration?: number | null
+}
+
+export interface ConnectedPhone {
+  phone_number_id: string
+  phone_label: string
+  display_phone_number: string
+  is_default: boolean
 }
 
 export default function InboxPage() {
@@ -57,8 +77,25 @@ export default function InboxPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'mine' | 'unassigned' | 'closed'>('all')
+  const [responseFilter, setResponseFilter] = useState<'all' | 'unanswered' | 'replied'>('all')
+  const [connectedPhones, setConnectedPhones] = useState<ConnectedPhone[]>([])
+  const [selectedPhoneId, setSelectedPhoneId] = useState<string>('all')
   const [showSidebar, setShowSidebar] = useState(false)
   const supabase = useMemo(() => createClient(), [])
+
+  const loadPhones = useCallback(async () => {
+    if (!activeOrganization) return
+    const { data } = await supabase
+      .from('whatsapp_config')
+      .select('phone_number_id, phone_label, display_phone_number, is_default')
+      .eq('organization_id', activeOrganization.id)
+      .order('is_default', { ascending: false })
+    setConnectedPhones(data ?? [])
+  }, [activeOrganization, supabase])
+
+  useEffect(() => {
+    loadPhones()
+  }, [loadPhones])
 
   const loadConversations = useCallback(async () => {
     if (!activeOrganization) return
@@ -243,13 +280,24 @@ export default function InboxPage() {
 
   const selectedConvo = conversations.find((c) => c.id === selectedConvoId)
 
-  const filteredConversations = conversations.filter(c => {
-    if (filter === 'all') return c.status !== 'closed'
-    if (filter === 'mine') return c.status !== 'closed' && c.assigned_user_id === user?.id
-    if (filter === 'unassigned') return c.status !== 'closed' && !c.assigned_user_id
-    if (filter === 'closed') return c.status === 'closed'
-    return true
-  })
+  const filteredConversations = useMemo(() => {
+    return conversations.filter((c) => {
+      // 1. Status / Assignation filter
+      if (filter === 'all' && c.status === 'closed') return false
+      if (filter === 'mine' && (c.status === 'closed' || c.assigned_user_id !== user?.id)) return false
+      if (filter === 'unassigned' && (c.status === 'closed' || c.assigned_user_id)) return false
+      if (filter === 'closed' && c.status !== 'closed') return false
+
+      // 2. Response Status filter
+      if (responseFilter === 'unanswered' && c.has_replied === true) return false
+      if (responseFilter === 'replied' && c.has_replied === false) return false
+
+      // 3. Multi-Number filter
+      if (selectedPhoneId !== 'all' && c.phone_number_id && c.phone_number_id !== selectedPhoneId) return false
+
+      return true
+    })
+  }, [conversations, filter, responseFilter, selectedPhoneId, user?.id])
 
   return (
     <div className="flex flex-col md:flex-row flex-1 min-h-0 h-full w-full overflow-hidden">
@@ -346,6 +394,11 @@ export default function InboxPage() {
           loading={loading}
           onSelect={handleSelectConversation}
           onConversationCreated={loadConversations}
+          connectedPhones={connectedPhones}
+          selectedPhoneId={selectedPhoneId}
+          onSelectPhone={setSelectedPhoneId}
+          responseFilter={responseFilter}
+          onSelectResponseFilter={setResponseFilter}
         />
       </div>
 

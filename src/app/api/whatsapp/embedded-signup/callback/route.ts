@@ -146,6 +146,15 @@ export async function GET(request: NextRequest) {
     // 6. Save to database
     console.log('[CALLBACK] Step 7: Saving to database...')
     const encryptedToken = encrypt(accessToken)
+
+    // Check if org already has numbers to determine default flag
+    const { count: existingCount } = await supabaseAdmin
+      .from('whatsapp_config')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+
+    const isFirstNumber = !existingCount || existingCount === 0
+
     const { error: upsertError } = await supabaseAdmin.from('whatsapp_config').upsert(
       {
         organization_id: organizationId,
@@ -155,10 +164,13 @@ export async function GET(request: NextRequest) {
         display_phone_number: phoneInfo.display_phone_number,
         verified_name: phoneInfo.verified_name ?? null,
         quality_rating: phoneInfo.quality_rating ?? null,
+        phone_label: phoneInfo.verified_name || (isFirstNumber ? 'Principal' : `Numéro ${phoneInfo.display_phone_number}`),
+        is_default: isFirstNumber,
+        status: 'active',
         connected: true,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'organization_id' }
+      { onConflict: 'phone_number_id' }
     )
 
     if (upsertError) {
